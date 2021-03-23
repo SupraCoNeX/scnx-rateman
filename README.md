@@ -88,9 +88,8 @@ Up on establishing a TCP/IP connection with the rate control API in T2, you can 
 
 
 
-![alt tag](https://cryptpad.fr/file/#/2/file/RpjMy4WGupnh5KN-filC8APG/)
-  
-  
+![alt tag](https://user-images.githubusercontent.com/79704080/112141900-385fd980-8bd6-11eb-99a2-5c18ff8e37e5.PNG)
+
 > TODO: Add description of variables in table
      
     
