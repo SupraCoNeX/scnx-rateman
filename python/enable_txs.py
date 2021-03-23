@@ -1,6 +1,5 @@
 import telnet_py
 
-
 def run_cmd(tn, cmd):
     tn.write(cmd.encode('ascii')+b'\n')
 

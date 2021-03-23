@@ -1,8 +1,7 @@
 import telnetlib
 
-HOST = "10.10.200.2"
-PORT = 21059
-
+HOST = ""
+PORT = 12345
 
 def open(host, port):
     tn = telnetlib.Telnet(HOST, PORT)
