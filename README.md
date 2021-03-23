@@ -1,6 +1,3 @@
-# SupraCoNeX_rate-power-control-API
-user space API to control WiFi rate and power level selection and receive tx-status from mac80211 per STA
-
 # Rate Control API Documentation 
 
 The rate control API enables monitoring and controlling of rate control algorithms for WiFi systems based on OpenWrt OS. 
@@ -35,26 +32,26 @@ _Note: `mp` stands for `phy0` or `phy1`. `mi` stands for a station (MAC address)
 
 > TODO: Check if the description of the capailities is correct?
 
-## How to setup to communicate via the rate control API?
+## How to setup a connection to  the rate control API?
 
 In this section, we provide a list of steps to communicate with the rate control API, monitor default rate control algorithm and perform MCS rate setting on your router. In this example, the router IP address is 10.10.200.2
 
   1. In a new terminal (T1), enable Minstrel remote control daemon (`minstrel-rcd`) in the background. This opens a connection for other programmes to use the rate control API.
-    ```
-    minstrel-rcd -h 0.0.0.0 &
-    ```
+  ```
+  minstrel-rcd -h 0.0.0.0 &
+  ```
     
   2. In terminal T1, connect to router via a SSH connection
-    ```
-    ssh root@10.10.200.2
-    ```
-    - we can use this connection to access directories containing specific information relevant to rate control.
+  ```
+  ssh root@10.10.200.2
+  ```
+  We can use this connection to access directories containing specific information relevant to rate control.
   
   3. In another terminal (T2), start a TCP/IP connection via tool like telnet to communicate with the rate control API via minstrel-rcd. Minstrel-rcd operates over a designated port, in our case it is 21059.
-    ```
-    telnet 10.10.200.2 21059
-    ```
-    - On connection, the API will print all possible command options followed by a list of MCS gups available for the given router. 
+  ```
+  telnet 10.10.200.2 21059
+  ```
+  On connection, the API will print all possible command options followed by a list of MCS gups available for the given router. 
 
 ### How to monitor rate control by receiving the TX status?
 
@@ -62,7 +59,7 @@ Upon establishing a TCP/IP connection with the rate control API in T2, to monito
   ```
   phy1;start
   ```
-  > In the current version (VERSION HERE), it might be necessary to close the telnet connect and repeat step 3 in above.
+  > Due to some bug(?), sometimes monitoring the tx status does not work right from the start in the current version (VERSION HERE), and a restart of the telnet connection is required (see step 3 above).
 
 ### How to set MCS rates?
 
@@ -72,26 +69,44 @@ Up on establishing a TCP/IP connection with the rate control API in T2, you can 
   ```
   phy1;start
   ```
-     - This command enables a continuous string of TX_Status.
+  This command enables a continuous string of TX_Status.
        
   2. Enable manual rate setting using the command:
   ```
   phy1;manual
   ```
-      - This command also disables the default rate control algorithm, in our case Minstrel-HT.
+  This command also disables the default rate control algorithm, in our case Minstrel-HT.
     
   3. Set desired MCS rate using the command format:
   ```
   phy1;rates;<macaddr>;<rates>;<counts>
-  ```
-      
-      - Actual rate setting is done using the `rates` argument in the second position. Note that the `rates` to be set must be the HEX version of the rate `idx` found in the `rc_stats` table.
+  ```    
+  Actual rate setting is done using the `rates` argument in the second position. Note that the `rates` to be set must be the HEX version of the rate `idx` found in the `rc_stats` table.
      
 
 ## Rate Control Statistics
 
 
-<media-tag src="https://files.cryptpad.fr/blob/ed/edd2374deba714974e7303e117e1dc60441a420814771c4a" data-crypto-key="cryptpad:9cRyLkLPCoQFUrzTGnMuq1rY/fL3XqW4XD64vt15iRQ="></media-tag>
+
+![alt tag](https://cloud.githubusercontent.com/assets/1880886/23343835/f4597a72-fc71-11e6-96a5-edb17961e1f6.png)
   
   
 > TODO: Add description of variables in table
+     
+    
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
