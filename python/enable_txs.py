@@ -1,24 +1,30 @@
-import telnet_py
+import connection
+import pandas as pd
+import io
 
-def run_cmd(tn, cmd):
-    tn.write(cmd.encode('ascii')+b'\n')
+def run_cmd(connectionObject, cmd):
+    connectionObject.send(cmd.encode('ascii')+b'\n')
 
-def enable_txs(tn, phy_id):
+def start_radio(connectionObject, phy_id):
     cmd = phy_id + ';start'
-    run_cmd(tn, cmd)
+    run_cmd(connectionObject, cmd)
 
-def read_txs(tn, time=3):
-    bdata = tn.read_until(b'dhfjhfkdsfhf', timeout=time)
-    data = bdata.decode('utf-8')
-    #TODO: parse tx data and put in DataFrame(pandas)
-    return data
+def read_txs(connectionObject, time=3):
+    txsData = connection.recv_with_timeout(connectionObject, timeout=time)
+    txsDataFrame = pd.read_csv(io.StringIO(txsData), sep= ';')
+    txsDataFrame.columns = ['radio','radioID','txs','macaddr','num_frames','num_acked','probe','rates','counts']
+
+    return txsDataFrame
 
 def main():
-    tn = telnet_py.open(telnet_py.HOST, telnet_py.PORT)
-    enable_txs(tn, 'phy1')
-    tx_data = read_txs(tn)
-    print(tx_data)
-    tn.close()
+    HOST = "10.10.200.2"
+    PORT = 21059
+    apiStream = connection.open(HOST, PORT)
+    data = connection.recv_end(apiStream, 'phy1;0;add\n')
+    start_radio(apiStream, 'phy1')
+    txsDataFrame = read_txs(apiStream, 5)
+    print(txsDataFrame)
+    apiStream.close()
 
 if __name__ == '__main__':
     main()

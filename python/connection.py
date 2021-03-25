@@ -40,7 +40,7 @@ def recv_with_timeout(s, timeout=2):
         elif time.time()-begin>timeout*2:
             break
         try:
-            data = s.recv(8192)
+            data = s.recv(8192).decode('utf-8')
             if data:
                 total_data.append(data)
                 begin = time.time()
@@ -56,7 +56,7 @@ def recv_end(s, end_marker):
     total_data = []
     data = ''
     while True:
-        data = s.recv(8192)
+        data = s.recv(8192).decode('utf-8')
         lm = len(end_marker)
         if end_marker in data:
             total_data.append(data[:data.find(end_marker)+lm])
@@ -74,9 +74,9 @@ def recv_end(s, end_marker):
 def main():
     s = open(HOST, PORT)
     #data = recv_with_timeout(s)
-    data = recv_end(s, 'phy1;0;add\n')
+    end_marker = 'phy1;0;add\n'
+    data = recv_end(s, end_marker)
     s.close()
-    print(repr(data))
 
 if __name__ == "__main__":
     main()
