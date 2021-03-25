@@ -16,7 +16,7 @@ def close(s):
 # From: https://code.activestate.com/recipes/408859/
 def recv_basic(s):
     """Read data from socket until socket disconnects."""
-    s.setblocking(0)
+    s.setblocking(0) # https://www.scottklement.com/rpg/socktut/nonblocking.html
     all_data = []
     while True:
         data = s.recv(8192)
