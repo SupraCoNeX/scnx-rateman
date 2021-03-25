@@ -2,8 +2,8 @@ import socket
 import time
 import pdb
 
-HOST = "10.10.200.2"
-PORT = 21059
+HOST = "1.2.3.4"
+PORT = 12345
 
 def open(host, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -14,17 +14,18 @@ def close(s):
     s.close()
 
 # From: https://code.activestate.com/recipes/408859/
-# recv_basic not is blocking until a socket disconnects
-# def recv_basic(s):
-#     all_data = []
-#     while True:
-#         data = s.recv(8192)
-#         print(repr(data))
-#         pdb.set_trace()
-#         if not data:
-#             break
-#         all_data.append(data)
-#     return ''.join(all_data)
+def recv_basic(s):
+    """Read data from socket until socket disconnects."""
+    s.setblocking(0)
+    all_data = []
+    while True:
+        data = s.recv(8192)
+        print(repr(data))
+        pdb.set_trace()
+        if not data:
+            break
+        all_data.append(data)
+    return ''.join(all_data)
 
 # More infos about blocking and non-blocking sockets:
 # https://code.activestate.com/recipes/408859/
