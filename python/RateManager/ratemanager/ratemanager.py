@@ -13,14 +13,12 @@ in different modules.
 """
 
 import numpy as np
-from connection import *
+from .connection import *
 import pandas as pd
+import dask as da
 import io
 import time
 import paramiko
-
-
-#from . import __version__
 
 
 __all__ = ["RateManager"]
@@ -69,11 +67,9 @@ class RateManager:
         #enable radios, all by default
         for radioID in radios:
             self._start_radio(accesspointHandle, radioID)
+            
+        txsDataFrame = recv_until_time(accesspointHandle, 1)
         
-        #collect tx status data        
-        print('add clients')
-        txsDataFrame = self._read_txs(accesspointHandle, 10)
-                
         self._accesspoints[newAccessPointID]['txsData'] = txsDataFrame
         
         #ToDo clients = client list from txs data
@@ -81,11 +77,11 @@ class RateManager:
         #ToDo self._accesspoints[newAccessPointID]['clients'] = clients
         
         #collect rc_stats data
-        sshClient = 0
-        localPath = '0'
-        remotePath = '0'
+        # sshClient = 0
+        # localPath = '0'
+        # remotePath = '0'
         
-        self._rcstats = self._get_rcstats(sshClient, localPath, remotePath)
+        # self._rcstats = self._get_rcstats(sshClient, localPath, remotePath)
         
         #ToDo rc_stats = list of available
         
@@ -113,7 +109,7 @@ class RateManager:
         
     def _start_radio(self, accesspointHandle, phy_id) -> None:
         cmd = phy_id + ';start'
-        self.run_cmd(accesspointHandle, cmd)
+        self._run_cmd(accesspointHandle, cmd)
         
         
     def _get_rcstats(self, ssh: paramiko.client.SSHClient,
@@ -122,14 +118,18 @@ class RateManager:
         sftp.put(localpath, remotepath)
         sftp.close()
         
-        return sftp
+        return sftp 
         
     def _read_txs(self, accesspointHandle, until_time=3):
         txsData = recv_until_time(accesspointHandle, until_time)
         txsDataFrame = pd.read_csv(io.StringIO(txsData), sep= ';')
+        # txsDataFrame = da.dataframe.read_csv(io.StringIO(txsData), sep= ';')
         #txsDataFrame.columns = ['radio','timestamp','txs','macaddr','num_frames','num_acked','probe','rates','counts']
 
         return txsDataFrame
+    
+    def read_txs(self, accesspointHandle, until_time=3):
+        return self._read_txs(accesspointHandle, until_time)
     
     # create function for external data collection
 
