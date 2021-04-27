@@ -3,8 +3,8 @@ import time
 import pdb
 from io import BytesIO
 
-HOST = "1.2.3.4"
-PORT = 12345
+HOST = "10.10.200.2"
+PORT = 21059
 
 __all__ = [
     "openconnection",
@@ -149,7 +149,53 @@ def recv_linebyline(s, timeout=15):
                 else:
                     buffer.seek(0, 2)
                     
-    return outputData             
+    return outputData   
+
+async def recv_linebyline_async(timeout=15):
+    # TODO: asyncio connection object should be given a input parameter.
+    begin = time.time()
+    outputData = []
+    s, writer = await asyncio.open_connection(
+        HOST, PORT)
+    
+    with BytesIO() as buffer:
+        start_time = time.time()
+
+        while True:
+            print('current time', time.time()-start_time)
+            if time.time()-begin>timeout:
+                break
+            try:
+                resp = await s.read(1024)
+            except BlockingIOError:
+                print("Sleeping")
+                await asyncio.sleep(2)
+            else:
+                begin = time.time()
+                buffer.write(resp)
+                buffer.seek(0)
+                start_index = 0  # Count the number of characters processed
+                for line in buffer:
+                    start_index += len(line)
+                    handle_line(line)       # Do something with your line
+                    outputData.append(line)
+
+                """ If we received any newline-terminated lines, this will be nonzero.
+                    In that case, we read the remaining bytes into memory, truncate
+                    the BytesIO object, reset the file pointer and re-write the
+                    remaining bytes back into it.  This will advance the file pointer
+                    appropriately.  If start_index is zero, the buffer doesn't contain
+                    any newline-terminated lines, so we set the file pointer to the
+                    end of the file to not overwrite bytes.
+                """
+                if start_index:
+                    buffer.seek(start_index)
+                    remaining = buffer.read()
+                    buffer.truncate(0)
+                    buffer.seek(0)
+                    buffer.write(remaining)
+                else:
+                    buffer.seek(0, 2)          
                 
 
 def handle_line(line):
@@ -173,12 +219,15 @@ def handle_line(line):
     #     ...
     pass
 
-# def main():
-#     s = open(HOST, PORT)
-#     #data = recv_with_timeout(s)
-#     end_marker = 'phy1;0;add\n'
-#     data = recv_end(s, end_marker)
-#     s.close()
+def main():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((HOST, PORT))
+    # #data = recv_with_timeout(s)
+    # end_marker = 'phy1;0;add\n'
+    # data = recv_end(s, end_marker)
+    # s.close()
+    data = recv_linebyline(s)
+    s.close()
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
