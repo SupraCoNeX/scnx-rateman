@@ -19,6 +19,8 @@ import dask as da
 import io
 import time
 import paramiko
+from .datacollector import DataCollector
+import asyncio
 
 
 __all__ = ["RateManager"]
@@ -69,8 +71,14 @@ class RateManager:
             self._start_radio(accesspointHandle, radioID)
             
         txsDataFrame = recv_until_time(accesspointHandle, 1)
+               
+        # Create data collection object
+        dataCollector = DataCollector(host, port)
+        self._accesspoints[newAccessPointID]['DataHandler'] = dataCollector
+
+        #create csv file for txs data
         
-        self._accesspoints[newAccessPointID]['txsData'] = txsDataFrame
+        self._loop.create_task(dataCollector.recv_linebyline_async())
         
         #ToDo clients = client list from txs data
         
@@ -132,10 +140,17 @@ class RateManager:
         return self._read_txs(accesspointHandle, until_time)
     
     # create function for external data collection
-
+    
+    def stop(self) -> True:
+        self._stop = True
+        for ii in range(len(self._accesspoints.keys())):
+            dataHandlerTemp = self._accesspoints['AP'+str(ii+1)]['DataHandler']
+            dataHandlerTemp._stop = True
+    
     def __init__(self) -> None:
         
         self._accesspoints = {}
         self._txsDataFrame = []
         self._rcstats = []
+        self._loop = asyncio.get_event_loop()
         

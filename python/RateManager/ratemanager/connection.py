@@ -2,6 +2,7 @@ import socket
 import time
 import pdb
 from io import BytesIO
+import asyncio
 
 HOST = "10.10.200.2"
 PORT = 21059
@@ -151,19 +152,23 @@ def recv_linebyline(s, timeout=15):
                     
     return outputData   
 
-async def recv_linebyline_async(timeout=15):
+async def recv_linebyline_async(timeout=5):
     # TODO: asyncio connection object should be given a input parameter.
     begin = time.time()
     outputData = []
     s, writer = await asyncio.open_connection(
         HOST, PORT)
     
+    import numpy as np
+    randNum = np.random.randint(1,100)
+    f = open('csvfile'+str(randNum)+'.csv','w')
+
     with BytesIO() as buffer:
         start_time = time.time()
 
         while True:
-            print('current time', time.time()-start_time)
-            if time.time()-begin>timeout:
+            #print('current time', time.time()-start_time)
+            if time.time()-start_time>timeout:
                 break
             try:
                 resp = await s.read(1024)
@@ -177,7 +182,9 @@ async def recv_linebyline_async(timeout=15):
                 start_index = 0  # Count the number of characters processed
                 for line in buffer:
                     start_index += len(line)
-                    handle_line(line)       # Do something with your line
+                    #handle_line(line)       # Do something with your line
+                    #print(line)
+                    f.write(line.decode('utf-8'))
                     outputData.append(line)
 
                 """ If we received any newline-terminated lines, this will be nonzero.
@@ -196,7 +203,9 @@ async def recv_linebyline_async(timeout=15):
                     buffer.write(remaining)
                 else:
                     buffer.seek(0, 2)          
-                
+    f.close()        
+    
+    return outputData
 
 def handle_line(line):
     line_str = line.decode('utf-8')
