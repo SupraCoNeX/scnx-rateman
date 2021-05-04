@@ -99,12 +99,14 @@ class DataCollector:
         
         #return outputData
     
-    def recv_linebyline_process(self, APHandle):
+    def recv_linebyline_process(self, APHandle, APID):
         APHandle.setblocking(0)
         outputData = []
-        randNum = np.random.randint(1,100)
-        fileHandle = open('csvfile'+str(randNum)+'.csv','w')
-        print('file created')
+        #randNum = np.random.randint(1,100)
+       
+        # fileHandle = open('csvfile'+str(randNum)+'.csv','w')
+        fileHandle = open('txsData_'+APID+'.csv','w')
+        print('TX Status Data file created for', APID)
         
         with BytesIO() as buffer:
     

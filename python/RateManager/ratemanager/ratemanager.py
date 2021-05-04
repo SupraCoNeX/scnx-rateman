@@ -80,9 +80,10 @@ class RateManager:
         ## done using multiprocessing ==
         dataProcess = mp.Process(name='txsDataProcess', 
                                  target=dataCollector.recv_linebyline_process,
-                                 args = (accesspointHandle,))
-        dataProcess.daemon = True
+                                 args = (accesspointHandle, newAccessPointID))
+        #dataProcess.daemon = True
         dataProcess.start()
+        #dataProcess.join()
         self._accesspoints[newAccessPointID]['txsDataProcess'] = dataProcess
         
         ## close done using multiprocessing ==
