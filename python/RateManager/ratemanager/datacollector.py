@@ -48,7 +48,7 @@ class DataCollector:
     
     async def recv_linebyline_async(self):
         # TODO: asyncio connection object should be given a input parameter.
-       
+        print('dataCollector function called')
         outputData = []
         reader, writer = await asyncio.open_connection(
             self._host, self._port)
@@ -94,19 +94,58 @@ class DataCollector:
                         buffer.seek(0)
                         buffer.write(remaining)
                     else:
-                        buffer.seek(0, 2)          
+                        buffer.seek(0, 2)         
         # f.close()        
         
-        return outputData
+        #return outputData
     
-    # def dataCollectorMain(self):
+    def recv_linebyline_process(self, APHandle):
+        APHandle.setblocking(0)
+        outputData = []
+        randNum = np.random.randint(1,100)
+        fileHandle = open('csvfile'+str(randNum)+'.csv','w')
+        print('file created')
         
-    #     txsData2 = self._loop.create_task(self.recv_linebyline_async())
-        
-    #     # await asyncio.wait([txsData2])
-        
-    #     return txsData2
-       
+        with BytesIO() as buffer:
+    
+            while True:
+                if self._stop is True:
+                    fileHandle.close() 
+                    break
+                try:
+                    resp = APHandle.recv(1024)
+                except BlockingIOError:
+                    print("Sleeping")
+                    time.sleep(2)
+                else:
+                    buffer.write(resp)
+                    buffer.seek(0)
+                    start_index = 0  # Count the number of characters processed
+                    for line in buffer:
+                        start_index += len(line)
+                        # handle_line(line)       # Do something with your line
+                        fileHandle.write(line.decode('utf-8'))
+                        outputData.append(line)
+                        
+    
+                    """ If we received any newline-terminated lines, this will be nonzero.
+                        In that case, we read the remaining bytes into memory, truncate
+                        the BytesIO object, reset the file pointer and re-write the
+                        remaining bytes back into it.  This will advance the file pointer
+                        appropriately.  If start_index is zero, the buffer doesn't contain
+                        any newline-terminated lines, so we set the file pointer to the
+                        end of the file to not overwrite bytes.
+                    """
+                    if start_index:
+                        buffer.seek(start_index)
+                        remaining = buffer.read()
+                        buffer.truncate(0)
+                        buffer.seek(0)
+                        buffer.write(remaining)
+                    else:
+                        buffer.seek(0, 2)
+                        
+            # return outputData         
     
 
     def __init__(self, host, port) -> None:

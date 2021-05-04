@@ -21,6 +21,7 @@ import time
 import paramiko
 from .datacollector import DataCollector
 import asyncio
+import multiprocessing as mp
 
 
 __all__ = ["RateManager"]
@@ -69,8 +70,6 @@ class RateManager:
         #enable radios, all by default
         for radioID in radios:
             self._start_radio(accesspointHandle, radioID)
-            
-        txsDataFrame = recv_until_time(accesspointHandle, 1)
                
         # Create data collection object
         dataCollector = DataCollector(host, port)
@@ -78,7 +77,29 @@ class RateManager:
 
         #create csv file for txs data
         
-        self._loop.create_task(dataCollector.recv_linebyline_async())
+        ## done using multiprocessing ==
+        dataProcess = mp.Process(name='txsDataProcess', 
+                                 target=dataCollector.recv_linebyline_process,
+                                 args = (accesspointHandle,))
+        dataProcess.daemon = True
+        dataProcess.start()
+        self._accesspoints[newAccessPointID]['txsDataProcess'] = dataProcess
+        
+        ## close done using multiprocessing ==
+        
+        ## done using asyncio ==       
+        # self._loop.create_task(dataCollector.recv_linebyline_async())
+        # dataTask = asyncio.create_task(dataCollector.recv_linebyline_async())
+        #asyncio.run(dataTask)
+        
+        # loopAP = asyncio.get_event_loop()
+        # self._accesspoints[newAccessPointID]['loop'] = loopAP
+        # dataTask = loopAP.create_task(dataCollector)
+        #loopAP.run_until_complete(dataTask)
+                
+        # self._accesspoints[newAccessPointID]['task'] = dataTask
+        ## close done using asyncio ==
+        
         
         #ToDo clients = client list from txs data
         
@@ -139,18 +160,21 @@ class RateManager:
     def read_txs(self, accesspointHandle, until_time=3):
         return self._read_txs(accesspointHandle, until_time)
     
-    # create function for external data collection
     
-    def stop(self) -> True:
+    def stop(self) -> None:
         self._stop = True
         for ii in range(len(self._accesspoints.keys())):
             dataHandlerTemp = self._accesspoints['AP'+str(ii+1)]['DataHandler']
             dataHandlerTemp._stop = True
+            dataProcess = self._accesspoints['AP'+str(ii+1)]['txsDataProcess']
+            dataProcess.terminate()    
+            
     
     def __init__(self) -> None:
         
         self._accesspoints = {}
         self._txsDataFrame = []
         self._rcstats = []
-        self._loop = asyncio.get_event_loop()
-        
+        # self._loop = asyncio.get_event_loop()
+        # self._loop.run_until_complete()
+        # self._tasks = []
