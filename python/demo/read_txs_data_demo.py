@@ -1,22 +1,23 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Apr 23 11:48:22 2021
+# -*- coding: UTF8 -*-
+# Copyright SupraCoNeX
+#     https://www.supraconex.org
+#
 
-@author: pawarsp
+r"""
+Demo for reading TX status data 
+----------------
+
+This demo script illustrates the basic use of the RateManager package to 
+parse TX status data from multiple APs into designated .csv files. 
+
 """
 
-import ratemanager 
-import paramiko
-import ratemanager.connection as conc
-import asyncio
-from threading import Thread
-#import nest_asyncio
+import ratemanager
 import time
-#nest_asyncio.apply()
+import paramiko
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     # enable minstrel-rcd
 
     ssh1Host = "10.10.200.2"
@@ -31,7 +32,7 @@ if __name__ == '__main__':
     command = "minstrel-rcd -h 0.0.0.0 &"
     ssh1.exec_command(command)
 
-    # Create rateman object
+    # # Create rateman object
     rateMan = ratemanager.RateManager()
 
     # add accesspoint 1
@@ -49,35 +50,10 @@ if __name__ == '__main__':
 
     # stop ratemanager
     time.sleep(5)
-    
-    print('make sure clients are present and wait for 5 seconds')
-    
+
+    print("make sure clients are present and wait for 5 seconds")
+
     time.sleep(5)
     rateMan.stop()
 
-    print('Observe that txs data files(.csv) are created')
-
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    print("Observe that txs data files(.csv) are created")

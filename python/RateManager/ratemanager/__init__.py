@@ -19,7 +19,7 @@ Motivation
 __version__ = "0.0.1"
 
 
-#from . import *
-from .ratemanager import * 
+# from . import *
+from .ratemanager import *
 from .connection import *
-from .datacollector import *
+from .datahandler import *
