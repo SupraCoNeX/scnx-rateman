@@ -34,7 +34,7 @@ class RateManager:
         self._txsDataFrame = []
         self._rcstats = []
 
-        # self._loop = asyncio.get_event_loop()
+        self._loop = asyncio.get_event_loop()
         # self._loop.run_until_complete()
         # self._tasks = []
 
@@ -84,11 +84,13 @@ class RateManager:
         dataHandle = DataHandler(accesspointHandle, newAccessPointID)
 
         # create initial data stream for new AP
-        txsDataFrame = dataHandle.recv_until_time(1)
-
-        # create list of radios
-        columnOfRadios = txsDataFrame["*"].values
-        radios = columnOfRadios[columnOfRadios != "*"]
+        # txsDataFrame = dataHandle.recv_until_time(1)
+    
+        # # create list of radios
+        # if type(txsDataFrame) not list:
+        #     columnOfRadios = txsDataFrame["*"].values
+        # radios = columnOfRadios[columnOfRadios != "*"]
+        radios = ['phy0', 'phy1']
 
         accesspoint["radios"] = radios
 
@@ -98,7 +100,7 @@ class RateManager:
         # enable radios, all by default
         for radioID in radios:
             self._start_radio(accesspointHandle, radioID)
-
+        
         # Create data collection object
         
         self._accesspoints[newAccessPointID]["DataHandle"] = dataHandle
@@ -143,7 +145,9 @@ class RateManager:
         # self._rcstats = self._get_rcstats(sshClient, localPath, remotePath)
 
         # ToDo rc_stats = list of available
-
+        
+    
+        
     def setrate(self, accesspointID, radioID, clientID, rateIndexHex) -> None:
 
         # set the given rate for the given client

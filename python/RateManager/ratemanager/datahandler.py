@@ -96,7 +96,7 @@ class DataHandler:
                         buffer.seek(0, 2)
 
             # return outputData
-    
+                      
     
     async def recv_linebyline_async(self):
         # TODO: asyncio connection object should be given a input parameter.
@@ -108,48 +108,53 @@ class DataHandler:
         f = open("csvfile" + str(randNum) + ".csv", "w")
 
         with io.BytesIO() as buffer:
-
-            while True:
-                # print('current time', time.time()-start_time)
-                if self._stop is True:
-                    f.close()
-                    break
-                try:
-                    resp = await reader.read(1024)
-                except BlockingIOError:
-                    # print("Sleeping")
-                    await asyncio.sleep(2)
-                else:
-                    buffer.write(resp)
-                    buffer.seek(0)
-                    start_index = 0  # Count the number of characters processed
-                    for line in buffer:
-                        start_index += len(line)
-                        # handle_line(line)       # Do something with your line
-                        # print(line)
-                        f.write(line.decode("utf-8"))
-                        outputData.append(line)
-
-                    """ If we received any newline-terminated lines, this will be nonzero.
-                        In that case, we read the remaining bytes into memory, truncate
-                        the io.BytesIO object, reset the file pointer and re-write the
-                        remaining bytes back into it.  This will advance the file pointer
-                        appropriately.  If start_index is zero, the buffer doesn't contain
-                        any newline-terminated lines, so we set the file pointer to the
-                        end of the file to not overwrite bytes.
-                    """
-                    if start_index:
-                        buffer.seek(start_index)
-                        remaining = buffer.read()
-                        buffer.truncate(0)
-                        buffer.seek(0)
-                        buffer.write(remaining)
+            try:
+                while True:
+                    # print('current time', time.time()-start_time)
+                    try:
+                        resp = await reader.read(1024)
+                    except BlockingIOError:
+                        # print("Sleeping")
+                        await asyncio.sleep(2)
                     else:
-                        buffer.seek(0, 2)
+                        buffer.write(resp)
+                        buffer.seek(0)
+                        start_index = 0  # Count the number of characters processed
+                        for line in buffer:
+                            start_index += len(line)
+                            # handle_line(line)       # Do something with your line
+                            # print(line)
+                            f.write(line.decode("utf-8"))
+                            outputData.append(line)                            
+                        if start_index:
+                            """ If we received any newline-terminated lines, this will be nonzero.
+                                In that case, we read the remaining bytes into memory, truncate
+                                the io.BytesIO object, reset the file pointer and re-write the
+                                remaining bytes back into it.  This will advance the file pointer
+                                appropriately.  If start_index is zero, the buffer doesn't contain
+                                any newline-terminated lines, so we set the file pointer to the
+                                end of the file to not overwrite bytes.
+                            """
+                            buffer.seek(start_index)
+                            remaining = buffer.read()
+                            buffer.truncate(0)
+                            buffer.seek(0)
+                            buffer.write(remaining)
+                        else:
+                            buffer.seek(0, 2)
+                            
+            except self._stop is True:
+                f.close()
         # f.close()
 
         # return outputData
-  
+    
+    def start_process(self):
+        
+        
+        pass
+    
+    
 
     # From: https://code.activestate.com/recipes/408859/
     def recv_basic(self, socketHandle):
@@ -224,8 +229,10 @@ class DataHandler:
             except:
                 pass
         dataStr = "".join(total_data)
-        dataFrame = pd.read_csv(io.StringIO(dataStr), sep=";")
-       
+        try:
+            dataFrame = pd.read_csv(io.StringIO(dataStr), sep=";")
+        except:
+            dataFrame = []
         # txsDataFrame = da.dataframe.read_csv(io.StringIO(txsData), sep= ';')
         # txsDataFrame.columns = ['radio','timestamp','txs','macaddr','num_frames','num_acked','probe','rates','counts']
          
