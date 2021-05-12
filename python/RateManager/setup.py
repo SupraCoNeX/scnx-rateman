@@ -53,7 +53,6 @@ setup(
         "scipy",
         "six",
         "pycodestyle",
-        "codecov",
         "pandas",
         "pint==0.9",
         "dask",
