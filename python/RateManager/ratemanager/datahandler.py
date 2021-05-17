@@ -53,7 +53,7 @@ class DataHandler:
 
         pass
 
-    def read_stats_txs_csv(self, filename: str) -> pd.core.frame.DataFrame:
+    def read_stats_txs_csv(filename: str) -> pd.core.frame.DataFrame:
         """Read rc_stats and tx status from the given csv file.
 
         Parameters:
@@ -113,8 +113,8 @@ class DataHandler:
     def recv_linebyline_process(self):
         self._APHandle.setblocking(0)
         outputData = []
-        fileHandle = open("txsData_" + self._APID + ".csv", "w")
-        print("TX Status Data file created for", self._APID)
+        fileHandle = open("collected_data/data_" + self._APID + ".csv", "w")
+        print("Data file created for", self._APID)
 
         with io.BytesIO() as buffer:
 

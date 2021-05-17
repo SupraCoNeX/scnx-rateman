@@ -11,7 +11,7 @@ This class provides an object for Rate Manager that utilizes functions defined
 in different modules. 
 
 """
-
+import csv
 import numpy as np
 from .connection import *
 import pandas as pd
@@ -52,7 +52,7 @@ class RateManager:
 
         return self._accesspoints
 
-    def addaccesspoint(self, host: str, port: int) -> None:
+    def addaccesspoints(self, filename: dir) -> None:
         """
         Function to add a given access point to the network. Each access point
         is given a unique ID and relevant information is organized as a dict
@@ -68,70 +68,76 @@ class RateManager:
         Returns
         -------
         None
-            
+
         """
 
-        # open connection
-        numAccessPoints = len(self.accesspoints)
-        newAccessPointID = "AP" + str(numAccessPoints + 1)
+        # load file data
 
-        accesspoint = {}
+        with open(filename, newline='') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for currentAP in reader:
+                
+                APID = currentAP['APID']
+                IPAdd = currentAP['IPADD']
+                portID = int(currentAP['PORT'])
+                SSHHost = currentAP['SSHHOST']
+                SSHPort = int(currentAP['SSHPORT'])
+                SSHUsr = currentAP['SSHUSR']
+                SSHPass = currentAP['SSHPASS']
 
-        accesspointHandle = openconnection(host, port)
+                self._accesspoints[APID] = APID
+                self._accesspoints[APID] = currentAP
+                self._accesspoints[APID]['PORT'] = portID
+                self._accesspoints[APID]['SSHPORT'] = SSHPort
+                
+                
+                if APID == 'AP1':
+                    SSHClient = paramiko.SSHClient()
+                    SSHClient.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                    SSHClient.connect(SSHHost, SSHPort, SSHUsr, SSHPass)
 
-        accesspoint["APHandle"] = accesspointHandle
-        
-        dataHandle = DataHandler(accesspointHandle, newAccessPointID)
+                    SSHClient.exec_command("minstrel-rcd -h 0.0.0.0 &")
+                    
+                APHandle = openconnection(IPAdd, portID)
+
+                self._accesspoints[APID]['APHandle'] = APHandle
+                
+                radios = ['phy0', 'phy1']
+                self._accesspoints[APID]['radios'] = radios
+
+                for radioID in radios:
+                    self._start_radio(APHandle, radioID)              
+
+                dataHandle = DataHandler(APHandle, APID)
+
+                self._accesspoints[APID]['DataHandle'] = dataHandle
+
+                dataProcess = mp.Process(
+                    name="txsDataProcess",
+                    target=dataHandle.recv_linebyline_process,
+                    args=(),
+                )
+                
+                self._accesspoints[APID]['dataProcess'] = dataProcess
 
         # create initial data stream for new AP
         # txsDataFrame = dataHandle.recv_until_time(1)
-    
+
         # # create list of radios
         # if type(txsDataFrame) not list:
         #     columnOfRadios = txsDataFrame["*"].values
         # radios = columnOfRadios[columnOfRadios != "*"]
-        radios = ['phy0', 'phy1']
+        # radios = ['phy0', 'phy1']
 
-        accesspoint["radios"] = radios
+        # accesspoint["radios"] = radios
+       
+        # # enable radios, all by default
+        # for radioID in radios:
+        #     self._start_radio(accesspointHandle, radioID)
 
-        # update rate manager AP list
-        self._accesspoints[newAccessPointID] = accesspoint
-
-        # enable radios, all by default
-        for radioID in radios:
-            self._start_radio(accesspointHandle, radioID)
-        
         # Create data collection object
+
         
-        self._accesspoints[newAccessPointID]["DataHandle"] = dataHandle
-
-        # create csv file for txs data
-
-        ## done using multiprocessing ==
-        dataProcess = mp.Process(
-            name="txsDataProcess",
-            target = dataHandle.recv_linebyline_process,
-            args=(),
-        )
-        # dataProcess.daemon = True
-        dataProcess.start()
-        # dataProcess.join()
-        self._accesspoints[newAccessPointID]["txsDataProcess"] = dataProcess
-
-        ## close done using multiprocessing ==
-
-        ## done using asyncio ==
-        # self._loop.create_task(dataCollector.recv_linebyline_async())
-        # dataTask = asyncio.create_task(dataCollector.recv_linebyline_async())
-        # asyncio.run(dataTask)
-
-        # loopAP = asyncio.get_event_loop()
-        # self._accesspoints[newAccessPointID]['loop'] = loopAP
-        # dataTask = loopAP.create_task(dataCollector)
-        # loopAP.run_until_complete(dataTask)
-
-        # self._accesspoints[newAccessPointID]['task'] = dataTask
-        ## close done using asyncio ==
 
         # ToDo clients = client list from txs data
 
@@ -145,8 +151,16 @@ class RateManager:
         # self._rcstats = self._get_rcstats(sshClient, localPath, remotePath)
 
         # ToDo rc_stats = list of available
+
+    def start_monitoring(self, until_time=10):
         
-    
+        # obtain list of APs
+        APIDs = list(self._accesspoints.keys())
+        for APID in APIDs:
+            dataProcesstemp = self._accesspoints[APID]["dataProcess"]
+            dataProcesstemp.start()
+        
+        
         
     def setrate(self, accesspointID, radioID, clientID, rateIndexHex) -> None:
 
@@ -171,7 +185,7 @@ class RateManager:
         accesspointHandle.send(cmd.encode("ascii") + b"\n")
 
     def _start_radio(self, accesspointHandle, phy_id) -> None:
-        cmd = phy_id + ";start"
+        cmd = phy_id + ";start;stats;txs"
         self._run_cmd(accesspointHandle, cmd)
 
     def _get_rcstats(
@@ -182,7 +196,7 @@ class RateManager:
         sftp.close()
 
         return sftp
-    
+
     def read_txs(self, accesspointHandle, until_time=3):
         """
         Under development - do not use.
@@ -202,10 +216,13 @@ class RateManager:
         """
         return self._read_txs(accesspointHandle, until_time)
 
-    def stop(self) -> None:
+    def _stop(self) -> None:
         self._stop = True
-        for ii in range(len(self._accesspoints.keys())):
-            dataHandlerTemp = self._accesspoints["AP" + str(ii + 1)]["DataHandle"]
+        for AP in list(self._accesspoints.keys()):
+            dataHandlerTemp = self._accesspoints[AP]["DataHandle"]
             dataHandlerTemp._stop = True
-            dataProcess = self._accesspoints["AP" + str(ii + 1)]["txsDataProcess"]
+            dataProcess = self._accesspoints[AP]["dataProcess"]
             dataProcess.terminate()
+
+    def stop(self) -> None:
+        self._stop()
