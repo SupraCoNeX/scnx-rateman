@@ -23,3 +23,4 @@ __version__ = "0.0.1"
 from .ratemanager import *
 from .connection import *
 from .datahandler import *
+from .utils import *
