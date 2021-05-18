@@ -59,8 +59,11 @@ def read_stats_txs_csv(filename: str) -> pd.core.frame.DataFrame:
             'hist_success',
             'hist_attempts'
         ]
+        # Convert boot timestamp into seconds (uptime of system)
+        txs_data.timestamp = txs_data.timestamp.apply(lambda x: int(x, 16)/1000000000)
+        stats_data.timestamp = stats_data.timestamp.apply(lambda x: int(x, 16)/1000000000)
         # Set timestamps as index for both dataframes `txs_data` and
         # `stats_data`.
-        txs_data.set_index('timestamp')
-        stats_data.set_index('timestamp')
+        txs_data = txs_data.set_index('timestamp')
+        stats_data = stats_data.set_index('timestamp')
     return txs_data, stats_data
