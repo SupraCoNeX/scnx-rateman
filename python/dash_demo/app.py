@@ -7,7 +7,7 @@ import pandas as pd
 
 from ratemanager import read_stats_txs_csv
 
-csv_file = "/home/martin/Projects/supraconex/SupraCoNeX_rate-power-control-API/python/data/txsData_AP1.csv"
+csv_file = "../demo/collected_data/data_AP1.csv"
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -24,18 +24,39 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 df, df2 = read_stats_txs_csv(csv_file)
 
-fig = go.Figure(data=go.Scatter(x=df.index, y=df.rates))
+fig = go.Figure(go.Scatter(x=df.index, y=df.rates))
 
+# Edit the layout
+fig.update_layout(title='Rate Index at timestamp',
+                   xaxis_title='Timestamp in s',
+                   yaxis_title='Rate Index')
+
+fig2 = go.Figure(go.Scatter(x=df2.index, y=df2.avg_tp))
+
+# Edit the layout
+fig2.update_layout(title='Average Throughput at timestamp',
+                   xaxis_title='Timestamp in s',
+                   yaxis_title='Average throughput in Hex')
 app.layout = html.Div(children=[
-    html.H1(children='Example Plot'),
+    html.H1(children='Example Plots'),
 
-    html.Div(children='''
-        Example plot of rate index at timestamp.
-    '''),
+    # html.Div(children='''
+    #     Example plot with rate index on the y-axis and timestamps on x-axis.
+    # '''),
 
     dcc.Graph(
         id='example-graph',
         figure=fig
+    ),
+
+    # html.Div(children='''
+    #     Example plot with average throughout on the y-axis and timestamps on
+    #           x-axis.
+    # '''),
+
+    dcc.Graph(
+        id='example-graph2',
+        figure=fig2
     )
 ])
 
