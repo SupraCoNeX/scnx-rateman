@@ -14,6 +14,7 @@ in different modules.
 import csv
 import numpy as np
 from .connection import *
+from .async_control import *
 import pandas as pd
 import dask as da
 import io
@@ -90,67 +91,41 @@ class RateManager:
                 self._accesspoints[APID]['PORT'] = portID
                 self._accesspoints[APID]['SSHPORT'] = SSHPort
                 
+                # accesspoints[APID] = APID
+                # accesspoints[APID] = currentAP
+                # accesspoints[APID]['PORT'] = portID
+                # accesspoints[APID]['SSHPORT'] = SSHPort
                 
-                if APID == 'AP1':
-                    SSHClient = paramiko.SSHClient()
-                    SSHClient.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                    SSHClient.connect(SSHHost, SSHPort, SSHUsr, SSHPass)
+                
+                # if APID == 'AP1':
+                #     SSHClient = paramiko.SSHClient()
+                #     SSHClient.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                #     SSHClient.connect(SSHHost, SSHPort, SSHUsr, SSHPass)
 
-                    SSHClient.exec_command("minstrel-rcd -h 0.0.0.0 &")
+                #     SSHClient.exec_command("minstrel-rcd -h 0.0.0.0 &")
                     
-                APHandle = openconnection(IPAdd, portID)
+                # APHandle = openconnection(IPAdd, portID)
 
-                self._accesspoints[APID]['APHandle'] = APHandle
+                # self._accesspoints[APID]['APHandle'] = APHandle
                 
-                radios = ['phy0', 'phy1']
-                self._accesspoints[APID]['radios'] = radios
+                # radios = ['phy0', 'phy1']
+                # self._accesspoints[APID]['radios'] = radios
 
-                for radioID in radios:
-                    self._start_radio(APHandle, radioID)              
+                # for radioID in radios:
+                #     self._start_radio(APHandle, radioID)              
 
-                dataHandle = DataHandler(APHandle, APID)
+                # dataHandle = DataHandler(APHandle, APID)
 
-                self._accesspoints[APID]['DataHandle'] = dataHandle
+                # self._accesspoints[APID]['DataHandle'] = dataHandle
 
-                dataProcess = mp.Process(
-                    name="txsDataProcess",
-                    target=dataHandle.recv_linebyline_process,
-                    args=(),
-                )
+                # dataProcess = mp.Process(
+                #     name="txsDataProcess",
+                #     target=dataHandle.recv_linebyline_process,
+                #     args=(),
+                # )
                 
-                self._accesspoints[APID]['dataProcess'] = dataProcess
+                # self._accesspoints[APID]['dataProcess'] = dataProcess
 
-        # create initial data stream for new AP
-        # txsDataFrame = dataHandle.recv_until_time(1)
-
-        # # create list of radios
-        # if type(txsDataFrame) not list:
-        #     columnOfRadios = txsDataFrame["*"].values
-        # radios = columnOfRadios[columnOfRadios != "*"]
-        # radios = ['phy0', 'phy1']
-
-        # accesspoint["radios"] = radios
-       
-        # # enable radios, all by default
-        # for radioID in radios:
-        #     self._start_radio(accesspointHandle, radioID)
-
-        # Create data collection object
-
-        
-
-        # ToDo clients = client list from txs data
-
-        # ToDo self._accesspoints[newAccessPointID]['clients'] = clients
-
-        # collect rc_stats data
-        # sshClient = 0
-        # localPath = '0'
-        # remotePath = '0'
-
-        # self._rcstats = self._get_rcstats(sshClient, localPath, remotePath)
-
-        # ToDo rc_stats = list of available
 
     def start_monitoring(self, until_time=10):
         
@@ -159,7 +134,19 @@ class RateManager:
         for APID in APIDs:
             dataProcesstemp = self._accesspoints[APID]["dataProcess"]
             dataProcesstemp.start()
-        
+    
+    def start(self) -> None:
+        """
+        Start RateMan
+
+        Returns
+        -------
+        None.
+
+        """
+        loop = asyncio.get_event_loop()
+        loop.create_task(main_AP_tasks(self._accesspoints, loop))
+        loop.run_forever() # runs until loop.stop() is triggered
         
         
     def setrate(self, accesspointID, radioID, clientID, rateIndexHex) -> None:

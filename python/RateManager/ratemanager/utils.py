@@ -1,12 +1,15 @@
 from pathlib import Path
 from pdb import set_trace
 
+import signal
+import time
+
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 
 
 __all__ = [
-    "read_stats_txs_csv",
+    "read_stats_txs_csv", "timedInput"
 ]
 
 
@@ -77,7 +80,17 @@ def read_stats_txs_csv(filename: str) -> pd.core.frame.DataFrame:
         stats_data = stats_data.set_index('timestamp')
     return txs_data, stats_data
 
-# if __name__ == "__main__":
-#     csvfile = "../../demo/collected_data/data_AP1.csv"
-#     txs, stats = read_stats_txs_csv(csvfile)
-#     pass
+def timedInput(prompt='', timeout=1, timeoutmsg = None):
+    def timeout_error(*_):
+        raise TimeoutError
+    signal.signal(signal.SIGALRM, timeout_error)
+    signal.alarm(timeout)
+    try:
+        answer = input(prompt)
+        signal.alarm(0)
+        return answer
+    except TimeoutError:   
+        if timeoutmsg:
+            print(timeoutmsg)
+        signal.signal(signal.SIGALRM, signal.SIG_IGN)
+        return None
