@@ -1,5 +1,3 @@
-
-
 import pandas as pd
 from pathlib import Path
 
@@ -62,6 +60,14 @@ def read_stats_txs_csv(filename: str) -> pd.core.frame.DataFrame:
         # Convert boot timestamp into seconds (uptime of system)
         txs_data.timestamp = txs_data.timestamp.apply(lambda x: int(x, 16)/1000000000)
         stats_data.timestamp = stats_data.timestamp.apply(lambda x: int(x, 16)/1000000000)
+        # Reset index of dataframes
+        txs_data = txs_data.reset_index(drop=True)
+        stats_data = stats_data.reset_index(drop=True)
+        # Omit probably defective packets (wrong timestamp)
+        if not txs_data.empty:
+            txs_data = txs_data[txs_data['timestamp'] > txs_data.loc[0].timestamp]
+        if not stats_data.empty:
+            stats_data = stats_data[stats_data['timestamp'] > stats_data.loc[0].timestamp]
         # Set timestamps as index for both dataframes `txs_data` and
         # `stats_data`.
         txs_data = txs_data.set_index('timestamp')

@@ -24,7 +24,7 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 df, df2 = read_stats_txs_csv(csv_file)
 
-fig = go.Figure(data=go.Scatter(x=df.timestamp, y=df.rates))
+fig = go.Figure(data=go.Scatter(x=df.index, y=df.rates))
 
 app.layout = html.Div(children=[
     html.H1(children='Example Plot'),
