@@ -27,15 +27,15 @@ df, df2 = read_stats_txs_csv(csv_file, shifttime=True)
 fig = go.Figure(go.Scatter(x=df.index, y=df.rates))
 
 # Edit the layout
-fig.update_layout(title='Rate Index at timestamp',
-                   xaxis_title='Timestamp in s',
+fig.update_layout(title='Rate Index at Time',
+                   xaxis_title='Time in s',
                    yaxis_title='Rate Index')
 
 fig2 = go.Figure(go.Scatter(x=df2.index, y=df2.avg_tp))
 
 # Edit the layout
-fig2.update_layout(title='Average Throughput at timestamp',
-                   xaxis_title='Timestamp in s',
+fig2.update_layout(title='Average Throughput at Time',
+                   xaxis_title='Time in s',
                    yaxis_title='Average throughput in Hex')
 app.layout = html.Div(children=[
     html.H1(children='Example Plots'),
