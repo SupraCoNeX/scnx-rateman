@@ -22,7 +22,7 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 # fig = px.bar(df, x="Fruit", y="Amount", color="City", barmode="group")
 
-df, df2 = read_stats_txs_csv(csv_file)
+df, df2 = read_stats_txs_csv(csv_file, shifttime=True)
 
 fig = go.Figure(go.Scatter(x=df.index, y=df.rates))
 

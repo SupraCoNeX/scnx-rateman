@@ -1,6 +1,5 @@
 from pathlib import Path
 from pdb import set_trace
-
 import signal
 import time
 
@@ -13,7 +12,8 @@ __all__ = [
 ]
 
 
-def read_stats_txs_csv(filename: str) -> pd.core.frame.DataFrame:
+def read_stats_txs_csv(filename: str,
+                       shifttime: bool = False) -> pd.core.frame.DataFrame:
     """Read rc_stats and tx status from the given csv file.
 
     Parameters:
@@ -64,23 +64,33 @@ def read_stats_txs_csv(filename: str) -> pd.core.frame.DataFrame:
             'hist_attempts'
         ]
         # Convert boot timestamp into seconds (uptime of system)
-        txs_data['timestamp'] = txs_data.timestamp.apply(lambda x: int(x, 16)/1000000000)
-        stats_data['timestamp'] = stats_data.timestamp.apply(lambda x: int(x, 16)/1000000000)
+        to_sec = lambda x: int(x, 16)/1000000000
+        txs_data['timestamp'] = txs_data.timestamp.apply(to_sec)
+        stats_data['timestamp'] = stats_data.timestamp.apply(to_sec)
         # Reset index of dataframes
         txs_data = txs_data.reset_index(drop=True)
         stats_data = stats_data.reset_index(drop=True)
-        # Omit probably defective packets (wrong timestamp)
+        # Omit probably defective packets (wrong timestamp) and shift time to
+        # zero if `shifttime = True`.
         if not txs_data.empty:
-            txs_data = txs_data[txs_data['timestamp'] > txs_data.loc[0].timestamp]
+            txs_ts0 = txs_data.loc[0].timestamp
+            txs_data = txs_data[txs_data['timestamp'] > txs_ts0]
+            if shifttime:
+                shifttxs = lambda x: x - txs_ts0
+                txs_data['timestamp'] = txs_data.timestamp.apply(shifttxs)
         if not stats_data.empty:
-            stats_data = stats_data[stats_data['timestamp'] > stats_data.loc[0].timestamp]
+            stats_ts0 = stats_data.loc[0].timestamp
+            stats_data = stats_data[stats_data['timestamp'] > stats_ts0]
+            if shifttime:
+                shiftstats = lambda x: x - stats_ts0
+                stats_data['timestamp'] = stats_data.timestamp.apply(shiftstats)
         # Set timestamps as index for both dataframes `txs_data` and
         # `stats_data`.
         txs_data = txs_data.set_index('timestamp')
         stats_data = stats_data.set_index('timestamp')
     return txs_data, stats_data
 
-def timedInput(prompt='', timeout=1, timeoutmsg = None):
+def timedInput(prompt='', timeout=1, timeoutmsg=None):
     def timeout_error(*_):
         raise TimeoutError
     signal.signal(signal.SIGALRM, timeout_error)
@@ -89,8 +99,13 @@ def timedInput(prompt='', timeout=1, timeoutmsg = None):
         answer = input(prompt)
         signal.alarm(0)
         return answer
-    except TimeoutError:   
+    except TimeoutError:
         if timeoutmsg:
             print(timeoutmsg)
         signal.signal(signal.SIGALRM, signal.SIG_IGN)
         return None
+
+# if __name__ == '__main__':
+#     csvfile = 'demo/collected_data/data_AP1.csv'
+#     txs, stats = read_stats_txs_csv(csvfile, True)
+#     print("Done")
