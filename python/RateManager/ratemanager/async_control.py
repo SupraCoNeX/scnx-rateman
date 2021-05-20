@@ -18,28 +18,29 @@ import io
 import asyncio
 from .utils import *
 import numpy as np
+from .connection import *
 
 
 __all__ = ["recv_data", "set_rate", "stop_trigger", "setup_AP_tasks", "main_AP_tasks"]
-
 
 async def recv_data(reader, fileHandle):
     try:
         while True:
             dataLine = await reader.readline()
+            print('parsing data')
             fileHandle.write(dataLine.decode("utf-8"))
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:   
         pass
     reader.close()
-
-
+    
 async def set_rate(writer):
     try:
         while True:
             await asyncio.sleep(5)
             rate_ind = np.random.randint(0, 15)
             print("setting rate")
-            writer.write(("phy1;setr;rate_1:mcs"+str(rate_ind)).encode())
+            # writer.write(("phy1;setr;rate_1:mcs"+str(rate_ind)).encode())
+            # await writer.drain()
     except KeyboardInterrupt:
         pass
     writer.close()
@@ -50,25 +51,41 @@ async def stop_trigger(loop):
     prompt = 'To stop RateMan, enter stop.\n'
     try:
         while True:
-            await asyncio.sleep(7)
+            await asyncio.sleep(2)
             answer = timedInput(prompt, timeout)
             # print('Doing: ', answer)
             if answer == 'stop':
                 print('RateMan will stop now.')
+                # reader.close()
+                # writer.close()
+                # fileHandle.close()
+                for task in asyncio.all_tasks():
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        print("task is cancelled now")
                 loop.stop()
-
+                # loop.close()
+                
     except KeyboardInterrupt:
-        loop.stop()
+        pass
+    loop.stop()
+    
 
 
 async def setup_AP_tasks(IPADD, Port, fileHandle, loop):
+    
     reader, writer = await asyncio.open_connection(IPADD, Port)
+    APHandle = openconnection(IPADD, Port)
+    
+    print('starting radio')
+    cmd = "phy1;start;stats;txs"
 
-    writer.write("phy1;start;stats;txs".encode())
-
+    APHandle.send(cmd.encode("ascii") + b"\n")
+    
     loop.create_task(recv_data(reader, fileHandle))
-    loop.create_task(set_rate(writer))
-    loop.create_task(stop_trigger(loop))
+    loop.create_task(set_rate(APHandle))    
 
 
 async def main_AP_tasks(APInfo, loop):
@@ -90,11 +107,19 @@ async def main_AP_tasks(APInfo, loop):
     """
 
     APIDs = list(APInfo.keys())
+    
+    task_list = []
 
     for APID in APIDs:
         
         fileHandle = open("collected_data/data_" + APID + ".csv", "w")
         print("Data file created for", APID)
+                
+        task_item = setup_AP_tasks(APInfo[APID]['IPADD'],
+                                        APInfo[APID]['PORT'], fileHandle, loop)
+        loop.create_task(task_item)
         
-        loop.create_task(setup_AP_tasks(APInfo[APID]['IPADD'],
-                                        APInfo[APID]['PORT'], fileHandle, loop))
+    
+    loop.create_task(stop_trigger(loop))
+
+    

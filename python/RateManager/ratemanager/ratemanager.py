@@ -77,7 +77,7 @@ class RateManager:
         with open(filename, newline='') as csvfile:
             reader = csv.DictReader(csvfile)
             for currentAP in reader:
-                
+
                 APID = currentAP['APID']
                 IPAdd = currentAP['IPADD']
                 portID = int(currentAP['PORT'])
@@ -90,29 +90,28 @@ class RateManager:
                 self._accesspoints[APID] = currentAP
                 self._accesspoints[APID]['PORT'] = portID
                 self._accesspoints[APID]['SSHPORT'] = SSHPort
-                
+
                 # accesspoints[APID] = APID
                 # accesspoints[APID] = currentAP
                 # accesspoints[APID]['PORT'] = portID
                 # accesspoints[APID]['SSHPORT'] = SSHPort
-                
-                
+
                 # if APID == 'AP1':
                 #     SSHClient = paramiko.SSHClient()
                 #     SSHClient.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 #     SSHClient.connect(SSHHost, SSHPort, SSHUsr, SSHPass)
 
                 #     SSHClient.exec_command("minstrel-rcd -h 0.0.0.0 &")
-                    
+
                 # APHandle = openconnection(IPAdd, portID)
 
                 # self._accesspoints[APID]['APHandle'] = APHandle
-                
+
                 # radios = ['phy0', 'phy1']
                 # self._accesspoints[APID]['radios'] = radios
 
                 # for radioID in radios:
-                #     self._start_radio(APHandle, radioID)              
+                #     self._start_radio(APHandle, radioID)
 
                 # dataHandle = DataHandler(APHandle, APID)
 
@@ -123,18 +122,17 @@ class RateManager:
                 #     target=dataHandle.recv_linebyline_process,
                 #     args=(),
                 # )
-                
+
                 # self._accesspoints[APID]['dataProcess'] = dataProcess
 
-
     def start_monitoring(self, until_time=10):
-        
+
         # obtain list of APs
         APIDs = list(self._accesspoints.keys())
         for APID in APIDs:
             dataProcesstemp = self._accesspoints[APID]["dataProcess"]
             dataProcesstemp.start()
-    
+
     def start(self) -> None:
         """
         Start RateMan
@@ -146,9 +144,22 @@ class RateManager:
         """
         loop = asyncio.get_event_loop()
         loop.create_task(main_AP_tasks(self._accesspoints, loop))
-        loop.run_forever() # runs until loop.stop() is triggered
-        
-        
+        try:
+            loop.run_forever()  # runs until loop.stop() is triggered
+        finally:
+            # print('here')
+            # asyncio.run(self._stop_tasks(loop))
+            loop.close()
+
+    async def _stop_tasks(self, loop):
+        for task in asyncio.all_tasks():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+                # print("task is cancelled now")
+
     def setrate(self, accesspointID, radioID, clientID, rateIndexHex) -> None:
 
         # set the given rate for the given client
