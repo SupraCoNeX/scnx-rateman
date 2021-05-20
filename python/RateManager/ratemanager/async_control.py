@@ -73,7 +73,6 @@ async def stop_trigger(loop):
     loop.stop()
     
 
-
 async def setup_AP_tasks(IPADD, Port, fileHandle, loop):
     
     reader, writer = await asyncio.open_connection(IPADD, Port)
@@ -81,8 +80,10 @@ async def setup_AP_tasks(IPADD, Port, fileHandle, loop):
     
     print('starting radio')
     cmd = "phy1;start;stats;txs"
+    
+    writer.write(cmd.encode("ascii") + b"\n")
 
-    APHandle.send(cmd.encode("ascii") + b"\n")
+    # APHandle.send(cmd.encode("ascii") + b"\n")
     
     loop.create_task(recv_data(reader, fileHandle))
     loop.create_task(set_rate(APHandle))    
