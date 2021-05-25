@@ -30,6 +30,7 @@ app.layout = html.Div(children=[
             'Drag and Drop or ',
             html.A('Select Files')
         ]),
+        accept='.csv, text/plain, application/vnd.ms-excel, text/csv',
         style={
             'width': '100%',
             'height': '60px',
