@@ -8,6 +8,8 @@ import time
 import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 
+#TODO: Output of tx status and stats are not consistent. Sometimes already converted.
+
 
 __all__ = [
     "read_stats_txs_csv", "timedInput"
@@ -76,7 +78,10 @@ def read_stats_txs_csv(data: str,
         stats_data['timestamp'] = stats_data.timestamp.apply(to_sec)
         # Convert avg throughput from hex to bit/s
         to_bits = lambda x: int(x, 16)
-        stats_data['avg_tp'] = stats_data.avg_tp.apply(to_bits)
+        try:
+            stats_data['avg_tp'] = stats_data.avg_tp.apply(to_bits)
+        except TypeError:
+            print("Average Throughput probably already converted...")
     # Reset index of dataframes
     txs_data = txs_data.reset_index(drop=True)
     stats_data = stats_data.reset_index(drop=True)
