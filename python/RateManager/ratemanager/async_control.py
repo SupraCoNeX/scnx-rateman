@@ -94,19 +94,19 @@ def monitoring_tasks(ap_readers, fileHandles, loop):
 async def recv_data(reader, fileHandle):
     try:
         while True:
-            await asyncio.sleep(0.01)
+            # await asyncio.sleep(0.01)
             dataLine = await reader.readline()
             print('parsing data')
             fileHandle.write(dataLine.decode("utf-8"))
+            # fileHandle.drain()
     except KeyboardInterrupt:
         pass
     reader.close()
 
-
 async def set_rate(ap_writers):
     try:
         while True:
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.05)
             rate_ind = np.random.randint(0, 15)
             print("setting rate now")
             # writer.write(("phy1;setr;rate_1:mcs"+str(rate_ind)).encode())
@@ -123,7 +123,7 @@ async def stop_trigger(ap_readers, ap_writers, fileHandles, loop):
 
     try:
         while True:
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(2)
             answer = timedInput(prompt, timeout)
 
             if answer == 'x':
