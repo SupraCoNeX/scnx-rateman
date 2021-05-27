@@ -13,22 +13,18 @@ terminating a socket based connection to devices like access point routers
 """
 
 import socket
-import time
-import pdb
-from io import BytesIO
-import asyncio
 
 __all__ = [
-    "openconnection",
-    "closeconnection",
+    "open_connection",
+    "close_connection",
 ]
 
 
-def openconnection(host, port):
+def open_connection(host, port):
     socketHandle = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     socketHandle.connect((host, port))
     return socketHandle
 
 
-def closeconnection(socketHandle):
+def close_connection(socketHandle):
     socketHandle.close()

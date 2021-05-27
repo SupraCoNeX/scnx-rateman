@@ -1,0 +1,11 @@
+codecov
+matplotlib
+numpy
+pandas
+pint==0.9
+pycodestyle
+scipy
+six
+sphinx
+sphinx_rtd_theme
+tornado
