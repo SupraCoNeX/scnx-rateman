@@ -1,3 +1,5 @@
+# From: https://dash.plotly.com/live-updates
+
 import datetime
 
 import dash
