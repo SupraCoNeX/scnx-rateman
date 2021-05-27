@@ -10,6 +10,8 @@ from dash.dependencies import Input, Output, State
 
 from ratemanager import read_stats_txs_csv
 
+#TODO: Wrap multiple plots into a plot with subplots.
+
 csv_file = "../demo/collected_data/data_AP2.csv"
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -17,13 +19,7 @@ app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 app.layout = html.Div(children=[
     html.H1(children='Example Plots'),
-
-    # Old version of reading csv file:
-    # dcc.Input(id='input-1-state', type='text', value=csv_file),
-    # html.Button(id='load-button-state', n_clicks=0, children='Load CSV file'),
-
-    # New version of reading csv file:
-    # dcc.Upload(id='upload-button', children=html.Button('Read CSV file')),
+    
     dcc.Upload(
         id='upload-data',
         children=html.Div([
@@ -41,22 +37,19 @@ app.layout = html.Div(children=[
             'textAlign': 'center',
             'margin': '10px'
         },
-        # Allow multiple files to be uploaded
-        multiple=False
     ),
     html.Div(id='output-state'),
 
     dcc.Graph(id='rate-graph'),
 
-    dcc.Graph(id='throughput-graph')
+    dcc.Graph(id='throughput-graph'),
 ])
 
 @app.callback(Output('rate-graph', 'figure'),
               Output('throughput-graph', 'figure'),
               Output('output-state', 'children'),
-              Input('upload-data', 'contents'),
-              State('upload-data', 'filename'))
-def update_output(contents, filename):
+              Input('upload-data', 'contents'))
+def update_output(contents):
     if contents is not None:
         _, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
