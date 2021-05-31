@@ -35,7 +35,7 @@ if __name__ == "__main__":
     # # Create rateman object
     rateMan = ratemanager.RateManager()
     
-    rateMan.addaccesspoints('ap_list_sample_thomas.csv') 
+    rateMan.addaccesspoints('sample_ap_lists/ap_list_sample_thomas.csv') 
     
     rateMan.start()
     
