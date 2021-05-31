@@ -16,11 +16,11 @@ Motivation
 """
 
 
-__version__ = "0.0.1"
+__version__ = "0.1"
 
 
 # from . import *
-from .ratemanager import *
+from .rateman import *
 from .connection import *
 from .utils import *
 from .async_control import *

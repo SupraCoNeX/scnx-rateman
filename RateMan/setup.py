@@ -11,7 +11,7 @@ from os import path
 
 cmdclass = {"build_sphinx": BuildDoc}
 
-name = "ratemanager"
+name = "rateman"
 author = "SupraCoNeX"
 version = "0.1"  # __version__
 release = ".".join(version.split(".")[:2])

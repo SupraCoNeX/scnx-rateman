@@ -21,10 +21,10 @@ import paramiko
 import asyncio
 
 
-__all__ = ["RateManager"]
+__all__ = ["RateMan"]
 
 
-class RateManager:
+class RateMan:
     def __init__(self) -> None:
 
         self._accesspoints = {}
@@ -76,25 +76,25 @@ class RateManager:
                 APID = currentAP['APID']
                 IPAdd = currentAP['IPADD']
                 portID = int(currentAP['PORT'])
-                SSHHost = currentAP['SSHHOST']
+                SSHHost = currentAP['IPADD']
                 SSHPort = int(currentAP['SSHPORT'])
                 SSHUsr = currentAP['SSHUSR']
                 SSHPass = currentAP['SSHPASS']
+                MinstrelRCD = currentAP['MRCD']
 
                 self._accesspoints[APID] = APID
                 self._accesspoints[APID] = currentAP
                 self._accesspoints[APID]['PORT'] = portID
                 self._accesspoints[APID]['SSHPORT'] = SSHPort
 
-                # if APID == 'AP1':
-                #     SSHClient = paramiko.SSHClient()
-                #     SSHClient.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                #     SSHClient.connect(SSHHost, SSHPort, SSHUsr, SSHPass)
+                if MinstrelRCD == 'off':
+                    SSHClient = obtainSSHClient(SSHHost, SSHPort, SSHUsr, SSHPass)
+                    self._enableMinstrelRCD(SSHClient)
 
-                #     SSHClient.exec_command("minstrel-rcd -h 0.0.0.0 &")
-
-                # APHandle = openconnection(IPAdd, portID)
-
+    def _enableMinstrelRCD(self, SSHClient):
+        cmd = "minstrel-rcd -h 0.0.0.0 &"
+        execute_command_SSH(SSHClient, cmd)
+        
 
     def start(self) -> None:
         """
@@ -112,6 +112,7 @@ class RateManager:
             self._loop.run_forever()  # runs until loop.stop() is triggered
         finally:
             self._loop.close()
+            
 
     def savedata(self, host: str, port: str) -> None:
 

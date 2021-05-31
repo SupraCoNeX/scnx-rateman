@@ -24,18 +24,17 @@ RateMan is stopped within the terminal, observe the print statements.
 
 """
 
-import ratemanager
+import rateman
 import time
 import paramiko
 
 
 if __name__ == "__main__":
     
-
     # # Create rateman object
-    rateMan = ratemanager.RateManager()
+    rateMan = rateman.RateMan()
     
-    rateMan.addaccesspoints('ap_list_sample_thomas.csv') 
+    rateMan.addaccesspoints('sample_ap_lists/ap_list_sample_thomas.csv') 
     
     rateMan.start()
     

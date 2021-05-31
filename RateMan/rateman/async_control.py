@@ -22,7 +22,7 @@ from .connection import *
 
 
 __all__ = ["recv_data", "set_rate", "stop_trigger", "init_data_parsing",
-           "monitoring_tasks",
+           "monitoring_tasks", "stop_loop",
            "main_AP_tasks"]
 
 
@@ -133,21 +133,33 @@ async def stop_trigger(ap_readers, ap_writers, fileHandles, loop):
                     writer.write(cmd.encode("ascii") + b"\n")
                     # writer.close()
                     # fileHandle.close()
-                for task in asyncio.all_tasks():
-                    task.cancel()
-                    try:
-                        await task
-                    except asyncio.CancelledError:
-                            print("task is cancelled now")    
-                loop.stop()
-                # stop_tasks(loop)
-                   
+                await stop_tasks()
+                break
+            
     except KeyboardInterrupt:
         pass
+    
+    finally: 
+        stop_loop(loop)
+        
+async def stop_tasks():
+    
+    for task in asyncio.all_tasks():
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+                # print("task is cancelled now")
+            pass
+
+def stop_loop(loop):
+
+    for task in asyncio.all_tasks():
+        task.cancel()
+        
     loop.stop()
 
-def stop_tasks(loop):
-    for task in asyncio.all_tasks():
-       task.cancel()
+    
+    
 
    
