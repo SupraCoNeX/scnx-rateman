@@ -18,7 +18,8 @@ import io
 import asyncio
 from .utils import *
 import numpy as np
-from .connection import *
+from .connman import *
+import random
 
 
 __all__ = [
@@ -52,50 +53,51 @@ async def main_AP_tasks(APInfo, loop):
 
     APIDs = list(APInfo.keys())
 
-    ap_connection_task_list = []
-    ap_data_parsing_task_list = []
-    ap_readers = []
-    ap_writers = []
-
-    fileHandles = []
-
     for APID in APIDs:
 
         fileHandle = open("collected_data/data_" + APID + ".csv", "w")
         print("Data file created for", APID)
 
-        fileHandles.append(fileHandle)
-
         reader, writer = await asyncio.open_connection(
             APInfo[APID]["IPADD"], APInfo[APID]["PORT"]
         )
 
-        ap_readers.append(reader)
-        ap_writers.append(writer)
+        APInfo[APID]["writer"] = writer
+        APInfo[APID]["reader"] = reader
+        APInfo[APID]["fileHandle"] = fileHandle
 
-    init_data_parsing(ap_writers)
+    init_data_parsing(APInfo)
 
-    monitoring_tasks(ap_readers, fileHandles, loop)
+    monitoring_tasks(APInfo, loop)
 
-    loop.create_task(set_rate(ap_writers))
+    loop.create_task(set_rate(APInfo))
 
-    loop.create_task(stop_trigger(ap_readers, ap_writers, fileHandles, loop))
+    loop.create_task(stop_trigger(APInfo, loop))
 
 
-def init_data_parsing(ap_writers):
+def init_data_parsing(APInfo: dict) -> None:
+
+    APIDs = list(APInfo.keys())
 
     print("starting radios")
-    cmd = "phy1;start;stats;txs"
 
-    for writer in ap_writers:
-        writer.write(cmd.encode("ascii") + b"\n")
+    cmd_footer = ";start;stats;txs"
+
+    for APID in APIDs:
+        writer = APInfo[APID]["writer"]
+        for phy in APInfo[APID]["phyList"]:
+            cmd = phy + cmd_footer
+            writer.write(cmd.encode("ascii") + b"\n")
+
+    pass
 
 
-def monitoring_tasks(ap_readers, fileHandles, loop):
+def monitoring_tasks(APInfo, loop):
 
-    for reader, fileHandle in zip(ap_readers, fileHandles):
+    APIDs = list(APInfo.keys())
 
-        loop.create_task(recv_data(reader, fileHandle))
+    for APID in APIDs:
+        loop.create_task(recv_data(APInfo[APID]["reader"], APInfo[APID]["fileHandle"]))
 
 
 async def recv_data(reader, fileHandle):
@@ -105,29 +107,44 @@ async def recv_data(reader, fileHandle):
             dataLine = await reader.readline()
             print("parsing data")
             fileHandle.write(dataLine.decode("utf-8"))
-            # fileHandle.drain()
     except KeyboardInterrupt:
         pass
     reader.close()
 
 
-async def set_rate(ap_writers):
+async def set_rate(APInfo) -> None:
+
     try:
+        print("in rate setter")
+
+        APID = "AP2"
+        phy = "phy1"
+        macaddr = APInfo[APID]["staList"]["wlan1"][0]
+        writer = APInfo[APID]["writer"]
+
+        cmd = lambda phy, macaddr, rate: (phy + ";rates;" + macaddr + ";" + rate + ";1")
+
         while True:
             await asyncio.sleep(0.05)
-            rate_ind = np.random.randint(0, 15)
+
+            APInfo = getStationList(APInfo)
             print("setting rate now")
-            # writer.write(("phy1;setr;rate_1:mcs"+str(rate_ind)).encode())
-            # await writer.drain()
+            writer.write((phy + ";manual").encode("ascii") + b"\n")
+            rate_ind = str(random.Random().randint(80, 87))
+
+            writer.write(cmd(phy, macaddr, rate_ind).encode("ascii") + b"\n")
+            writer.write((phy + ";auto").encode("ascii") + b"\n")
     except KeyboardInterrupt:
         pass
     writer.close()
 
 
-async def stop_trigger(ap_readers, ap_writers, fileHandles, loop):
+async def stop_trigger(APInfo, loop):
     timeout = 1
     prompt = "To stop RateMan, enter x.\n"
-    cmd = "phy1;stop"
+    cmd_footer = ";stop"
+
+    APIDs = list(APInfo.keys())
 
     try:
         while True:
@@ -137,12 +154,12 @@ async def stop_trigger(ap_readers, ap_writers, fileHandles, loop):
             if answer == "x":
                 print("RateMan will stop now.")
 
-                for reader, writer, fileHandle in zip(
-                    ap_readers, ap_writers, fileHandles
-                ):
-                    writer.write(cmd.encode("ascii") + b"\n")
-                    # writer.close()
-                    # fileHandle.close()
+                for APID in APIDs:
+                    writer = APInfo[APID]["writer"]
+                    for phy in APInfo[APID]["phyList"]:
+                        cmd = phy + cmd_footer
+                        writer.write(cmd.encode("ascii") + b"\n")
+
                 await stop_tasks()
                 break
 
@@ -160,7 +177,6 @@ async def stop_tasks():
         try:
             await task
         except asyncio.CancelledError:
-            # print("task is cancelled now")
             pass
 
 

@@ -19,8 +19,7 @@ Motivation
 __version__ = "0.1"
 
 
-# from . import *
 from .rateman import *
-from .connection import *
+from .connman import *
+from .core import *
 from .utils import *
-from .async_control import *
