@@ -32,7 +32,6 @@ class RateMan:
         self._rcstats = []
 
         self._loop = asyncio.get_event_loop()
-       
 
     @property
     def clients(self) -> dict:
@@ -50,73 +49,197 @@ class RateMan:
 
     def addaccesspoints(self, filename: dir) -> None:
         """
-        Function to add a given access point to the network. Each access point
-        is given a unique ID and relevant information is organized as a dict
-        in the Rate Manager object in the 'accesspoints' variable.
+        Function to add a list of access points available in a network. 
+        Each access point has given a unique ID and relevant information 
+        is organized as a dict in the Rate Manager object as the
+        the 'accesspoints' variable.
 
         Parameters
         ----------
-        host : str
-            Host ID of the access point.
-        port : int
-            Port of the access point.
+        filename : dir
 
         Returns
         -------
         None
 
         """
-
-        # load file data
-
-        with open(filename, newline='') as csvfile:
+        with open(filename, newline="") as csvfile:
             reader = csv.DictReader(csvfile)
             for currentAP in reader:
 
-                APID = currentAP['APID']
-                IPAdd = currentAP['IPADD']
-                portID = int(currentAP['PORT'])
-                SSHHost = currentAP['IPADD']
-                SSHPort = int(currentAP['SSHPORT'])
-                SSHUsr = currentAP['SSHUSR']
-                SSHPass = currentAP['SSHPASS']
-                MinstrelRCD = currentAP['MRCD']
+                APID = currentAP["APID"]
+                IPAdd = currentAP["IPADD"]
+                portID = int(currentAP["PORT"])
+                SSHHost = currentAP["IPADD"]
+                SSHPort = int(currentAP["SSHPORT"])
+                SSHUsr = currentAP["SSHUSR"]
+                SSHPass = currentAP["SSHPASS"]
+                SSHConn = currentAP["SSH"]
+                MinstrelRCD = currentAP["MRCD"]
 
                 self._accesspoints[APID] = APID
                 self._accesspoints[APID] = currentAP
-                self._accesspoints[APID]['PORT'] = portID
-                self._accesspoints[APID]['SSHPORT'] = SSHPort
+                self._accesspoints[APID]["PORT"] = portID
+                self._accesspoints[APID]["SSHPORT"] = SSHPort
 
-                if MinstrelRCD == 'off':
-                    SSHClient = obtainSSHClient(SSHHost, SSHPort, SSHUsr, SSHPass)
+                if SSHConn == "enable":
+                    SSHClient = obtain_SSHClient(
+                        SSHHost, SSHPort, SSHUsr, SSHPass)
+
+                    phy_list = self._getPhyList(SSHClient)
+                    wlan_list = self._getWLANList(SSHClient)
+
+                    self._accesspoints[APID]["wlanList"] = wlan_list
+                    self._accesspoints[APID]["phyList"] = phy_list
+                    self._accesspoints[APID]["staList"] = {}
+                    self._getStationList(SSHClient, wlan_list, APID)
+                else:
+                    self._accesspoints[APID]["wlanList"] = "not available"
+                    self._accesspoints[APID]["phyList"] = "not available"
+                    self._accesspoints[APID]["staList"] = "not available"
+
+                if SSHConn == "enable" and MinstrelRCD == "off":
                     self._enableMinstrelRCD(SSHClient)
+    
+        pass
+    
 
-    def _enableMinstrelRCD(self, SSHClient):
+    def _getPhyList(self, SSHClient: object) -> list:
+        """
+        Get a list of the available radio devices for a given access point.
+
+        Parameters
+        ----------
+        SSHClient : object
+            SSH client object for a given access point.
+
+        Returns
+        -------
+        list
+            List containing Phy ID strings.
+
+        """
+
+        command = "iw phy"
+
+        stdin, stdout, stderr = SSHClient.exec_command(command)
+
+        lines = stdout.readlines()
+
+        phy_list = []
+        for line in lines:
+            if "Wiphy" in line:
+                phy_list.append(line[6:-1])
+
+        return phy_list
+
+    def _getWLANList(self, SSHClient: object) -> list:
+        """
+        Get a list of the available WLAN devices for a given access point.
+        Number of WLAN devices corresponds to the number of radios. 
+
+        Parameters
+        ----------
+        SSHClient : object
+            SSH client object for a given access point.
+
+        Returns
+        -------
+        list
+            List containing WLAN device ID strings.
+
+        """
+
+        command = "iw dev"
+
+        stdin, stdout, stderr = SSHClient.exec_command(command)
+
+        lines = stdout.readlines()
+
+        wlan_list = []
+        for line in lines:
+            if "Interface" in line:
+                wlan_list.append(line[11:-1])
+
+        return wlan_list
+
+    def _getStationList(self, SSHClient: object, wlan_list: list, APID: str) -> None:
+        """
+        Get list of stations connected to a given WLAN device of the given
+        access point.
+
+
+        Parameters
+        ----------
+        SSHClient : object
+            SSH client object for a given access point.
+        wlan_list : list
+            List containing WLAN device ID strings.
+        APID : str
+            Access point ID.
+
+        Returns
+        -------
+        None            
+
+        """
+
+        for wlan in wlan_list:
+            station_list = []
+            command = "iw dev " + wlan + " station dump"
+            stdin, stdout, stderr = SSHClient.exec_command(command)
+            lines = stdout.readlines()
+            for line in lines:
+                if "Station" in line:
+                    station_list.append(line[8:25])
+            self._accesspoints[APID]["staList"][wlan] = station_list
+
+        pass
+
+    def _enableMinstrelRCD(self, SSHClient: object) -> None:
+        """
+
+
+        Parameters
+        ----------
+        SSHClient : object
+            SSH client object for a given access point.
+
+        Returns
+        -------
+        None
+            DESCRIPTION.
+
+        """
+
         cmd = "minstrel-rcd -h 0.0.0.0 &"
         execute_command_SSH(SSHClient, cmd)
-        
+
+        pass
 
     def start(self) -> None:
         """
-        Start RateMan
+        Start monitoring of TX Status (txs) and Rate Control Statistics
+        (rc_stats).
+
 
         Returns
         -------
         None.
 
         """
-        
+
         self._loop.create_task(main_AP_tasks(self._accesspoints, self._loop))
-        
+
         try:
-            self._loop.run_forever()  # runs until loop.stop() is triggered
+            self._loop.run_forever()
         finally:
             self._loop.close()
             
+        pass
 
     def savedata(self, host: str, port: str) -> None:
 
         # data is structured per AP and can be structure per client
 
         pass
- 

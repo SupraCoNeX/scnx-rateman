@@ -30,11 +30,10 @@ import paramiko
 
 
 if __name__ == "__main__":
-    
+
     # # Create rateman object
     rateMan = rateman.RateMan()
-    
-    rateMan.addaccesspoints('sample_ap_lists/ap_list_sample_thomas.csv') 
-    
+
+    rateMan.addaccesspoints("sample_ap_lists/ap_list_sample_1.csv")
+
     rateMan.start()
-    

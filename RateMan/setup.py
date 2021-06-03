@@ -54,6 +54,6 @@ setup(
         "pandas",
         "pint==0.9",
         "dask",
-        "paramiko"
-    ]
+        "paramiko",
+    ],
 )

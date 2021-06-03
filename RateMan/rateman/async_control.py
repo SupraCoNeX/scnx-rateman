@@ -21,9 +21,15 @@ import numpy as np
 from .connection import *
 
 
-__all__ = ["recv_data", "set_rate", "stop_trigger", "init_data_parsing",
-           "monitoring_tasks", "stop_loop",
-           "main_AP_tasks"]
+__all__ = [
+    "recv_data",
+    "set_rate",
+    "stop_trigger",
+    "init_data_parsing",
+    "monitoring_tasks",
+    "stop_loop",
+    "main_AP_tasks",
+]
 
 
 async def main_AP_tasks(APInfo, loop):
@@ -60,8 +66,9 @@ async def main_AP_tasks(APInfo, loop):
 
         fileHandles.append(fileHandle)
 
-        reader, writer = await asyncio.open_connection(APInfo[APID]['IPADD'],
-                                                       APInfo[APID]['PORT'])
+        reader, writer = await asyncio.open_connection(
+            APInfo[APID]["IPADD"], APInfo[APID]["PORT"]
+        )
 
         ap_readers.append(reader)
         ap_writers.append(writer)
@@ -77,7 +84,7 @@ async def main_AP_tasks(APInfo, loop):
 
 def init_data_parsing(ap_writers):
 
-    print('starting radios')
+    print("starting radios")
     cmd = "phy1;start;stats;txs"
 
     for writer in ap_writers:
@@ -96,12 +103,13 @@ async def recv_data(reader, fileHandle):
         while True:
             # await asyncio.sleep(0.01)
             dataLine = await reader.readline()
-            print('parsing data')
+            print("parsing data")
             fileHandle.write(dataLine.decode("utf-8"))
             # fileHandle.drain()
     except KeyboardInterrupt:
         pass
     reader.close()
+
 
 async def set_rate(ap_writers):
     try:
@@ -118,7 +126,7 @@ async def set_rate(ap_writers):
 
 async def stop_trigger(ap_readers, ap_writers, fileHandles, loop):
     timeout = 1
-    prompt = 'To stop RateMan, enter x.\n'
+    prompt = "To stop RateMan, enter x.\n"
     cmd = "phy1;stop"
 
     try:
@@ -126,40 +134,39 @@ async def stop_trigger(ap_readers, ap_writers, fileHandles, loop):
             await asyncio.sleep(2)
             answer = timedInput(prompt, timeout)
 
-            if answer == 'x':
-                print('RateMan will stop now.')
+            if answer == "x":
+                print("RateMan will stop now.")
 
-                for reader, writer, fileHandle in zip(ap_readers, ap_writers, fileHandles):
+                for reader, writer, fileHandle in zip(
+                    ap_readers, ap_writers, fileHandles
+                ):
                     writer.write(cmd.encode("ascii") + b"\n")
                     # writer.close()
                     # fileHandle.close()
                 await stop_tasks()
                 break
-            
+
     except KeyboardInterrupt:
         pass
-    
-    finally: 
+
+    finally:
         stop_loop(loop)
-        
+
+
 async def stop_tasks():
-    
+
     for task in asyncio.all_tasks():
         task.cancel()
         try:
             await task
         except asyncio.CancelledError:
-                # print("task is cancelled now")
+            # print("task is cancelled now")
             pass
+
 
 def stop_loop(loop):
 
     for task in asyncio.all_tasks():
         task.cancel()
-        
+
     loop.stop()
-
-    
-    
-
-   
