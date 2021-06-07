@@ -4,11 +4,11 @@
 #
 
 r"""
-Asynchronous Control
+Core Asynchronous Control
 ----------------
 
-This module provides functions to asynchronous monitor network status and
-set rates.
+This is the main processing module that provides functions to asynchronously 
+monitor network status and set rates.
 
 """
 
@@ -97,7 +97,8 @@ def monitoring_tasks(APInfo, loop):
     APIDs = list(APInfo.keys())
 
     for APID in APIDs:
-        loop.create_task(recv_data(APInfo[APID]["reader"], APInfo[APID]["fileHandle"]))
+        loop.create_task(
+            recv_data(APInfo[APID]["reader"], APInfo[APID]["fileHandle"]))
 
 
 async def recv_data(reader, fileHandle):
@@ -122,7 +123,8 @@ async def set_rate(APInfo) -> None:
         macaddr = APInfo[APID]["staList"]["wlan1"][0]
         writer = APInfo[APID]["writer"]
 
-        cmd = lambda phy, macaddr, rate: (phy + ";rates;" + macaddr + ";" + rate + ";1")
+        def cmd(phy, macaddr, rate):
+            return phy + ";rates;" + macaddr + ";" + rate + ";1"
 
         while True:
             await asyncio.sleep(0.05)
