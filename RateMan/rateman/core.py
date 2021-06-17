@@ -28,12 +28,13 @@ __all__ = [
     "stop_trigger",
     "init_data_parsing",
     "monitoring_tasks",
+    "obtain_data",
     "stop_loop",
     "main_AP_tasks",
 ]
 
 
-async def main_AP_tasks(APInfo, loop):
+async def main_AP_tasks(APInfo, loop, duration = 10):
     """
     This async function creates a main task that manages several
     subtasks with each AP having one subtask associated with it.
@@ -67,13 +68,18 @@ async def main_AP_tasks(APInfo, loop):
         APInfo[APID]["fileHandle"] = fileHandle
 
     init_data_parsing(APInfo)
+    
+    
+    start_time = time.time()
 
     monitoring_tasks(APInfo, loop)
 
-    loop.create_task(set_rate(APInfo))
+    # loop.create_task(obtain_data(APInfo))
+    
+    # loop.create_task(set_rate(APInfo))
 
-    loop.create_task(stop_trigger(APInfo, loop))
-
+    loop.create_task(stop_trigger(APInfo, loop, duration, start_time))
+    
 
 def init_data_parsing(APInfo: dict) -> None:
 
@@ -112,6 +118,15 @@ async def recv_data(reader, fileHandle):
         pass
     reader.close()
 
+async def obtain_data(fileHandle) -> None:
+    try:
+        while True:            
+            dataLine = await reader.readline()
+            print("parsing data")
+            fileHandle.write(dataLine.decode("utf-8"))
+    except KeyboardInterrupt:
+        pass
+    reader.close()
 
 async def set_rate(APInfo) -> None:
 
@@ -140,8 +155,7 @@ async def set_rate(APInfo) -> None:
         pass
     writer.close()
 
-
-async def stop_trigger(APInfo, loop):
+async def stop_trigger(APInfo, loop, duration, start_time):
     timeout = 1
     prompt = "To stop RateMan, enter x.\n"
     cmd_footer = ";stop"
@@ -152,8 +166,10 @@ async def stop_trigger(APInfo, loop):
         while True:
             await asyncio.sleep(2)
             answer = timedInput(prompt, timeout)
+            
+            print('time passed %f seconds' %(time.time()-start_time))
 
-            if answer == "x":
+            if answer == "x" or (time.time()-start_time >= duration):
                 print("RateMan will stop now.")
 
                 for APID in APIDs:

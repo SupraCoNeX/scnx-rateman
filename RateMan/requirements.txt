@@ -7,7 +7,6 @@ pandas
 paramiko
 pint==0.9
 pycodestyle
-quadpy
 scipy
 six
 sphinx

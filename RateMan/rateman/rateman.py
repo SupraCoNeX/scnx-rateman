@@ -70,36 +70,14 @@ class RateMan:
                 APID = currentAP["APID"]
                 IPAdd = currentAP["IPADD"]
                 portID = int(currentAP["PORT"])
-                SSHHost = currentAP["IPADD"]
-                SSHPort = int(currentAP["SSHPORT"])
-                SSHUsr = currentAP["SSHUSR"]
-                SSHPass = currentAP["SSHPASS"]
-                SSHConn = currentAP["SSH"]
-                MinstrelRCD = currentAP["MRCD"]
 
                 self._accesspoints[APID] = APID
                 self._accesspoints[APID] = currentAP
                 self._accesspoints[APID]["PORT"] = portID
-                self._accesspoints[APID]["SSHPORT"] = SSHPort
 
-                if SSHConn == "enable":
-                    SSHClient = obtain_SSHClient(SSHHost, SSHPort, SSHUsr, SSHPass)
-
-                    self._accesspoints[APID]["SSHClient"] = SSHClient
-                    self._accesspoints[APID]["wlanList"] = getWLANList(SSHClient)
-                    self._accesspoints[APID]["phyList"] = getPhyList(SSHClient)
-                    self._accesspoints[APID]["staList"] = {}
-
-                else:
-                    self._accesspoints[APID]["SSHClient"] = "not available"
-                    self._accesspoints[APID]["wlanList"] = "not available"
-                    self._accesspoints[APID]["phyList"] = "not available"
-                    self._accesspoints[APID]["staList"] = "not available"
-
-                if SSHConn == "enable" and MinstrelRCD == "off":
-                    self._enableMinstrelRCD(SSHClient)
-
-        self._accesspoints = getStationList(self._accesspoints)
+                # phy list is hard-coded -> ToDo: obtain list automatically
+                # using getPhyList function
+                self._accesspoints[APID]["phyList"] = ['phy0', 'phy1']
 
         pass
 
@@ -124,7 +102,7 @@ class RateMan:
 
         pass
 
-    def start(self) -> None:
+    def start(self, duration: float) -> None:
         """
         Start monitoring of TX Status (txs) and Rate Control Statistics
         (rc_stats).
@@ -136,7 +114,10 @@ class RateMan:
 
         """
 
-        self._loop.create_task(main_AP_tasks(self._accesspoints, self._loop))
+        self._duration = duration
+
+        self._loop.create_task(main_AP_tasks(self._accesspoints, self._loop,
+                                             self._duration))
 
         try:
             self._loop.run_forever()
