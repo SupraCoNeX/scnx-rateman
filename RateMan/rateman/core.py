@@ -120,6 +120,8 @@ def monitoring_tasks(APInfo, loop):
     ----------
     APs : list of pairs of IPADDR and Port for each AP in the network
         DESCRIPTION.
+    loop : event_loop
+        DESCRIPTION.
 
     Returns
     -------
@@ -142,6 +144,8 @@ async def recv_data(reader, fileHandle):
     ----------
     APs : list of pairs of IPADDR and Port for each AP in the network
         DESCRIPTION.
+    fileHandle : file object
+        the data_AP.csv file to which the TX and rc status has to be written
 
     Returns
     -------
