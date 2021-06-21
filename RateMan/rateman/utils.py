@@ -18,7 +18,8 @@ __all__ = ["read_stats_txs_csv", "timedInput"]
 def read_stats_txs_csv(
     data: str, shifttime: bool = False, humanread: bool = True, bin_enc: bool = False
 ) -> pd.core.frame.DataFrame:
-    """Read rc_stats and tx status from the given csv file.
+    """
+    Read rc_stats and tx status from the given csv file.
 
     Parameters:
     -----------
@@ -106,6 +107,31 @@ def read_stats_txs_csv(
 
 
 def timedInput(prompt="", timeout=1, timeoutmsg=None):
+    """
+    This function displays a prompt to which an input has to be entered within
+    the timeout duration.
+
+    Parameters
+    ----------
+    prompt : str
+        Prompt for the timedInput
+
+    timeout : float
+        Duration within which input must be entered
+
+    timeoutmsg: str
+        Message to be displayed when duration of timeout is exceeded
+
+    Returns
+    -------
+    None.
+        Returns None if timeout duration is exceeded
+
+    answer : str
+        Returns the input to the prompt
+
+    """
+
     def timeout_error(*_):
         raise TimeoutError
 

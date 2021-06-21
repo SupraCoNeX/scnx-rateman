@@ -83,6 +83,20 @@ async def main_AP_tasks(APInfo, loop, duration = 10):
 
 def init_data_parsing(APInfo: dict) -> None:
 
+    """
+    This function, for each phy, starts to display the TX and rc status.
+
+    Parameters
+    ----------
+    APs : list of pairs of IPADDR and Port for each AP in the network
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+
     APIDs = list(APInfo.keys())
 
     print("starting radios")
@@ -99,6 +113,19 @@ def init_data_parsing(APInfo: dict) -> None:
 
 
 def monitoring_tasks(APInfo, loop):
+    """
+    This function, for each AP, calls the recv_data function.
+
+    Parameters
+    ----------
+    APs : list of pairs of IPADDR and Port for each AP in the network
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
 
     APIDs = list(APInfo.keys())
 
@@ -108,6 +135,19 @@ def monitoring_tasks(APInfo, loop):
 
 
 async def recv_data(reader, fileHandle):
+    """
+    This function, for each AP, reads the TX and rc status and writes it to the data_AP.csv file
+
+    Parameters
+    ----------
+    APs : list of pairs of IPADDR and Port for each AP in the network
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
     try:
         while True:
             # await asyncio.sleep(0.01)
@@ -119,14 +159,7 @@ async def recv_data(reader, fileHandle):
     reader.close()
 
 async def obtain_data(fileHandle) -> None:
-    try:
-        while True:            
-            dataLine = await reader.readline()
-            print("parsing data")
-            fileHandle.write(dataLine.decode("utf-8"))
-    except KeyboardInterrupt:
-        pass
-    reader.close()
+    pass
 
 async def set_rate(APInfo) -> None:
 
@@ -156,6 +189,25 @@ async def set_rate(APInfo) -> None:
     writer.close()
 
 async def stop_trigger(APInfo, loop, duration, start_time):
+    """
+    This function stops the program (data collection) according to the given duration or timedInput.
+
+    Parameters
+    ----------
+    APs : list of pairs of IPADDR and Port for each AP in the network
+        DESCRIPTION.
+    loop : event_loop
+        DESCRIPTION.
+    duration : int
+        duration for which the data has to be collected
+    start_time : time
+        Local time at which the data collection was started
+
+    Returns
+    -------
+    None.
+
+    """
     timeout = 1
     prompt = "To stop RateMan, enter x.\n"
     cmd_footer = ";stop"
