@@ -1,13 +1,10 @@
-# First version of liveplot
-# -------------------------
-# 1) New values of plots are not appended but the whole plot is generated.
-#    This is not efficient!
-# 2) Implement sliding window.
+import base64
+import io
 
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -16,19 +13,11 @@ import numpy as np
 
 from rateman import read_stats_txs_csv
 
-#TODO: Wrap multiple plots into a plot with subplots.
-#TODO: Fix Rate Index Axis order.
-
 ap_list_csv = 'sample_ap_lists/ap_list_sample_1.csv'
-csv_file = "collected_data/data_AP2.csv"
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-
-
 ap_list_df = pd.read_csv(ap_list_csv)
-fig = go.Figure()
-
 options = []
-for index, row in ap_list_df.iterrows():
+for _, row in ap_list_df.iterrows():
     options.append(
         {
             'label': '{} - {}'.format(row['APID'], row['IPADD']),
@@ -43,7 +32,7 @@ app.layout = html.Div(children=[
     
     html.Div(id='output-state'),
 
-    dcc.Graph(id='graph', figure=fig),
+    dcc.Graph(id='graph', figure=go.Figure()),
     dcc.Interval(
             id='interval-component',
             interval=1*1000, # in milliseconds
@@ -51,6 +40,28 @@ app.layout = html.Div(children=[
     ),
     # dcc.Store inside the app that stores the intermediate value
     dcc.Store(id='traces-to-plot'),
+
+    html.Div(children='Select AP list:'),
+
+    dcc.Upload(
+        id='select-aplist',
+        children=html.Div([
+            'Drag and Drop or ',
+            html.A('Select Files')
+        ]),
+        style={
+            'width': '100%',
+            'height': '60px',
+            'lineHeight': '60px',
+            'borderWidth': '1px',
+            'borderStyle': 'dashed',
+            'borderRadius': '5px',
+            'textAlign': 'center',
+            'margin': '10px'
+        },
+    ),
+
+    html.Div(children='Select AP to plot:', id='test-id'),
 
     dcc.Dropdown(
         options=options,
@@ -60,10 +71,33 @@ app.layout = html.Div(children=[
     )  
 ])
 
+@app.callback(Output('traces-dropdown', 'options'),
+              Input('select-aplist', 'contents'),
+              State('select-aplist', 'filename'))
+def select_aplist(contents, filename):
+    if contents is not None:
+        _, content_string = contents.split(',')
+        decoded = base64.b64decode(content_string)
+        # Assume that the user uploaded a CSV file
+        ap_list_df = pd.read_csv(
+            io.StringIO(decoded.decode('utf-8')))
+        options = []
+        for _, row in ap_list_df.iterrows():
+            options.append(
+                {
+                    'label': '{} - {}'.format(row['APID'], row['IPADD']),
+                    'value': row['APID']
+                }
+            )
+        return options
+    else:
+        return []
+
+
 @app.callback(Output('traces-to-plot', 'data'),
               Input('traces-dropdown', 'value'))
 def update_traces_to_plot(value):
-    return value # ist nicht notwendig
+    return value
 
 @app.callback(Output('graph', 'figure'),
               Input('interval-component', 'n_intervals'),
@@ -103,12 +137,9 @@ def liveplot(n, dd_val, t_interval=20):
             go.Scatter(x=df2[df2.index > t_start].index, y=df2[df2.index > t_start].avg_tp), 
             row=2, col=1
         )
-
-    # Edit the layout
-    # fig.update_layout(title='Rate Index at Time',
-    #                 xaxis_title='Time in s',
-    #                 yaxis_title='Rate Index')
+    fig.update_layout(showlegend=False)
     return fig
 
+
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
