@@ -4,7 +4,7 @@ import io
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output, State
+from dash.dependencies import Input, Output
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -13,17 +13,7 @@ import numpy as np
 
 from rateman import read_stats_txs_csv
 
-ap_list_csv = 'sample_ap_lists/ap_list_sample_1.csv'
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-ap_list_df = pd.read_csv(ap_list_csv)
-options = []
-for _, row in ap_list_df.iterrows():
-    options.append(
-        {
-            'label': '{} - {}'.format(row['APID'], row['IPADD']),
-            'value': row['APID']
-        }
-    )
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
@@ -64,7 +54,7 @@ app.layout = html.Div(children=[
     html.Div(children='Select AP to plot:', id='test-id'),
 
     dcc.Dropdown(
-        options=options,
+        options=[],
         value=[],
         multi=True,
         id='traces-dropdown',
@@ -72,9 +62,8 @@ app.layout = html.Div(children=[
 ])
 
 @app.callback(Output('traces-dropdown', 'options'),
-              Input('select-aplist', 'contents'),
-              State('select-aplist', 'filename'))
-def select_aplist(contents, filename):
+              Input('select-aplist', 'contents'))
+def select_aplist(contents):
     if contents is not None:
         _, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
