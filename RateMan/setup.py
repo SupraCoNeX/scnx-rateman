@@ -55,5 +55,6 @@ setup(
         "pint==0.9",
         "dask",
         "paramiko",
+        "dash"
     ],
 )

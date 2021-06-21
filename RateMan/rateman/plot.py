@@ -12,6 +12,8 @@ control statistics from access points.
 
 """
 
+#TODO: AP data folder is fixed. Make it variable!
+
 import base64
 import io
 
@@ -112,7 +114,7 @@ def liveplot(n, dd_val, t_interval=20):
         return go.Figure()
     dfs, df2s = [], []
     for apid in dd_val:
-        d1, d2 = read_stats_txs_csv("collected_data/data_{}.csv".format(apid), shifttime=True)
+        d1, d2 = read_stats_txs_csv("../demo/collected_data/data_{}.csv".format(apid), shifttime=True)
         dfs.append(d1)
         df2s.append(d2)
     
