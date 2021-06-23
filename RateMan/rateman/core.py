@@ -31,6 +31,9 @@ __all__ = [
     "obtain_data",
     "stop_loop",
     "main_AP_tasks",
+    "connect_to_AP",
+    "timer",
+    "stop_rateman"
 ]
 
 
@@ -43,12 +46,51 @@ async def main_AP_tasks(APInfo, loop, duration = 10):
     ----------
     loop : event_loop
         DESCRIPTION.
-    APs : list of pairs of IPADDR and Port for each AP in the network
-        DESCRIPTION.
+    APInfo : dictionary
+        contains each AP in the network as key with relevant parameters
+    duration : float
+        duration for which the data has to be collected
 
     Returns
     -------
     None.
+
+    """
+
+    APInfo =  await connect_to_AP(APInfo, loop)
+    
+    # If we have accesible AP/s
+    if APInfo:
+
+        # Start fetching TX and RC status for accessible APs
+        init_data_parsing(APInfo)
+
+        loop.create_task(timer(APInfo, duration, loop))
+
+        monitoring_tasks(APInfo, loop)
+
+        # loop.create_task(obtain_data(APInfo))
+    
+        # loop.create_task(set_rate(APInfo))
+
+        loop.create_task(stop_trigger(APInfo, loop))
+    
+async def connect_to_AP(APInfo: dict, loop):
+    """
+    This async function takes a dictionary of AP information and
+    returns the dictionary with only accessible AP entries.
+
+    Parameters
+    ----------
+    loop : event_loop
+        DESCRIPTION.
+    APInfo : dictionary
+        contains each AP in the network as key with relevant parameters
+
+    Returns
+    -------
+    APInfo : dictionary
+        contains each accessible AP in the network as key with relevant parameters
 
     """
 
@@ -59,27 +101,33 @@ async def main_AP_tasks(APInfo, loop, duration = 10):
         fileHandle = open("collected_data/data_" + APID + ".csv", "w")
         print("Data file created for", APID)
 
-        reader, writer = await asyncio.open_connection(
+        conn = asyncio.open_connection(
             APInfo[APID]["IPADD"], APInfo[APID]["PORT"]
         )
 
-        APInfo[APID]["writer"] = writer
-        APInfo[APID]["reader"] = reader
-        APInfo[APID]["fileHandle"] = fileHandle
+        try:
+            # Try connecting to the AP within a timeout duration
+            reader, writer = await asyncio.wait_for(conn, timeout=5)
+            print ("Connected to {} {}".format(APInfo[APID]["IPADD"], APInfo[APID]["PORT"]))
 
-    init_data_parsing(APInfo)
-    
-    
-    start_time = time.time()
+            APInfo[APID]["writer"] = writer
+            APInfo[APID]["reader"] = reader
+            APInfo[APID]["fileHandle"] = fileHandle
 
-    monitoring_tasks(APInfo, loop)
+        except asyncio.TimeoutError:
+            # If timeout duration is exceeded i.e. AP is not accessible
+            print ("Failed to connect {} {}: Timeout Error".format(APInfo[APID]["IPADD"], APInfo[APID]["PORT"]))
+            fileHandle.write("Failed to connect {} {}: Timeout Error".format(APInfo[APID]["IPADD"], APInfo[APID]["PORT"]))
 
-    # loop.create_task(obtain_data(APInfo))
-    
-    # loop.create_task(set_rate(APInfo))
+            # Remove unaccessible AP from the dictionary
+            del APInfo[APID]
 
-    loop.create_task(stop_trigger(APInfo, loop, duration, start_time))
+            # Check if the list of accessible APs is empty
+            if not APInfo:
+                print("Couldn't connect to any access points! Stopping rateman....")
+                await stop_rateman(APInfo, loop, False)
     
+    return APInfo
 
 def init_data_parsing(APInfo: dict) -> None:
 
@@ -88,8 +136,8 @@ def init_data_parsing(APInfo: dict) -> None:
 
     Parameters
     ----------
-    APs : list of pairs of IPADDR and Port for each AP in the network
-        DESCRIPTION.
+    APInfo : dictionary
+        contains each AP in the network as key with relevant parameters
 
     Returns
     -------
@@ -111,6 +159,34 @@ def init_data_parsing(APInfo: dict) -> None:
 
     pass
 
+async def timer(APInfo, duration, loop):
+    """
+    This async function stops the rateman after the TX and rc data have
+    been parsed for a time duration.
+
+    Parameters
+    ----------
+    loop : event_loop
+        DESCRIPTION.
+    APInfo : dictionary
+        contains each AP in the network as key with relevant parameters
+    duration: float
+        calls stop_rateman function when the duration is exceeded
+
+    Returns
+    -------
+    APInfo : dictionary
+        contains each accessible AP in the network as key with relevant parameters
+
+    """
+    start_time = time.time()
+    while True:
+        await asyncio.sleep(0)
+        time_elapsed = time.time()-start_time
+        if time_elapsed > duration:
+            print("Given duration has been exceeded! Time duration: ", time_elapsed)
+            break
+    await stop_rateman(APInfo, loop)
 
 def monitoring_tasks(APInfo, loop):
     """
@@ -118,8 +194,8 @@ def monitoring_tasks(APInfo, loop):
 
     Parameters
     ----------
-    APs : list of pairs of IPADDR and Port for each AP in the network
-        DESCRIPTION.
+    APInfo : dictionary
+        contains each AP in the network as key with relevant parameters
     loop : event_loop
         DESCRIPTION.
 
@@ -142,8 +218,8 @@ async def recv_data(reader, fileHandle):
 
     Parameters
     ----------
-    APs : list of pairs of IPADDR and Port for each AP in the network
-        DESCRIPTION.
+    reader : reader object
+        object from which the TX and rc status of an AP is read
     fileHandle : file object
         the data_AP.csv file to which the TX and rc status has to be written
 
@@ -192,20 +268,17 @@ async def set_rate(APInfo) -> None:
         pass
     writer.close()
 
-async def stop_trigger(APInfo, loop, duration, start_time):
+async def stop_trigger(APInfo, loop):
     """
-    This function stops the program (data collection) according to the given duration or timedInput.
+    This function calls stop_rateman when the timedInput function
+    gets the expected input i.e. x.
 
     Parameters
     ----------
-    APs : list of pairs of IPADDR and Port for each AP in the network
-        DESCRIPTION.
+    APInfo : dictionary
+        contains each AP in the network as key with relevant parameters
     loop : event_loop
         DESCRIPTION.
-    duration : int
-        duration for which the data has to be collected
-    start_time : time
-        Local time at which the data collection was started
 
     Returns
     -------
@@ -214,34 +287,53 @@ async def stop_trigger(APInfo, loop, duration, start_time):
     """
     timeout = 1
     prompt = "To stop RateMan, enter x.\n"
-    cmd_footer = ";stop"
-
-    APIDs = list(APInfo.keys())
-
+    
     try:
         while True:
             await asyncio.sleep(2)
             answer = timedInput(prompt, timeout)
-            
-            print('time passed %f seconds' %(time.time()-start_time))
 
-            if answer == "x" or (time.time()-start_time >= duration):
-                print("RateMan will stop now.")
-
-                for APID in APIDs:
-                    writer = APInfo[APID]["writer"]
-                    for phy in APInfo[APID]["phyList"]:
-                        cmd = phy + cmd_footer
-                        writer.write(cmd.encode("ascii") + b"\n")
-
-                await stop_tasks()
+            if answer == "x":
+                stop_rateman(APInfo, loop)
                 break
 
     except KeyboardInterrupt:
         pass
 
-    finally:
-        stop_loop(loop)
+async def stop_rateman(APInfo, loop, stop_cmd: bool = True):
+    """
+    This function calls stop_rateman when the timedInput function
+    gets the expected input i.e. x.
+
+    Parameters
+    ----------
+    APInfo : dictionary
+        contains each AP in the network as key with relevant parameters
+    loop : event_loop
+        DESCRIPTION.
+    stop_cmd : bool
+        if True indicates that stop command for TX and rc status must be 
+        executed before stopping the program 
+
+    Returns
+    -------
+    None.
+
+    """
+    cmd_footer = ";stop"
+
+    APIDs = list(APInfo.keys())
+
+    if stop_cmd is True:
+        for APID in APIDs:
+            writer = APInfo[APID]["writer"]
+            for phy in APInfo[APID]["phyList"]:
+                cmd = phy + cmd_footer
+                writer.write(cmd.encode("ascii") + b"\n")
+
+    print("Stopping rateman.....")
+    await stop_tasks()
+    stop_loop(loop)
 
 
 async def stop_tasks():
