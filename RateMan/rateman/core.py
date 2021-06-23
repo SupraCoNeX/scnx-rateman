@@ -175,8 +175,7 @@ async def timer(APInfo, duration, loop):
 
     Returns
     -------
-    APInfo : dictionary
-        contains each accessible AP in the network as key with relevant parameters
+    None.
 
     """
     start_time = time.time()
