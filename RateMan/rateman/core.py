@@ -213,7 +213,8 @@ def monitoring_tasks(APInfo, loop):
 
 async def recv_data(reader, fileHandle):
     """
-    This function, for each AP, reads the TX and rc status and writes it to the data_AP.csv file
+    This function, for each AP, reads the TX and rc status and writes it
+    to the data_AP.csv file
 
     Parameters
     ----------
@@ -293,7 +294,7 @@ async def stop_trigger(APInfo, loop):
             answer = timedInput(prompt, timeout)
 
             if answer == "x":
-                stop_rateman(APInfo, loop)
+                await stop_rateman(APInfo, loop)
                 break
 
     except KeyboardInterrupt:
@@ -301,8 +302,9 @@ async def stop_trigger(APInfo, loop):
 
 async def stop_rateman(APInfo, loop, stop_cmd: bool = True):
     """
-    This function calls stop_rateman when the timedInput function
-    gets the expected input i.e. x.
+    This async function executes stop command in the APs (if indicated i.e.
+    stop_cmd set to True). It also stops all the tasks and, finally, the 
+    event loop.
 
     Parameters
     ----------
@@ -343,7 +345,6 @@ async def stop_tasks():
             await task
         except asyncio.CancelledError:
             pass
-
 
 def stop_loop(loop):
 
