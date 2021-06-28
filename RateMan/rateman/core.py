@@ -124,7 +124,7 @@ async def connect_to_AP(APInfo: dict, loop):
 
             # Check if the list of accessible APs is empty
             if not APInfo:
-                print("Couldn't connect to any access points! Stopping rateman....")
+                print("Couldn't connect to any access points!")
                 await stop_rateman(APInfo, loop, False)
     
     return APInfo
@@ -313,8 +313,8 @@ async def stop_rateman(APInfo, loop, stop_cmd: bool = True):
     loop : event_loop
         DESCRIPTION.
     stop_cmd : bool
-        if True indicates that stop command for TX and rc status must be 
-        executed before stopping the program 
+        if True, it indicates that stop command for TX and rc status must
+        be executed before stopping the program 
 
     Returns
     -------
