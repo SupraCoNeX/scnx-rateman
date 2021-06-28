@@ -25,19 +25,45 @@ RateMan is stopped within the terminal, observe the print statements.
 import rateman
 import time
 import paramiko
+import argparse
 
 if __name__ == "__main__":
-
-    # # Create rateman object
     
     ### pre-requisites
+
+    # Default values for path and duration
+    path = "sample_ap_lists/ap_list_sample_1.csv"
+    duration = 5
+
+    # Parser to set file path (-p) and time duration (-t)
+    parser = argparse.ArgumentParser(description="Rateman")
+    parser.add_argument("-p", help="Path to the Access Point File",
+                        type = str)
+    parser.add_argument("-t", help="Time duration in seconds",
+                        type = float)
     
-        
-    duration = 10 
-    
+    args = parser.parse_args()
+
+    if args.p:
+        try:
+            f = open(args.p)
+            f.close()
+        except IOError as e:
+            print(e)
+        else:
+            path = args.p
+
+    if args.t:
+        if args.t > 0:
+            duration = args.t
+        else:
+            print("Oops! Time duration cannot be negative.")
+
+
+    # # Create rateman object
     rateMan = rateman.RateMan()
 
-    rateMan.addaccesspoints("sample_ap_lists/ap_list_sample_1.csv")
+    rateMan.addaccesspoints(path)
 
     rateMan.start(duration)
     
