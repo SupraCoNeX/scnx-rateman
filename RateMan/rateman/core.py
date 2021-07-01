@@ -102,7 +102,7 @@ async def connect_to_AP(APInfo: dict, loop):
         print("Data file created for", APID)
 
         conn = asyncio.open_connection(
-            APInfo[APID]["IPADD"], APInfo[APID]["PORT"]
+            APInfo[APID]["IPADD"], APInfo[APID]["MPORT"]
         )
 
         try:

@@ -69,11 +69,13 @@ class RateMan:
 
                 APID = currentAP["APID"]
                 IPAdd = currentAP["IPADD"]
-                portID = int(currentAP["PORT"])
+                portSSH = int(currentAP["PORT"])
+                portMinstrel = 21059 # default port for Minstrel-RCD
 
                 self._accesspoints[APID] = APID
                 self._accesspoints[APID] = currentAP
-                self._accesspoints[APID]["PORT"] = portID
+                self._accesspoints[APID]["PORT"] = portSSH
+                self._accesspoints[APID]["MPORT"] = portMinstrel
 
                 # phy list is hard-coded -> ToDo: obtain list automatically
                 # using getPhyList function
