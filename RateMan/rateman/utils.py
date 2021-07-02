@@ -4,6 +4,7 @@ from pathlib import Path
 from pdb import set_trace
 import signal
 import time
+from pytimedinput import timedKey
 
 import pandas as pd
 
@@ -12,7 +13,7 @@ pd.options.mode.chained_assignment = None  # default='warn'
 # TODO: Output of tx status and stats are not consistent. Sometimes already converted.
 
 
-__all__ = ["read_stats_txs_csv", "timedInput"]
+__all__ = ["read_stats_txs_csv", "timedInput", "timedInputKey"]
 
 
 def read_stats_txs_csv(
@@ -73,11 +74,15 @@ def read_stats_txs_csv(
     ]
     if humanread:
         # Convert boot timestamp into seconds (uptime of system)
-        to_sec = lambda x: int(x, 16) / 1000000000
+        def to_sec(x):
+            return int(x, 16) / 1000000000
+
         txs_data["timestamp"] = txs_data.timestamp.apply(to_sec)
         stats_data["timestamp"] = stats_data.timestamp.apply(to_sec)
         # Convert avg throughput from hex to bit/s
-        to_bits = lambda x: int(x, 16)
+        def to_bits(x):
+            return int(x, 16)
+
         try:
             stats_data["avg_tp"] = stats_data.avg_tp.apply(to_bits)
         except TypeError:
@@ -91,13 +96,19 @@ def read_stats_txs_csv(
         txs_ts0 = txs_data.loc[0].timestamp
         txs_data = txs_data[txs_data["timestamp"] > txs_ts0]
         if shifttime:
-            shifttxs = lambda x: x - txs_ts0
+
+            def shifttxs(x):
+                return x - txs_ts0
+
             txs_data["timestamp"] = txs_data.timestamp.apply(shifttxs)
     if not stats_data.empty:
         stats_ts0 = stats_data.loc[0].timestamp
         stats_data = stats_data[stats_data["timestamp"] > stats_ts0]
         if shifttime:
-            shiftstats = lambda x: x - stats_ts0
+
+            def shiftstats(x):
+                return x - stats_ts0
+
             stats_data["timestamp"] = stats_data.timestamp.apply(shiftstats)
     # Set timestamps as index for both dataframes `txs_data` and
     # `stats_data`.
@@ -148,7 +159,33 @@ def timedInput(prompt="", timeout=1, timeoutmsg=None):
         return None
 
 
-# if __name__ == '__main__':
-#     csvfile = 'demo/collected_data/data_AP1.csv'
-#     txs, stats = read_stats_txs_csv(csvfile, True)
-#     print("Done")
+def timedInputKey(prompt="", timeout=1, allowedKeys=[], timeoutmsg=None):
+    """
+    This function displays a prompt to which an input key has to be
+    entered within the timeout duration.
+
+    Parameters
+    ----------
+    prompt : str
+        Prompt for the timedInput
+
+    timeout : float
+        Duration within which input must be entered
+
+    allowedKeys: list
+        Character keys expected to but input
+
+    timeoutmsg: str
+        Message to be displayed when duration of timeout is exceeded
+
+    Returns
+    -------
+
+    answer : str or None
+        Returns the input to the prompt
+
+    """
+
+    userText, _ = timedKey(prompt, timeOut=1, allowCharacters=allowedKeys)
+
+    return userText

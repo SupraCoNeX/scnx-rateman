@@ -70,7 +70,7 @@ class RateMan:
                 APID = currentAP["APID"]
                 IPAdd = currentAP["IPADD"]
                 portSSH = int(currentAP["PORT"])
-                portMinstrel = 21059 # default port for Minstrel-RCD
+                portMinstrel = 12345  # default port for Minstrel-RCD
 
                 self._accesspoints[APID] = APID
                 self._accesspoints[APID] = currentAP
@@ -79,7 +79,7 @@ class RateMan:
 
                 # phy list is hard-coded -> ToDo: obtain list automatically
                 # using getPhyList function
-                self._accesspoints[APID]["phyList"] = ['phy0', 'phy1']
+                self._accesspoints[APID]["phyList"] = ["phy0", "phy1"]
 
         pass
 
@@ -118,8 +118,9 @@ class RateMan:
 
         self._duration = duration
 
-        self._loop.create_task(main_AP_tasks(self._accesspoints, self._loop,
-                                             self._duration))
+        self._loop.create_task(
+            main_AP_tasks(self._accesspoints, self._loop, self._duration)
+        )
 
         try:
             self._loop.run_forever()

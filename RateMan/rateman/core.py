@@ -33,11 +33,11 @@ __all__ = [
     "main_AP_tasks",
     "connect_to_AP",
     "timer",
-    "stop_rateman"
+    "stop_rateman",
 ]
 
 
-async def main_AP_tasks(APInfo, loop, duration = 10):
+async def main_AP_tasks(APInfo, loop, duration=10):
     """
     This async function creates a main task that manages several
     subtasks with each AP having one subtask associated with it.
@@ -57,8 +57,8 @@ async def main_AP_tasks(APInfo, loop, duration = 10):
 
     """
 
-    APInfo =  await connect_to_AP(APInfo, loop)
-    
+    APInfo = await connect_to_AP(APInfo, loop)
+
     # If we have accesible AP/s
     if APInfo:
 
@@ -70,11 +70,12 @@ async def main_AP_tasks(APInfo, loop, duration = 10):
         monitoring_tasks(APInfo, loop)
 
         # loop.create_task(obtain_data(APInfo))
-    
+
         # loop.create_task(set_rate(APInfo))
 
         loop.create_task(stop_trigger(APInfo, loop))
-    
+
+
 async def connect_to_AP(APInfo: dict, loop):
     """
     This async function takes a dictionary of AP information and
@@ -101,14 +102,14 @@ async def connect_to_AP(APInfo: dict, loop):
         fileHandle = open("collected_data/data_" + APID + ".csv", "w")
         print("Data file created for", APID)
 
-        conn = asyncio.open_connection(
-            APInfo[APID]["IPADD"], APInfo[APID]["MPORT"]
-        )
+        conn = asyncio.open_connection(APInfo[APID]["IPADD"], APInfo[APID]["MPORT"])
 
         try:
             # Try connecting to the AP within a timeout duration
             reader, writer = await asyncio.wait_for(conn, timeout=5)
-            print ("Connected to {} {}".format(APInfo[APID]["IPADD"], APInfo[APID]["PORT"]))
+            print(
+                "Connected to {} {}".format(APInfo[APID]["IPADD"], APInfo[APID]["PORT"])
+            )
 
             APInfo[APID]["writer"] = writer
             APInfo[APID]["reader"] = reader
@@ -116,8 +117,16 @@ async def connect_to_AP(APInfo: dict, loop):
 
         except asyncio.TimeoutError:
             # If timeout duration is exceeded i.e. AP is not accessible
-            print ("Failed to connect {} {}: Timeout Error".format(APInfo[APID]["IPADD"], APInfo[APID]["PORT"]))
-            fileHandle.write("Failed to connect {} {}: Timeout Error".format(APInfo[APID]["IPADD"], APInfo[APID]["PORT"]))
+            print(
+                "Failed to connect {} {}: Timeout Error".format(
+                    APInfo[APID]["IPADD"], APInfo[APID]["PORT"]
+                )
+            )
+            fileHandle.write(
+                "Failed to connect {} {}: Timeout Error".format(
+                    APInfo[APID]["IPADD"], APInfo[APID]["PORT"]
+                )
+            )
 
             # Remove unaccessible AP from the dictionary
             del APInfo[APID]
@@ -126,8 +135,9 @@ async def connect_to_AP(APInfo: dict, loop):
             if not APInfo:
                 print("Couldn't connect to any access points!")
                 await stop_rateman(APInfo, loop, False)
-    
+
     return APInfo
+
 
 def init_data_parsing(APInfo: dict) -> None:
 
@@ -159,6 +169,7 @@ def init_data_parsing(APInfo: dict) -> None:
 
     pass
 
+
 async def timer(APInfo, duration, loop):
     """
     This async function stops the rateman after the TX and rc data have
@@ -181,11 +192,12 @@ async def timer(APInfo, duration, loop):
     start_time = time.time()
     while True:
         await asyncio.sleep(0)
-        time_elapsed = time.time()-start_time
+        time_elapsed = time.time() - start_time
         if time_elapsed > duration:
             print("Given duration has been exceeded! Time duration: ", time_elapsed)
             break
     await stop_rateman(APInfo, loop)
+
 
 def monitoring_tasks(APInfo, loop):
     """
@@ -207,8 +219,7 @@ def monitoring_tasks(APInfo, loop):
     APIDs = list(APInfo.keys())
 
     for APID in APIDs:
-        loop.create_task(
-            recv_data(APInfo[APID]["reader"], APInfo[APID]["fileHandle"]))
+        loop.create_task(recv_data(APInfo[APID]["reader"], APInfo[APID]["fileHandle"]))
 
 
 async def recv_data(reader, fileHandle):
@@ -238,8 +249,10 @@ async def recv_data(reader, fileHandle):
         pass
     reader.close()
 
+
 async def obtain_data(fileHandle) -> None:
     pass
+
 
 async def set_rate(APInfo) -> None:
 
@@ -268,6 +281,7 @@ async def set_rate(APInfo) -> None:
         pass
     writer.close()
 
+
 async def stop_trigger(APInfo, loop):
     """
     This function calls stop_rateman when the timedInput function
@@ -285,13 +299,14 @@ async def stop_trigger(APInfo, loop):
     None.
 
     """
+    prompt = "To stop RateMan, enter x: \n"
     timeout = 1
-    prompt = "To stop RateMan, enter x.\n"
-    
+    allowedKeys = ["x"]
     try:
         while True:
             await asyncio.sleep(2)
-            answer = timedInput(prompt, timeout)
+            # answer = timedInput(prompt, timeout)
+            answer = timedInputKey(prompt, timeout, allowedKeys)
 
             if answer == "x":
                 await stop_rateman(APInfo, loop)
@@ -300,10 +315,11 @@ async def stop_trigger(APInfo, loop):
     except KeyboardInterrupt:
         pass
 
+
 async def stop_rateman(APInfo, loop, stop_cmd: bool = True):
     """
     This async function executes stop command in the APs (if indicated i.e.
-    stop_cmd set to True). It also stops all the tasks and, finally, the 
+    stop_cmd set to True). It also stops all the tasks and, finally, the
     event loop.
 
     Parameters
@@ -314,7 +330,7 @@ async def stop_rateman(APInfo, loop, stop_cmd: bool = True):
         DESCRIPTION.
     stop_cmd : bool
         if True, it indicates that stop command for TX and rc status must
-        be executed before stopping the program 
+        be executed before stopping the program
 
     Returns
     -------
@@ -345,6 +361,7 @@ async def stop_tasks():
             await task
         except asyncio.CancelledError:
             pass
+
 
 def stop_loop(loop):
 
