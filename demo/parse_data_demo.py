@@ -26,14 +26,11 @@ import rateman
 import time
 import paramiko
 import argparse
+import sys
 
 if __name__ == "__main__":
     
     ### pre-requisites
-
-    # Default values for path and duration
-    path = "sample_ap_lists/ap_list_sample_1.csv"
-    duration = 5
 
     # Parser to set file path (-p) and time duration (-t)
     parser = argparse.ArgumentParser(description="Rateman")
@@ -45,9 +42,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.p is None or args.t is None:
-        print("\nThis rateman scripts needs both time and path arguments to run. Please see the help below!\n")
+        print("\nThis rateman script needs both time and path arguments to run. Please see the help below!\n")
         parser.print_help()
-
+        sys.exit(1)
 
     if args.p:
         try:
