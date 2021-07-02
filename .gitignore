@@ -143,3 +143,6 @@ cython_debug/
 # Python virtualenv
 *-venv/
 *-env/
+
+# DS Store
+.DS_Store

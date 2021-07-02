@@ -44,6 +44,11 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
+    if args.p is None or args.t is None:
+        print("\nThis rateman scripts needs both time and path arguments to run. Please see the help below!\n")
+        parser.print_help()
+
+
     if args.p:
         try:
             f = open(args.p)
