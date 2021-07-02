@@ -114,10 +114,10 @@ async def connect_to_AP(APInfo: dict, loop):
             APInfo[APID]["reader"] = reader
             APInfo[APID]["fileHandle"] = fileHandle
 
-        except asyncio.TimeoutError:
+        except (asyncio.TimeoutError, ConnectionRefusedError, ConnectionResetError) as e:
             # If timeout duration is exceeded i.e. AP is not accessible
-            print ("Failed to connect {} {}: Timeout Error".format(APInfo[APID]["IPADD"], APInfo[APID]["PORT"]))
-            fileHandle.write("Failed to connect {} {}: Timeout Error".format(APInfo[APID]["IPADD"], APInfo[APID]["PORT"]))
+            print ("Failed to connect {} {}: {}".format(APInfo[APID]["IPADD"], APInfo[APID]["PORT"], e))
+            fileHandle.write("Failed to connect {} {}: {}".format(APInfo[APID]["IPADD"], APInfo[APID]["PORT"], e))
 
             # Remove unaccessible AP from the dictionary
             del APInfo[APID]
@@ -236,6 +236,7 @@ async def recv_data(reader, fileHandle):
             fileHandle.write(dataLine.decode("utf-8"))
     except KeyboardInterrupt:
         pass
+    print("Closing Reader")
     reader.close()
 
 async def obtain_data(fileHandle) -> None:
