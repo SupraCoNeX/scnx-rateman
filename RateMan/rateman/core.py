@@ -56,7 +56,7 @@ async def main_AP_tasks(APInfo, loop, duration=10):
     None.
 
     """
-
+        
     APInfo = await connect_to_AP(APInfo, loop)
 
     # If we have accesible AP/s
@@ -66,14 +66,14 @@ async def main_AP_tasks(APInfo, loop, duration=10):
         init_data_parsing(APInfo)
 
         loop.create_task(timer(APInfo, duration, loop))
-
+        
         monitoring_tasks(APInfo, loop)
 
         # loop.create_task(obtain_data(APInfo))
 
         # loop.create_task(set_rate(APInfo))
 
-        loop.create_task(stop_trigger(APInfo, loop))
+        # loop.create_task(stop_trigger(APInfo, loop))
 
 
 async def connect_to_AP(APInfo: dict, loop):
@@ -96,11 +96,12 @@ async def connect_to_AP(APInfo: dict, loop):
     """
 
     APIDs = list(APInfo.keys())
+    
+    print("Connecting to access points.")
 
     for APID in APIDs:
 
         fileHandle = open("collected_data/data_" + APID + ".csv", "w")
-        print("Data file created for", APID)
 
         conn = asyncio.open_connection(APInfo[APID]["IPADD"], APInfo[APID]["MPORT"])
 
@@ -157,7 +158,7 @@ def init_data_parsing(APInfo: dict) -> None:
 
     APIDs = list(APInfo.keys())
 
-    print("starting radios")
+    print("Starting radios.")
 
     cmd_footer = ";start;stats;txs"
 
@@ -217,6 +218,8 @@ def monitoring_tasks(APInfo, loop):
     """
 
     APIDs = list(APInfo.keys())
+    
+    print("Initiating monitoring.")
 
     for APID in APIDs:
         loop.create_task(recv_data(APInfo[APID]["reader"], APInfo[APID]["fileHandle"]))
@@ -243,7 +246,7 @@ async def recv_data(reader, fileHandle):
         while True:
             # await asyncio.sleep(0.01)
             dataLine = await reader.readline()
-            print("parsing data")
+            
             fileHandle.write(dataLine.decode("utf-8"))
     except KeyboardInterrupt:
         pass

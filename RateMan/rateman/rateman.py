@@ -70,7 +70,7 @@ class RateMan:
                 APID = currentAP["APID"]
                 IPAdd = currentAP["IPADD"]
                 portSSH = int(currentAP["PORT"])
-                portMinstrel = 12345  # default port for Minstrel-RCD
+                portMinstrel = 21059  # default port for Minstrel-RCD
 
                 self._accesspoints[APID] = APID
                 self._accesspoints[APID] = currentAP
