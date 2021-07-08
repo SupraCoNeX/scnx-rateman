@@ -16,7 +16,7 @@ import numpy as np
 from .connman import *
 from .core import *
 import io
-import time
+from datetime import datetime
 import paramiko
 import asyncio
 import json
@@ -129,8 +129,12 @@ class RateMan:
 
         self._duration = duration
 
+        
+        cmd = 'cat /proc/' + str(os.getpid())+ '/comm'
+        pname = os.popen(cmd)
+
         # Notify RateMan telegram bot to send text_start to chat_ids in keys.json
-        text_start = str(os.path.dirname(os.path.abspath(__file__))) + ": Experiment started at " + str(time.time())
+        text_start = str(pname.read()) + ": Experiment started at " + str(datetime.now())
         self.notify(text_start)
 
         self._loop.create_task(main_AP_tasks(self._accesspoints, self._loop,
@@ -140,7 +144,7 @@ class RateMan:
             self._loop.run_forever()
         finally:
             # Notify RateMan telegram bot to send text_end to chat_ids in keys.json
-            text_end = "Experiment Finished! Data for the AP List, " + str(path) + ", has been done collecting for " + str(duration) + " seconds!"
+            text_end = str(pname.read()) + "Experiment Finished at " + str(datetime.now()) + "\n Data for the AP List, " + str(path) + ", has been done collecting for " + str(duration) + " seconds!"
             self.notify(text_end)
 
             self._loop.close()
