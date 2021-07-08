@@ -130,8 +130,10 @@ class RateMan:
         self._duration = duration
 
         # Notify RateMan telegram bot to send text_start to chat_ids in keys.json
-        text_start = "Experiment started at " + str(datetime.now())
+        text_start = os.getcwd() + ":\nExperiment started at " + str(datetime.now())
         self.notify(text_start)
+
+        time_start = datetime.now()
 
         self._loop.create_task(main_AP_tasks(self._accesspoints, self._loop,
                                              self._duration))
@@ -140,7 +142,15 @@ class RateMan:
             self._loop.run_forever()
         finally:
             # Notify RateMan telegram bot to send text_end to chat_ids in keys.json
-            text_end = "Experiment Finished at " + str(datetime.now()) + "\nData for the AP List, " + str(path) + ", has been done collecting for " + str(duration) + " seconds!"
+            elapsed_time = datetime.now() - time_start
+            text_end = os.getcwd() + ":\nExperiment Finished at " + str(datetime.now()) + "\n"
+            
+            # If RateMan stopped earlier than the specified duration
+            if (elapsed_time.total_seconds() < duration):
+                text_end += "Error: RateMan stopped before the specified time duration!"
+            else:
+                text_end += ("Data for the AP List, " + str(path) + ", has been done collecting for " 
+                            + str(duration) + " seconds!")
             self.notify(text_end)
 
             self._loop.close()
@@ -172,7 +182,9 @@ class RateMan:
             keys = json.load(telegram_keys)
             bot_token = keys['bot_token']
             bot = telegram.Bot(token=bot_token)
+            #Marking end of notification for readability
+            text += "\n--------------------------------------------"
             for chat_id in keys['chat_ids']:
                 bot.sendMessage(chat_id=chat_id, text=text)
-        print("Notified all users!")
 
+  
