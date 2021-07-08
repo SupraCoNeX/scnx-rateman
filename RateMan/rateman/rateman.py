@@ -129,12 +129,8 @@ class RateMan:
 
         self._duration = duration
 
-        
-        cmd = 'cat /proc/' + str(os.getpid())+ '/comm'
-        pname = os.popen(cmd)
-
         # Notify RateMan telegram bot to send text_start to chat_ids in keys.json
-        text_start = str(pname.read()) + ": Experiment started at " + str(datetime.now())
+        text_start = "Experiment started at " + str(datetime.now.strftime("%d/%m/%Y %H:%M:%S"))
         self.notify(text_start)
 
         self._loop.create_task(main_AP_tasks(self._accesspoints, self._loop,
@@ -144,7 +140,7 @@ class RateMan:
             self._loop.run_forever()
         finally:
             # Notify RateMan telegram bot to send text_end to chat_ids in keys.json
-            text_end = str(pname.read()) + "Experiment Finished at " + str(datetime.now()) + "\n Data for the AP List, " + str(path) + ", has been done collecting for " + str(duration) + " seconds!"
+            text_end = str(pname.read()) + "Experiment Finished at " + str(datetime.now.strftime("%d/%m/%Y %H:%M:%S")) + "\nData for the AP List, " + str(path) + ", has been done collecting for " + str(duration) + " seconds!"
             self.notify(text_end)
 
             self._loop.close()
