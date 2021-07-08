@@ -140,7 +140,7 @@ class RateMan:
             self._loop.run_forever()
         finally:
             # Notify RateMan telegram bot to send text_end to chat_ids in keys.json
-            text_end = str(pname.read()) + "Experiment Finished at " + str(datetime.now.strftime("%d/%m/%Y %H:%M:%S")) + "\nData for the AP List, " + str(path) + ", has been done collecting for " + str(duration) + " seconds!"
+            text_end = "Experiment Finished at " + str(datetime.now.strftime("%d/%m/%Y %H:%M:%S")) + "\nData for the AP List, " + str(path) + ", has been done collecting for " + str(duration) + " seconds!"
             self.notify(text_end)
 
             self._loop.close()
