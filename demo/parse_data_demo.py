@@ -41,11 +41,13 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
+    #If one of the arguments, from -p and -t, is missing then print_help() and terminate
     if args.p is None or args.t is None:
         print("\nThis rateman script needs both time and path arguments to run. Please see the help below!\n")
         parser.print_help()
         sys.exit(1)
 
+    # Store path of the AP file
     if args.p:
         try:
             f = open(args.p)
@@ -55,6 +57,7 @@ if __name__ == "__main__":
         else:
             path = args.p
 
+    # Store the duration of the experiment
     if args.t:
         if args.t > 0:
             duration = args.t
@@ -67,8 +70,7 @@ if __name__ == "__main__":
 
     rateMan.addaccesspoints(path)
 
-    rateMan.start(duration)
-    
+    rateMan.start(path, duration)
     
     ### clean-up
    

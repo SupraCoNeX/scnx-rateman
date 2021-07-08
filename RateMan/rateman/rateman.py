@@ -19,6 +19,9 @@ import io
 import time
 import paramiko
 import asyncio
+import json
+import telegram
+import os
 
 
 __all__ = ["RateMan"]
@@ -104,11 +107,19 @@ class RateMan:
 
         pass
 
-    def start(self, duration: float) -> None:
+    def start(self, path, duration: float) -> None:
         """
         Start monitoring of TX Status (txs) and Rate Control Statistics
         (rc_stats).
 
+        Parameters
+        ----------
+        path : str
+            the path of the AP list from which the TX Status (txs) and 
+            Rate Control Statistics (rc_stats) are to be fetched.
+
+        duration: float
+            time duration for which the data from APs has to be collected
 
         Returns
         -------
@@ -118,14 +129,21 @@ class RateMan:
 
         self._duration = duration
 
+        # Notify RateMan telegram bot to send text_start to chat_ids in keys.json
+        text_start = str(os.path.dirname(os.path.abspath(__file__))) + ": Experiment started at " + str(time.time())
+        self.notify(text_start)
+
         self._loop.create_task(main_AP_tasks(self._accesspoints, self._loop,
                                              self._duration))
 
         try:
             self._loop.run_forever()
         finally:
-            self._loop.close()
+            # Notify RateMan telegram bot to send text_end to chat_ids in keys.json
+            text_end = "Experiment Finished! Data for the AP List, " + str(path) + ", has been done collecting for " + str(duration) + " seconds!"
+            self.notify(text_end)
 
+            self._loop.close()
         pass
 
     def savedata(self, host: str, port: str) -> None:
@@ -133,3 +151,28 @@ class RateMan:
         # data is structured per AP and can be structure per client
 
         pass
+
+    def notify(self, text) -> None:
+        """
+        This function sends message (text) to all the chat_ids, listed in 
+        keys.json, from the RateMan Telegram Bot
+
+        Parameters
+        ----------
+        text : str
+            the content of the message that is to be sent by the RateMan
+            Telegram Bot
+
+        Returns
+        -------
+        None.
+
+        """
+        with open('../docs/keys.json', 'r') as telegram_keys:
+            keys = json.load(telegram_keys)
+            bot_token = keys['bot_token']
+            bot = telegram.Bot(token=bot_token)
+            for chat_id in keys['chat_ids']:
+                bot.sendMessage(chat_id=chat_id, text=text)
+        print("Notified all users!")
+

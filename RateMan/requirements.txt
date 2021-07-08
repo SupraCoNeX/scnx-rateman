@@ -12,3 +12,4 @@ six
 sphinx
 sphinx_rtd_theme
 tornado
+python-telegram-bot
