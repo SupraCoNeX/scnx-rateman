@@ -110,7 +110,8 @@ class RateMan:
     def start(self, path, duration: float) -> None:
         """
         Start monitoring of TX Status (txs) and Rate Control Statistics
-        (rc_stats).
+        (rc_stats). Send notification about the experiment from RateMan
+        Telegram Bot.
 
         Parameters
         ----------
@@ -129,8 +130,9 @@ class RateMan:
 
         self._duration = duration
 
-        # Notify RateMan telegram bot to send text_start to chat_ids in keys.json
-        text_start = os.getcwd() + ":\nExperiment started at " + str(datetime.now())
+        # Notify RateMan telegram bot to send text_start to the listed chat_ids in keys.json
+        text_start = (os.getcwd() + ":\n\nExperiment Started at " + str(datetime.now())
+                     + "\nTime duration: " + str(duration) + " seconds" + "\nAP List: " + path)
         self.notify(text_start)
 
         time_start = datetime.now()
@@ -143,13 +145,14 @@ class RateMan:
         finally:
             # Notify RateMan telegram bot to send text_end to chat_ids in keys.json
             elapsed_time = datetime.now() - time_start
-            text_end = os.getcwd() + ":\nExperiment Finished at " + str(datetime.now()) + "\n"
+            text_end = os.getcwd() + ":\n\nExperiment Finished at " + str(datetime.now()) + "\n"
             
             # If RateMan stopped earlier than the specified duration
             if (elapsed_time.total_seconds() < duration):
-                text_end += "Error: RateMan stopped before the specified time duration!"
+                text_end += ("Error: RateMan stopped before the specified time duration of " + str(duration) + "!\n"
+                            + "RateMan was fetching data from " + str(path))
             else:
-                text_end += ("Data for the AP List, " + str(path) + ", has been done collecting for " 
+                text_end += ("Data for the AP List, " + str(path) + ", has been successfully collected for " 
                             + str(duration) + " seconds!")
             self.notify(text_end)
 
