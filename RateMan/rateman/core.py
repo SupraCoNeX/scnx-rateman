@@ -21,6 +21,7 @@ import numpy as np
 from .connman import *
 import random
 import os
+import logging
 
 
 __all__ = [
@@ -98,7 +99,7 @@ async def connect_to_AP(APInfo: dict, loop, output_dir):
 
     APIDs = list(APInfo.keys())
 
-    print("Connecting to access points.")
+    logging.info("Connecting to access points.")
 
     if len(output_dir) == 0:
         os.mkdir('data')
@@ -125,7 +126,7 @@ async def connect_to_AP(APInfo: dict, loop, output_dir):
 
         except asyncio.TimeoutError:
             # If timeout duration is exceeded i.e. AP is not accessible
-            print(
+            logging.error(
                 "Failed to connect {} {}: Timeout Error".format(
                     APInfo[APID]["IPADD"], APInfo[APID]["PORT"]
                 )
@@ -141,7 +142,7 @@ async def connect_to_AP(APInfo: dict, loop, output_dir):
 
             # Check if the list of accessible APs is empty
             if not APInfo:
-                print("Couldn't connect to any access points!")
+                logging.error("Couldn't connect to any access points!")
                 await stop_rateman(APInfo, loop, False)
 
     return APInfo
@@ -164,7 +165,7 @@ def init_data_parsing(APInfo: dict) -> None:
 
     APIDs = list(APInfo.keys())
 
-    print("Starting radios.")
+    logging.info("Starting radios.")
 
     cmd_footer = ";start;stats;txs"
 
@@ -201,7 +202,7 @@ async def timer(APInfo, duration, loop):
         await asyncio.sleep(0)
         time_elapsed = time.time() - start_time
         if time_elapsed > duration:
-            print("Given duration has been exceeded! Time duration: ", time_elapsed)
+            logging.info("Given duration has been exceeded! Time duration: ", time_elapsed)
             break
     await stop_rateman(APInfo, loop)
 
@@ -225,7 +226,7 @@ def monitoring_tasks(APInfo, loop):
 
     APIDs = list(APInfo.keys())
 
-    print("Initiating monitoring.")
+    logging.info("Initiating monitoring.")
 
     for APID in APIDs:
         loop.create_task(
@@ -358,7 +359,7 @@ async def stop_rateman(APInfo, loop, stop_cmd: bool = True):
                 cmd = phy + cmd_footer
                 writer.write(cmd.encode("ascii") + b"\n")
 
-    print("Stopping rateman.....")
+    logging.info("Stopping rateman.....")
     await stop_tasks()
     stop_loop(loop)
 
