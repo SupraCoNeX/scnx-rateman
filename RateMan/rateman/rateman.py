@@ -104,7 +104,7 @@ class RateMan:
 
         pass
 
-    def start(self, duration: float) -> None:
+    def start(self, duration: float, output_dir: str = '') -> None:
         """
         Start monitoring of TX Status (txs) and Rate Control Statistics
         (rc_stats).
@@ -115,11 +115,9 @@ class RateMan:
         None.
 
         """
-
-        self._duration = duration
-
+        
         self._loop.create_task(
-            main_AP_tasks(self._accesspoints, self._loop, self._duration)
+            main_AP_tasks(self._accesspoints, self._loop, duration, output_dir)
         )
 
         try:

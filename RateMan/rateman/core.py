@@ -20,6 +20,7 @@ from .utils import *
 import numpy as np
 from .connman import *
 import random
+import os
 
 
 __all__ = [
@@ -37,7 +38,7 @@ __all__ = [
 ]
 
 
-async def main_AP_tasks(APInfo, loop, duration=10):
+async def main_AP_tasks(APInfo, loop, duration=10, output_dir=''):
     """
     This async function creates a main task that manages several
     subtasks with each AP having one subtask associated with it.
@@ -56,8 +57,8 @@ async def main_AP_tasks(APInfo, loop, duration=10):
     None.
 
     """
-        
-    APInfo = await connect_to_AP(APInfo, loop)
+
+    APInfo = await connect_to_AP(APInfo, loop, output_dir)
 
     # If we have accesible AP/s
     if APInfo:
@@ -66,7 +67,7 @@ async def main_AP_tasks(APInfo, loop, duration=10):
         init_data_parsing(APInfo)
 
         loop.create_task(timer(APInfo, duration, loop))
-        
+
         monitoring_tasks(APInfo, loop)
 
         # loop.create_task(obtain_data(APInfo))
@@ -76,7 +77,7 @@ async def main_AP_tasks(APInfo, loop, duration=10):
         # loop.create_task(stop_trigger(APInfo, loop))
 
 
-async def connect_to_AP(APInfo: dict, loop):
+async def connect_to_AP(APInfo: dict, loop, output_dir):
     """
     This async function takes a dictionary of AP information and
     returns the dictionary with only accessible AP entries.
@@ -96,20 +97,26 @@ async def connect_to_AP(APInfo: dict, loop):
     """
 
     APIDs = list(APInfo.keys())
-    
+
     print("Connecting to access points.")
+
+    if len(output_dir) == 0:
+        os.mkdir('data')
+        output_dir = os.path.join(os.getcwd(), 'data')
 
     for APID in APIDs:
 
-        fileHandle = open("collected_data/data_" + APID + ".csv", "w")
+        fileHandle = open(output_dir+"/data_" + APID + ".csv", "w")
 
-        conn = asyncio.open_connection(APInfo[APID]["IPADD"], APInfo[APID]["MPORT"])
+        conn = asyncio.open_connection(
+            APInfo[APID]["IPADD"], APInfo[APID]["MPORT"])
 
         try:
             # Try connecting to the AP within a timeout duration
             reader, writer = await asyncio.wait_for(conn, timeout=5)
             print(
-                "Connected to {} {}".format(APInfo[APID]["IPADD"], APInfo[APID]["PORT"])
+                "Connected to {} {}".format(
+                    APInfo[APID]["IPADD"], APInfo[APID]["PORT"])
             )
 
             APInfo[APID]["writer"] = writer
@@ -141,7 +148,6 @@ async def connect_to_AP(APInfo: dict, loop):
 
 
 def init_data_parsing(APInfo: dict) -> None:
-
     """
     This function, for each phy, starts to display the TX and rc status.
 
@@ -218,11 +224,12 @@ def monitoring_tasks(APInfo, loop):
     """
 
     APIDs = list(APInfo.keys())
-    
+
     print("Initiating monitoring.")
 
     for APID in APIDs:
-        loop.create_task(recv_data(APInfo[APID]["reader"], APInfo[APID]["fileHandle"]))
+        loop.create_task(
+            recv_data(APInfo[APID]["reader"], APInfo[APID]["fileHandle"]))
 
 
 async def recv_data(reader, fileHandle):
@@ -246,7 +253,7 @@ async def recv_data(reader, fileHandle):
         while True:
             # await asyncio.sleep(0.01)
             dataLine = await reader.readline()
-            
+
             fileHandle.write(dataLine.decode("utf-8"))
     except KeyboardInterrupt:
         pass
