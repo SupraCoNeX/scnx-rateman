@@ -202,7 +202,7 @@ async def timer(APInfo, duration, loop):
         await asyncio.sleep(0)
         time_elapsed = time.time() - start_time
         if time_elapsed > duration:
-            logging.info("Given duration has been exceeded! Time duration: ", time_elapsed)
+            logging.info("Given duration has been exceeded! Time duration: %f", time_elapsed)
             break
     await stop_rateman(APInfo, loop)
 
