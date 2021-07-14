@@ -40,7 +40,7 @@ def read_stats_txs_csv(
     # Read CSV file containing tx status and rc_stats and save in
     # dataframe `df`.
     df = pd.read_csv(p, sep=";", header=3)
-    # Filter tx status from dataframe `df`.
+    # Read tx status from dataframe `df`.
     txs_data = df[df.iloc[:, 2] == "txs"].iloc[:, :9]
     txs_data.columns = [
         "phy_nr",
@@ -53,7 +53,7 @@ def read_stats_txs_csv(
         "rates",
         "counts",
     ]
-    # Filter rc_stats from dataframe `df`.
+    # Read rc_stats from dataframe `df`.
     stats_data = df[df.iloc[:, 2] == "stats"]
     stats_data.columns = [
         "phy_nr",
@@ -68,6 +68,10 @@ def read_stats_txs_csv(
         "hist_success",
         "hist_attempts",
     ]
+    # stats_data_idx = stats_data.index
+    # txs_data_idx = txs_data.index
+    # rest_data_idx = df.index.difference(stats_data_idx.union(txs_data_idx))
+    # rest_data = df[rest_data_idx]
     if humanread:
         # Convert boot timestamp into seconds (uptime of system)
         to_sec = lambda x: int(x, 16) / 1000000000
@@ -84,8 +88,14 @@ def read_stats_txs_csv(
     stats_data = stats_data.reset_index(drop=True)
     # Omit probably defective packets (wrong timestamp) and shift time to
     # zero if `shifttime = True`.
-    txs_ts0 = txs_data.loc[0].timestamp
-    stats_ts0 = stats_data.loc[0].timestamp
+    if txs_data.empty:
+        txs_ts0 = 0
+    else:
+        txs_ts0 = txs_data.loc[0].timestamp
+    if stats_data.empty:
+        stats_ts0 = 0
+    else:
+        stats_ts0 = stats_data.loc[0].timestamp
     min_time = np.amin([txs_ts0, stats_ts0])
     if not txs_data.empty:
         txs_data = txs_data[txs_data["timestamp"] > txs_ts0]
