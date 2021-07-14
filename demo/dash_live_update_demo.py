@@ -104,8 +104,20 @@ def liveplot(n, dd_val, t_interval=20):
     end_list = []
     start_list = []
     for df, df2 in zip(dfs, df2s):
-        end_list.extend([df.index[-1], df2.index[-1]])
-        start_list.extend([df.index[0], df2.index[0]])
+        if df.empty:
+            s1 = 0
+            e1 = 0
+        else:
+            s1 = df.index[0]
+            e1 = df.index[-1]
+        if df2.empty:
+            s2 = 0
+            e2 = 0
+        else:
+            s2 = df.index[0]
+            e2 = df.index[-1]
+        end_list.extend([e1, e2])
+        start_list.extend([s1, s2])
 
     t_end = np.amax(end_list)
     t_start = np.amin(start_list)
