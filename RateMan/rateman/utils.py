@@ -5,10 +5,11 @@ import signal
 import pandas as pd
 import numpy as np
 from pandas.io.parsers import read_csv
+import matplotlib.pyplot as plt
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
-# TODO: Output of tx status and stats are not consistent. Sometimes already converted.
+#TODO: Output of tx status and stats are not consistent. Sometimes already converted.
 #TODO: Improve Timestamp 2 interpolation. Very dirty now. 
 
 
@@ -41,9 +42,7 @@ def read_stats_txs_csv(
             raise FileNotFoundError
     # Read CSV file containing tx status and rc_stats and save in
     # dataframe `df`.
-    df = pd.read_csv(p, sep=";", names=range(13))
-    df['timestamp_error'] = False
-    df['parsing_error'] = False
+    df = pd.read_csv(p, sep=";", names=range(12))
     # Read tx status from dataframe `df`.
     txs_data = df[df.iloc[:, 3] == "txs"]
     txs_data.columns = [
@@ -55,17 +54,17 @@ def read_stats_txs_csv(
         "num_frames",
         "num_acked",
         "probe",
-        "rates",
-        "counts",
-        "parsing_error",
-        "timestamp_error",
+        "rate_count1",
+        "rate_count2",
+        "rate_count3",
+        "rate_count4",
     ]
     # Read rc_stats from dataframe `df`.
     stats_data = df[df.iloc[:, 3] == "stats"]
     stats_data.columns = [
         "phy_nr",
         "timestamp",
-        "timestamp2"
+        "timestamp2",
         "type",
         "macaddr",
         "rate",
@@ -75,8 +74,6 @@ def read_stats_txs_csv(
         "cur_attempts",
         "hist_success",
         "hist_attempts",
-        "parsing_error",
-        "timestamp_error",
     ]
     # stats_data_idx = stats_data.index
     # txs_data_idx = txs_data.index
@@ -98,8 +95,8 @@ def read_stats_txs_csv(
         stats_data = stats_data[stats_data["timestamp"] > stats_ts0]
     # Set timestamps as index for both dataframes `txs_data` and
     # `stats_data`.
-    txs_data = txs_data.set_index("timestamp")
-    stats_data = stats_data.set_index("timestamp")
+    txs_data = txs_data.set_index(["timestamp", "timestamp2"])
+    stats_data = stats_data.set_index(["timestamp", "timestamp2"])
     return txs_data, stats_data
 
 def flag_error_in_data(file):
@@ -137,10 +134,12 @@ def flag_error_in_data(file):
     ts_new2, ts_error2 = _interpolate_error_timestamps(df_data.timestamp2, True)
     df_data.loc[:, 'timestamp2'] = ts_new2
     df_data.loc[ts_error2, 'timestamp_error'] = True
+    df_data = df_data.set_index(["timestamp", "timestamp2"])
     return df_data
 
 def _interpolate_error_timestamps(timestamps, ns=False, error_interval=1000):
     """Interpolate error timestamp.
+    #TODO: Improve timestamp interpolation
     """
     ts = []
     ts_errors = []
@@ -148,6 +147,7 @@ def _interpolate_error_timestamps(timestamps, ns=False, error_interval=1000):
     running_flag = False
     last_valid = 0
     counter = 0
+    timestamps = timestamps.astype(str)
     for i, t in enumerate(timestamps):
         # Special case: 1st entry
         # Wait until receiving a valid timestamp but could be not correct
@@ -167,7 +167,7 @@ def _interpolate_error_timestamps(timestamps, ns=False, error_interval=1000):
                 counter += 1
                 ts_errors.append(True)
         elif not running_flag and pd.notna(t) and t.isnumeric():
-            diff = int(t) - ts[last_valid]
+            diff = int(t) - int(timestamps.iloc[last_valid])
             if ns:
                 ts.append(int(t))
                 for j in range(1, counter+1):
@@ -188,7 +188,7 @@ def _interpolate_error_timestamps(timestamps, ns=False, error_interval=1000):
                     last_valid = i
                     counter = 0
                     ts_errors.append(False)
-                elif 0 < diff <= error_interval:
+                elif 0 <= diff <= error_interval:
                     ts.append(int(t))
                     step_width = diff/(counter+1)
                     for j in range(1, counter+1):
@@ -200,15 +200,15 @@ def _interpolate_error_timestamps(timestamps, ns=False, error_interval=1000):
         elif pd.notna(t) and t.isnumeric():
             if ns:
                 ts.append(int(t))
-                step_width = (int(t) - ts[last_valid]) / (counter + 1)
+                step_width = (int(t) - int(timestamps.iloc[last_valid])) / (counter + 1)
                 for j in range(1, counter+1):
                     ts[i-j] = int(int(t) - j * step_width)
                 counter = 0
                 last_valid = i
                 ts_errors.append(False)
-            elif np.abs(int(t) - ts[last_valid]) <= error_interval and not ns:
+            elif np.abs(int(t) - int(timestamps.iloc[last_valid])) <= error_interval and not ns:
                 ts.append(int(t))
-                step_width = (int(t) - ts[last_valid]) / (counter + 1)
+                step_width = (int(t) - int(timestamps.iloc[last_valid])) / (counter + 1)
                 for j in range(1, counter+1):
                     ts[i-j] = int(int(t) - j * step_width)
                 last_valid = i
@@ -239,3 +239,9 @@ def timedInput(prompt="", timeout=1, timeoutmsg=None):
             print(timeoutmsg)
         signal.signal(signal.SIGALRM, signal.SIG_IGN)
         return None
+
+def plot_timestamp_errors(error_df):
+    x = error_df['timestamp']
+
+def plot_parsing_errors(error_df):
+    pass
