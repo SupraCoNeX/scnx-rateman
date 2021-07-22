@@ -49,9 +49,10 @@ async def main_AP_tasks(APInfo, loop, duration=10, output_dir=''):
     loop : event_loop
         DESCRIPTION.
     APInfo : dictionary
-        contains each AP in the network as key with relevant parameters
+        contains parameters such as ID, IP Address and Port with each
+        AP as key
     duration : float
-        duration for which the data has to be collected
+        time duration until which data has to be collected
 
     Returns
     -------
@@ -61,8 +62,10 @@ async def main_AP_tasks(APInfo, loop, duration=10, output_dir=''):
 
     APInfo = await connect_to_AP(APInfo, loop, output_dir)
 
+    Active_AP = await check_APs_connection(APInfo, loop)
+
     # If we have accesible AP/s
-    if APInfo:
+    if Active_AP:
 
         # Start fetching TX and RC status for accessible APs
         init_data_parsing(APInfo)
@@ -75,7 +78,12 @@ async def main_AP_tasks(APInfo, loop, duration=10, output_dir=''):
 
         # loop.create_task(set_rate(APInfo))
 
-        # loop.create_task(stop_trigger(APInfo, loop))
+        loop.create_task(stop_trigger(APInfo, loop))
+
+    else:
+
+        logging.error("Couldn't connect to any access points!")
+        await stop_rateman(APInfo, loop, stop_cmd=False)
 
 
 async def connect_to_AP(APInfo: dict, loop, output_dir):
@@ -88,12 +96,14 @@ async def connect_to_AP(APInfo: dict, loop, output_dir):
     loop : event_loop
         DESCRIPTION.
     APInfo : dictionary
-        contains each AP in the network as key with relevant parameters
+        contains parameters such as ID, IP Address and Port with each
+        AP as key
 
     Returns
     -------
     APInfo : dictionary
-        contains each accessible AP in the network as key with relevant parameters
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status with each AP as key
 
     """
 
@@ -115,47 +125,77 @@ async def connect_to_AP(APInfo: dict, loop, output_dir):
         try:
             # Try connecting to the AP within a timeout duration
             reader, writer = await asyncio.wait_for(conn, timeout=5)
-            print(
-                "Connected to {} {}".format(
-                    APInfo[APID]["IPADD"], APInfo[APID]["PORT"])
+            logging.info(
+                "Connected to {} : {} {}".format(
+                    APID, APInfo[APID]["IPADD"], APInfo[APID]["MPORT"])
             )
 
             APInfo[APID]["writer"] = writer
             APInfo[APID]["reader"] = reader
             APInfo[APID]["fileHandle"] = fileHandle
 
-        except asyncio.TimeoutError:
-            # If timeout duration is exceeded i.e. AP is not accessible
+            # Set active connection to True
+            APInfo[APID]["conn"] = True
+
+        except (asyncio.TimeoutError, ConnectionError) as e:
+            # Incase of a connection error or if the timeout duration is exceeded
             logging.error(
-                "Failed to connect {} {}: Timeout Error".format(
-                    APInfo[APID]["IPADD"], APInfo[APID]["PORT"]
+                "Failed to connect {} : {} {} -> {}".format(
+                    APID, APInfo[APID]["IPADD"], APInfo[APID]["MPORT"], e
                 )
             )
             fileHandle.write(
-                "Failed to connect {} {}: Timeout Error".format(
-                    APInfo[APID]["IPADD"], APInfo[APID]["PORT"]
+                "Failed to connect {} {}: {}".format(
+                    APInfo[APID]["IPADD"], APInfo[APID]["MPORT"], e
                 )
             )
 
-            # Remove unaccessible AP from the dictionary
-            del APInfo[APID]
-
-            # Check if the list of accessible APs is empty
-            if not APInfo:
-                logging.error("Couldn't connect to any access points!")
-                await stop_rateman(APInfo, loop, False)
+            # Set active connection to False
+            APInfo[APID]["conn"] = False
 
     return APInfo
 
 
-def init_data_parsing(APInfo: dict) -> None:
+async def check_APs_connection(APInfo: dict, loop):
     """
-    This function, for each phy, starts to display the TX and rc status.
+    This async function checks if rateman has successfully connected to 
+    atleast one AP in APInfo. If not, then rateman returns False which
+    indicates that rateman is to be terminated.
 
     Parameters
     ----------
     APInfo : dictionary
-        contains each AP in the network as key with relevant parameters
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status with each AP as key
+    loop : event_loop
+        DESCRIPTION.
+
+    Returns
+    -------
+    True: If there is atleast one active connection in APInfo
+    False: If none of the APs were connected
+
+    """
+
+    APIDs = list(APInfo.keys())
+
+    for APID in APIDs:
+        if APInfo[APID]["conn"] is True:
+            return True
+    
+    return False
+
+
+def init_data_parsing(APInfo: dict) -> None:
+    """
+    This function, for each phy, executes the command to display the TX and rc 
+    status.
+
+    Parameters
+    ----------
+    APInfo : dictionary
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status with each AP as key
 
     Returns
     -------
@@ -170,10 +210,11 @@ def init_data_parsing(APInfo: dict) -> None:
     cmd_footer = ";start;stats;txs"
 
     for APID in APIDs:
-        writer = APInfo[APID]["writer"]
-        for phy in APInfo[APID]["phyList"]:
-            cmd = phy + cmd_footer
-            writer.write(cmd.encode("ascii") + b"\n")
+        if APInfo[APID]["conn"] is True:
+            writer = APInfo[APID]["writer"]
+            for phy in APInfo[APID]["phyList"]:
+                cmd = phy + cmd_footer
+                writer.write(cmd.encode("ascii") + b"\n")
 
     pass
 
@@ -188,9 +229,10 @@ async def timer(APInfo, duration, loop):
     loop : event_loop
         DESCRIPTION.
     APInfo : dictionary
-        contains each AP in the network as key with relevant parameters
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status with each AP as key
     duration: float
-        calls stop_rateman function when the duration is exceeded
+        duration after which rateman is to be terminated
 
     Returns
     -------
@@ -214,7 +256,8 @@ def monitoring_tasks(APInfo, loop):
     Parameters
     ----------
     APInfo : dictionary
-        contains each AP in the network as key with relevant parameters
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status with each AP as key
     loop : event_loop
         DESCRIPTION.
 
@@ -229,36 +272,122 @@ def monitoring_tasks(APInfo, loop):
     logging.info("Initiating monitoring.")
 
     for APID in APIDs:
-        loop.create_task(
-            recv_data(APInfo[APID]["reader"], APInfo[APID]["fileHandle"]))
+        if APInfo[APID]["conn"] is True:
+            loop.create_task(
+                recv_data(APInfo[APID]["reader"], APInfo[APID]["fileHandle"]))
 
 
-async def recv_data(reader, fileHandle):
+async def recv_data(APInfo):
     """
-    This function, for each AP, reads the TX and rc status and writes it
-    to the data_AP.csv file
+    This async function for an AP reads the TX and rc status and writes
+    it to the data_AP.csv file
 
     Parameters
     ----------
-    reader : reader object
-        object from which the TX and rc status of an AP is read
-    fileHandle : file object
-        the data_AP.csv file to which the TX and rc status has to be written
+    APInfo : dictionary
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status of an AP
 
     Returns
     -------
     None.
 
     """
-    try:
-        while True:
-            # await asyncio.sleep(0.01)
-            dataLine = await reader.readline()
+    while True:
+        try:
+            reader = APInfo['reader']
+            fileHandle = APInfo['fileHandle']
+            timeout = 600
 
-            fileHandle.write(dataLine.decode("utf-8"))
-    except KeyboardInterrupt:
-        pass
-    reader.close()
+            # await asyncio.sleep(0.01)
+            dataLine = await asyncio.wait_for(reader.readline(), timeout)
+
+            # If rateman reads empty string from reader stream
+            if not len(dataLine):
+                logging.error("Disconnected from ", APInfo['APID'])
+                APInfo['reader'], APInfo['writer'] = await reconnect_to_AP(APInfo['APID'], APInfo['IPADD'], APInfo['MPORT'])
+                await restart_radios(APInfo)
+            else:
+                fileHandle.write(dataLine.decode("utf-8"))
+
+        except KeyboardInterrupt:
+            pass
+
+        except (ConnectionError, asyncio.TimeoutError):
+            logging.error("Disconnected from ", APInfo['APID'])
+            APInfo['reader'], APInfo['writer'] = await reconnect_to_AP(APInfo['APID'], APInfo['IPADD'], APInfo['MPORT'])
+            await restart_radios(APInfo)
+            continue
+
+
+async def reconnect_to_AP(APInfo):
+    """
+    This async function reconnects to the given IP Address and Port of
+    an APID.
+
+    Parameters
+    ----------
+    APInfo : dictionary
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status of an AP
+
+    Returns
+    -------
+    reader : reader object
+        object from which the TX and rc status of an AP is read
+    fileHandle : file object
+        the data_AP.csv file to which the TX and rc status has to be written
+
+    """
+
+    while True:
+        recon_delay = 10
+
+        logging.info("Reconnecting to ", APInfo['APID'], " in ", recon_delay, " seconds.")
+
+        await asyncio.sleep(recon_delay)
+
+        conn = asyncio.open_connection(APInfo['IPADD'], APInfo['MPORT'])
+
+        try:
+            # Try connecting to the AP within a timeout duration
+            reader, writer = await asyncio.wait_for(conn, timeout=5)
+            logging.info("Reconnected to {} : {} {}".format(APInfo['IPADD'], APInfo['IPADD'], APInfo['MPORT']))
+            APInfo['conn'] = True
+            return reader, writer
+
+        except (asyncio.TimeoutError, ConnectionError) as e:
+            # If timeout duration is exceeded i.e. AP is not accessible
+            logging.error("Failed to reconnect {} : {} {} -> {}".format(APInfo['IPADD'], APInfo['IPADD'], APInfo['MPORT'], e))
+            APInfo['conn'] = False
+            continue
+
+
+async def restart_radios(APInfo):
+    """
+    This async function for an AP restarts the radios i.e. executes the command
+    to enable rate control API.
+
+    Parameters
+    ----------
+    APInfo : dictionary
+        ccontains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status of an AP
+
+    Returns
+    -------
+    None.
+
+    """
+
+    cmd_footer = ";start;stats;txs"
+    writer = APInfo["writer"]
+    
+    for phy in APInfo["phyList"]:
+        cmd = phy + cmd_footer
+        writer.write(cmd.encode("ascii") + b"\n")
+    
+    logging.info(APInfo['APID'],": Radios restarted!")
 
 
 async def obtain_data(fileHandle) -> None:
@@ -301,7 +430,8 @@ async def stop_trigger(APInfo, loop):
     Parameters
     ----------
     APInfo : dictionary
-        contains each AP in the network as key with relevant parameters
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status with each AP as key
     loop : event_loop
         DESCRIPTION.
 
@@ -336,7 +466,8 @@ async def stop_rateman(APInfo, loop, stop_cmd: bool = True):
     Parameters
     ----------
     APInfo : dictionary
-        contains each AP in the network as key with relevant parameters
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status with each AP as key
     loop : event_loop
         DESCRIPTION.
     stop_cmd : bool
@@ -354,10 +485,11 @@ async def stop_rateman(APInfo, loop, stop_cmd: bool = True):
 
     if stop_cmd is True:
         for APID in APIDs:
-            writer = APInfo[APID]["writer"]
-            for phy in APInfo[APID]["phyList"]:
-                cmd = phy + cmd_footer
-                writer.write(cmd.encode("ascii") + b"\n")
+            if APInfo[APID]["conn"] is True:
+                writer = APInfo[APID]["writer"]
+                for phy in APInfo[APID]["phyList"]:
+                    cmd = phy + cmd_footer
+                    writer.write(cmd.encode("ascii") + b"\n")
 
     logging.info("Stopping rateman.....")
     await stop_tasks()
