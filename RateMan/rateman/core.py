@@ -303,7 +303,7 @@ async def recv_data(APInfo):
 
             # If rateman reads empty string from reader stream
             if not len(dataLine):
-                logging.error("Disconnected from ", APInfo['APID'])
+                logging.error("Disconnected from {}".format(APInfo['APID']))
                 APInfo['reader'], APInfo['writer'] = await reconnect_to_AP(APInfo)
                 await restart_radios(APInfo)
             else:
@@ -313,7 +313,7 @@ async def recv_data(APInfo):
             pass
 
         except (ConnectionError, asyncio.TimeoutError):
-            logging.error("Disconnected from ", APInfo['APID'])
+            logging.error("Disconnected from {}".format(APInfo['APID']))
             APInfo['reader'], APInfo['writer'] = await reconnect_to_AP(APInfo)
             await restart_radios(APInfo)
             continue
@@ -342,7 +342,7 @@ async def reconnect_to_AP(APInfo):
     while True:
         recon_delay = 10
 
-        logging.info("Reconnecting to ", APInfo['APID'], " in ", recon_delay, " seconds.")
+        logging.info("Reconnecting to {} in {} seconds. ".format(APInfo['APID'], recon_delay))
 
         await asyncio.sleep(recon_delay)
 
@@ -351,13 +351,13 @@ async def reconnect_to_AP(APInfo):
         try:
             # Try connecting to the AP within a timeout duration
             reader, writer = await asyncio.wait_for(conn, timeout=5)
-            logging.info("Reconnected to {} : {} {}".format(APInfo['IPADD'], APInfo['IPADD'], APInfo['MPORT']))
+            logging.info("Reconnected to {} : {} {}".format(APInfo['APID'], APInfo['IPADD'], APInfo['MPORT']))
             APInfo['conn'] = True
             return reader, writer
 
         except (asyncio.TimeoutError, ConnectionError) as e:
             # If timeout duration is exceeded i.e. AP is not accessible
-            logging.error("Failed to reconnect {} : {} {} -> {}".format(APInfo['IPADD'], APInfo['IPADD'], APInfo['MPORT'], e))
+            logging.error("Failed to reconnect {} : {} {} -> {}".format(APInfo['APID'], APInfo['IPADD'], APInfo['MPORT'], e))
             APInfo['conn'] = False
             continue
 
@@ -386,7 +386,7 @@ async def restart_radios(APInfo):
         cmd = phy + cmd_footer
         writer.write(cmd.encode("ascii") + b"\n")
     
-    logging.info(APInfo['APID'],": Radios restarted!")
+    logging.info("{} : Radios restarted!".format(APInfo['APID']))
 
 
 async def obtain_data(fileHandle) -> None:
