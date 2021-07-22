@@ -20,6 +20,7 @@ from .utils import *
 import numpy as np
 from .connman import *
 import random
+import sys
 
 
 __all__ = [
@@ -33,7 +34,8 @@ __all__ = [
     "main_AP_tasks",
     "connect_to_AP",
     "timer",
-    "stop_rateman"
+    "stop_rateman",
+    "check_APs_connection"
 ]
 
 
@@ -58,9 +60,11 @@ async def main_AP_tasks(APInfo, loop, duration = 10):
     """
 
     APInfo =  await connect_to_AP(APInfo, loop)
+
+    Active_AP = await check_APs_connection(APInfo, loop)
     
-    # If we have accesible AP/s
-    if APInfo:
+    # If we have accessible AP/s
+    if Active_AP:
 
         # Start fetching TX and RC status for accessible APs
         init_data_parsing(APInfo)
@@ -74,6 +78,11 @@ async def main_AP_tasks(APInfo, loop, duration = 10):
         # loop.create_task(set_rate(APInfo))
 
         loop.create_task(stop_trigger(APInfo, loop))
+    
+    else:
+
+        print("Couldn't connect to any access points!")
+        await stop_rateman(APInfo, loop, False)
     
 async def connect_to_AP(APInfo: dict, loop):
     """
@@ -113,6 +122,7 @@ async def connect_to_AP(APInfo: dict, loop):
             APInfo[APID]["writer"] = writer
             APInfo[APID]["reader"] = reader
             APInfo[APID]["fileHandle"] = fileHandle
+            APInfo[APID]["conn"] = True
 
         except (asyncio.TimeoutError, ConnectionRefusedError, ConnectionResetError) as e:
             # If timeout duration is exceeded i.e. AP is not accessible
@@ -120,14 +130,35 @@ async def connect_to_AP(APInfo: dict, loop):
             fileHandle.write("Failed to connect {} {}: {}".format(APInfo[APID]["IPADD"], APInfo[APID]["PORT"], e))
 
             # Remove unaccessible AP from the dictionary
-            del APInfo[APID]
-
-            # Check if the list of accessible APs is empty
-            if not APInfo:
-                print("Couldn't connect to any access points!")
-                await stop_rateman(APInfo, loop, False)
+            APInfo[APID]["conn"] = False
     
     return APInfo
+
+async def check_APs_connection(APInfo: dict, loop):
+    """
+    This async function check if any of the AP in APInfo has been sucessfully
+    connected. If not then rateman terminates.
+
+    Parameters
+    ----------
+    APInfo : dictionary
+        contains each AP in the network as key with relevant parameters
+    loop : event_loop
+        DESCRIPTION.
+
+    Returns
+    -------
+    True: If there is atleast one active connection in APInfo
+    False: If none of the APs were connected
+
+    """
+    APIDs = list(APInfo.keys())
+
+    for APID in APIDs:
+        if APInfo[APID]["conn"] is True:
+            return True
+    
+    return False
 
 def init_data_parsing(APInfo: dict) -> None:
 
@@ -152,10 +183,11 @@ def init_data_parsing(APInfo: dict) -> None:
     cmd_footer = ";start;stats;txs"
 
     for APID in APIDs:
-        writer = APInfo[APID]["writer"]
-        for phy in APInfo[APID]["phyList"]:
-            cmd = phy + cmd_footer
-            writer.write(cmd.encode("ascii") + b"\n")
+        if APInfo[APID]["conn"] is True:
+            writer = APInfo[APID]["writer"]
+            for phy in APInfo[APID]["phyList"]:
+                cmd = phy + cmd_footer
+                writer.write(cmd.encode("ascii") + b"\n")
 
     pass
 
@@ -207,7 +239,8 @@ def monitoring_tasks(APInfo, loop):
     APIDs = list(APInfo.keys())
 
     for APID in APIDs:
-        loop.create_task(
+        if APInfo[APID]["conn"] is True:
+            loop.create_task(
             recv_data(APInfo[APID]["reader"], APInfo[APID]["fileHandle"]))
 
 
@@ -236,8 +269,6 @@ async def recv_data(reader, fileHandle):
             fileHandle.write(dataLine.decode("utf-8"))
     except KeyboardInterrupt:
         pass
-    print("Closing Reader")
-    reader.close()
 
 async def obtain_data(fileHandle) -> None:
     pass
