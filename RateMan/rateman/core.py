@@ -335,9 +335,9 @@ async def reconnect_to_AP(APInfo):
     -------
     reader : reader object
         object from which the TX and rc status of an AP is read
-    fileHandle : file object
-        the data_AP.csv file to which the TX and rc status has to be written
-
+    writer : writer object
+        object used to execute commands to the rate control API 
+        of an AP
     """
 
     while True:
