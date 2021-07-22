@@ -36,6 +36,9 @@ __all__ = [
     "connect_to_AP",
     "timer",
     "stop_rateman",
+    "check_APs_connection",
+    "reconnect_to_AP",
+    "restart_radios"
 ]
 
 
