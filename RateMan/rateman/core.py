@@ -304,7 +304,7 @@ async def recv_data(APInfo):
             # If rateman reads empty string from reader stream
             if not len(dataLine):
                 logging.error("Disconnected from ", APInfo['APID'])
-                APInfo['reader'], APInfo['writer'] = await reconnect_to_AP(APInfo['APID'], APInfo['IPADD'], APInfo['MPORT'])
+                APInfo['reader'], APInfo['writer'] = await reconnect_to_AP(APInfo)
                 await restart_radios(APInfo)
             else:
                 fileHandle.write(dataLine.decode("utf-8"))
@@ -314,7 +314,7 @@ async def recv_data(APInfo):
 
         except (ConnectionError, asyncio.TimeoutError):
             logging.error("Disconnected from ", APInfo['APID'])
-            APInfo['reader'], APInfo['writer'] = await reconnect_to_AP(APInfo['APID'], APInfo['IPADD'], APInfo['MPORT'])
+            APInfo['reader'], APInfo['writer'] = await reconnect_to_AP(APInfo)
             await restart_radios(APInfo)
             continue
 
