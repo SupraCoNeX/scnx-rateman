@@ -273,8 +273,7 @@ def monitoring_tasks(APInfo, loop):
 
     for APID in APIDs:
         if APInfo[APID]["conn"] is True:
-            loop.create_task(
-                recv_data(APInfo[APID]["reader"], APInfo[APID]["fileHandle"]))
+            loop.create_task(recv_data(APInfo[APID]))
 
 
 async def recv_data(APInfo):
