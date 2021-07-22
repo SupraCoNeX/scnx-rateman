@@ -65,15 +65,15 @@ In this subsection, we provide a list of steps to communicate with the rate cont
 For monitoring the status of a given access point, make sure the TCP/IP connection is established. The `txs` and/or `rcs` can be received by triggering the following example commands. These commands are handled over the radio interfaces of the access point which are typically denoted as `phy0`, `phy1` and so on. 
 
 
-#### To rigger receiving the `txs`, run:
+#### To trigger receiving the `txs`, run:
   ```
   phy1;start
   ```
-### To Trigger receiving the `rcs`, run:
+#### To trigger receiving the `rcs`, run:
   ```
   phy1;start;stats
   ```
-### To trigger receiving both `txs` and `rcs`, run:
+#### To trigger receiving both `txs` and `rcs`, run:
   ```
   phy1;start;stats;txs
   ```
@@ -117,10 +117,9 @@ Here we have a trace from `phy1` at timestamp, `1626189830.926593008`, for clien
 
 E.g. 3. Erroneous `txs` trace
 ```
-phy1;11f3d399d842;txs;86:f9:1e:47:68:da;2;0;0;0,0;0,0;0,0;0,0
+phy1;1626189830;926593018;txs;86:f9:1e:47:68:da;2;0;0;0,0;0,0;0,0;0,0
 ```
 In this case, the trace implies that no MCS rate has been tried.
-
 
 
 #### Format of trace for `rcs` information
@@ -139,12 +138,16 @@ Description of fields that are not present in `txs` trace:
 |`cur_attempts`||
 |`hist_success`||
 |`hist_attempts`||
-  
+
+> TODO: Add description of fields
+
   
 E.g. 1. 
 ```
 phy0;1626196159;020667844;stats;cc:32:e5:9d:ab:58;d7;3e8;281;1;1;c0d7;f6c4
 ```
+
+> TODO: Explain example
 
   
 ### How to set MCS rates?
@@ -170,7 +173,7 @@ Up on establishing a TCP/IP connection with the rate control API in T2, you can 
   Actual rate setting is done using the `rates` argument in the second position. Note that the `rates` to be set must be the HEX version of the rate `idx` found in the `rc_stats` table.
      
 
-## Rate Control Statistics
+### Rate Control Statistics
 
 
 
