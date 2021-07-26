@@ -81,7 +81,7 @@ async def main_AP_tasks(APInfo, loop, duration=10, output_dir=''):
 
         # loop.create_task(set_rate(APInfo))
 
-        loop.create_task(stop_trigger(APInfo, loop))
+        # loop.create_task(stop_trigger(APInfo, loop))
 
     else:
 
