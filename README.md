@@ -121,6 +121,13 @@ phy1;1626189830;926593018;txs;86:f9:1e:47:68:da;2;0;0;0,0;0,0;0,0;0,0
 ```
 In this case, the trace implies that no MCS rate has been tried.
 
+#### How to Read the `rateX` Fields
+Consider again the example from the previous section:
+```
+phy1;1626189830;926593008;txs;d4:a3:3d:5f:76:4a;1;1;1;266,2;272,1;0,0;0,0
+```
+The first digits of `rateX` tell us in which rate group to look. The rightmost digit from the rate entries gives us the group offset. *Note, that these are hex digits!*
+In our example, rate `266` refers to the `6`th rate from group `26` and `272` refers to the `2`nd rate from group `27`. Looking at the `group` output mentioned above, we can find the exact rates. What `minstrel-rcd` is telling us is that we first tried to send a frame at rate **TODO RATE** twice before falling back to rate **TODO RATE** where transmission succeeded after one attempt.
 
 #### Format of trace for `rcs` information
 ```
