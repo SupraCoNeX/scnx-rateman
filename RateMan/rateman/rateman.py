@@ -133,7 +133,7 @@ class RateMan:
         # Notify RateMan telegram bot to send text_start to the listed chat_ids in keys.json
         text_start = (os.getcwd() + ":\n\nExperiment Started at " + str(datetime.now())
                      + "\nTime duration: " + str(duration) + " seconds" + "\nAP List: " + path)
-        self.notify(text_start)
+        self._notify(text_start)
 
         time_start = datetime.now()
 
@@ -155,7 +155,7 @@ class RateMan:
             else:
                 text_end += ("Data for the AP List, " + str(path) + ", has been successfully collected for " 
                             + str(duration) + " seconds!")
-            self.notify(text_end)
+            self._notify(text_end)
 
             self._loop.close()
         pass
@@ -166,7 +166,7 @@ class RateMan:
 
         pass
 
-    def notify(self, text) -> None:
+    def _notify(self, text) -> None:
         """
         This function sends message (text) to all the chat_ids, listed in 
         keys.json, from the RateMan Telegram Bot
@@ -182,13 +182,13 @@ class RateMan:
         None.
 
         """
-        with open('../docs/keys.json', 'r') as telegram_keys:
-            keys = json.load(telegram_keys)
-            bot_token = keys['bot_token']
-            bot = telegram.Bot(token=bot_token)
-            #Marking end of notification for readability
-            text += "\n--------------------------------------------"
-            for chat_id in keys['chat_ids']:
-                bot.sendMessage(chat_id=chat_id, text=text)
+    
+        bot_token = "1655932249:AAGWAhAJwBwnI6Kk0LrQc7CvN44B8ju7TsQ"
+        chat_ids = ["-580120177"] 
+        bot = telegram.Bot(token=bot_token)
+        #Marking end of notification for readability
+        text += "\n--------------------------------------------"
+        for chat_id in chat_ids:
+            bot.sendMessage(chat_id=chat_id, text=text)
 
   
