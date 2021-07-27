@@ -73,7 +73,7 @@ class RateMan:
                 APID = currentAP["APID"]
                 IPAdd = currentAP["IPADD"]
                 portSSH = int(currentAP["PORT"])
-                portMinstrel = 21059 # default port for Minstrel-RCD
+                portMinstrel = 21059  # default port for Minstrel-RCD
 
                 self._accesspoints[APID] = APID
                 self._accesspoints[APID] = currentAP
@@ -82,7 +82,7 @@ class RateMan:
 
                 # phy list is hard-coded -> ToDo: obtain list automatically
                 # using getPhyList function
-                self._accesspoints[APID]["phyList"] = ['phy0', 'phy1']
+                self._accesspoints[APID]["phyList"] = ["phy0", "phy1"]
 
         pass
 
@@ -107,7 +107,7 @@ class RateMan:
 
         pass
 
-    def start(self, path, duration: float) -> None:
+    def start(self, duration: float, output_dir: str = '') -> None:
         """
         Start monitoring of TX Status (txs) and Rate Control Statistics
         (rc_stats). Send notification about the experiment from RateMan
@@ -137,8 +137,9 @@ class RateMan:
 
         time_start = datetime.now()
 
-        self._loop.create_task(main_AP_tasks(self._accesspoints, self._loop,
-                                             self._duration))
+        self._loop.create_task(
+            main_AP_tasks(self._accesspoints, self._loop, duration, output_dir)
+        )
 
         try:
             self._loop.run_forever()
