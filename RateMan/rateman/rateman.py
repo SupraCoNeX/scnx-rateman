@@ -50,7 +50,7 @@ class RateMan:
 
         return self._accesspoints
 
-    def addaccesspoints(self, filename: dir) -> None:
+    def addaccesspoints(self, ap_list_filename: dir) -> None:
         """
         Function to add a list of access points available in a network.
         Each access point has given a unique ID and relevant information
@@ -66,7 +66,9 @@ class RateMan:
         None
 
         """
-        with open(filename, newline="") as csvfile:
+        
+        self._ap_list_filename = ap_list_filename
+        with open(ap_list_filename, newline="") as csvfile:
             reader = csv.DictReader(csvfile)
             for currentAP in reader:
 
@@ -115,12 +117,12 @@ class RateMan:
 
         Parameters
         ----------
-        path : str
-            the path of the AP list from which the TX Status (txs) and 
-            Rate Control Statistics (rc_stats) are to be fetched.
-
+       
         duration: float
             time duration for which the data from APs has to be collected
+            
+        output_dir : str
+            directory to which parsed data is saved
 
         Returns
         -------
@@ -132,7 +134,8 @@ class RateMan:
 
         # Notify RateMan telegram bot to send text_start to the listed chat_ids in keys.json
         text_start = (os.getcwd() + ":\n\nExperiment Started at " + str(datetime.now())
-                     + "\nTime duration: " + str(duration) + " seconds" + "\nAP List: " + path)
+                     + "\nTime duration: " + str(duration) + " seconds" + "\nAP List: " + self._ap_list_filename)
+        
         self._notify(text_start)
 
         time_start = datetime.now()
@@ -151,9 +154,9 @@ class RateMan:
             # If RateMan stopped earlier than the specified duration
             if (elapsed_time.total_seconds() < duration):
                 text_end += ("Error: RateMan stopped before the specified time duration of " + str(duration) + "!\n"
-                            + "RateMan was fetching data from " + str(path))
+                            + "RateMan was fetching data from " + str(self._ap_list_filename))
             else:
-                text_end += ("Data for the AP List, " + str(path) + ", has been successfully collected for " 
+                text_end += ("Data for the AP List, " + str(self._ap_list_filename) + ", has been successfully collected for " 
                             + str(duration) + " seconds!")
             self._notify(text_end)
 
