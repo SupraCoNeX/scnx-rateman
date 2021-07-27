@@ -16,9 +16,12 @@ import numpy as np
 from .connman import *
 from .core import *
 import io
-import time
+from datetime import datetime
 import paramiko
 import asyncio
+import json
+import telegram
+import os
 
 
 __all__ = ["RateMan"]
@@ -107,15 +110,33 @@ class RateMan:
     def start(self, duration: float, output_dir: str = '') -> None:
         """
         Start monitoring of TX Status (txs) and Rate Control Statistics
-        (rc_stats).
+        (rc_stats). Send notification about the experiment from RateMan
+        Telegram Bot.
 
+        Parameters
+        ----------
+        path : str
+            the path of the AP list from which the TX Status (txs) and 
+            Rate Control Statistics (rc_stats) are to be fetched.
+
+        duration: float
+            time duration for which the data from APs has to be collected
 
         Returns
         -------
         None.
 
         """
-        
+
+        self._duration = duration
+
+        # Notify RateMan telegram bot to send text_start to the listed chat_ids in keys.json
+        text_start = (os.getcwd() + ":\n\nExperiment Started at " + str(datetime.now())
+                     + "\nTime duration: " + str(duration) + " seconds" + "\nAP List: " + path)
+        self.notify(text_start)
+
+        time_start = datetime.now()
+
         self._loop.create_task(
             main_AP_tasks(self._accesspoints, self._loop, duration, output_dir)
         )
@@ -123,8 +144,20 @@ class RateMan:
         try:
             self._loop.run_forever()
         finally:
-            self._loop.close()
+            # Notify RateMan telegram bot to send text_end to chat_ids in keys.json
+            elapsed_time = datetime.now() - time_start
+            text_end = os.getcwd() + ":\n\nExperiment Finished at " + str(datetime.now()) + "\n"
+            
+            # If RateMan stopped earlier than the specified duration
+            if (elapsed_time.total_seconds() < duration):
+                text_end += ("Error: RateMan stopped before the specified time duration of " + str(duration) + "!\n"
+                            + "RateMan was fetching data from " + str(path))
+            else:
+                text_end += ("Data for the AP List, " + str(path) + ", has been successfully collected for " 
+                            + str(duration) + " seconds!")
+            self.notify(text_end)
 
+            self._loop.close()
         pass
 
     def savedata(self, host: str, port: str) -> None:
@@ -132,3 +165,30 @@ class RateMan:
         # data is structured per AP and can be structure per client
 
         pass
+
+    def notify(self, text) -> None:
+        """
+        This function sends message (text) to all the chat_ids, listed in 
+        keys.json, from the RateMan Telegram Bot
+
+        Parameters
+        ----------
+        text : str
+            the content of the message that is to be sent by the RateMan
+            Telegram Bot
+
+        Returns
+        -------
+        None.
+
+        """
+        with open('../docs/keys.json', 'r') as telegram_keys:
+            keys = json.load(telegram_keys)
+            bot_token = keys['bot_token']
+            bot = telegram.Bot(token=bot_token)
+            #Marking end of notification for readability
+            text += "\n--------------------------------------------"
+            for chat_id in keys['chat_ids']:
+                bot.sendMessage(chat_id=chat_id, text=text)
+
+  

@@ -20,9 +20,9 @@ from .utils import *
 import numpy as np
 from .connman import *
 import random
+import sys
 import os
 import logging
-
 
 __all__ = [
     "recv_data",
@@ -80,7 +80,7 @@ async def main_AP_tasks(APInfo, loop, duration=10, output_dir=''):
         # loop.create_task(obtain_data(APInfo))
 
         # loop.create_task(set_rate(APInfo))
-
+  
         # loop.create_task(stop_trigger(APInfo, loop))
 
     else:
@@ -136,8 +136,6 @@ async def connect_to_AP(APInfo: dict, loop, output_dir):
             APInfo[APID]["writer"] = writer
             APInfo[APID]["reader"] = reader
             APInfo[APID]["fileHandle"] = fileHandle
-
-            # Set active connection to True
             APInfo[APID]["conn"] = True
 
         except (asyncio.TimeoutError, ConnectionError) as e:
@@ -157,19 +155,16 @@ async def connect_to_AP(APInfo: dict, loop, output_dir):
             APInfo[APID]["conn"] = False
 
     return APInfo
-
-
+  
 async def check_APs_connection(APInfo: dict, loop):
     """
-    This async function checks if rateman has successfully connected to 
-    atleast one AP in APInfo. If not, then rateman returns False which
-    indicates that rateman is to be terminated.
+    This async function check if any of the AP in APInfo has been sucessfully
+    connected. If not then rateman terminates.
 
     Parameters
     ----------
     APInfo : dictionary
-        contains parameters such as ID, IP Address, Port, relevant file
-        streams and connection status with each AP as key
+        contains each AP in the network as key with relevant parameters
     loop : event_loop
         DESCRIPTION.
 
@@ -179,7 +174,6 @@ async def check_APs_connection(APInfo: dict, loop):
     False: If none of the APs were connected
 
     """
-
     APIDs = list(APInfo.keys())
 
     for APID in APIDs:
@@ -187,7 +181,6 @@ async def check_APs_connection(APInfo: dict, loop):
             return True
     
     return False
-
 
 def init_data_parsing(APInfo: dict) -> None:
     """
@@ -277,7 +270,6 @@ def monitoring_tasks(APInfo, loop):
     for APID in APIDs:
         if APInfo[APID]["conn"] is True:
             loop.create_task(recv_data(APInfo[APID]))
-
 
 async def recv_data(APInfo):
     """
@@ -381,7 +373,6 @@ async def restart_radios(APInfo):
     None.
 
     """
-
     cmd_footer = ";start;stats;txs"
     writer = APInfo["writer"]
     
@@ -390,7 +381,6 @@ async def restart_radios(APInfo):
         writer.write(cmd.encode("ascii") + b"\n")
     
     logging.info("{} : Radios restarted!".format(APInfo['APID']))
-
 
 async def obtain_data(fileHandle) -> None:
     pass
