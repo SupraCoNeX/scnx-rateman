@@ -1,6 +1,8 @@
 import io
 from pathlib import Path
+from re import I
 import signal
+from datetime import datetime
 
 import pandas as pd
 import numpy as np
@@ -99,6 +101,10 @@ def read_stats_txs_csv(
     stats_data = stats_data.set_index(["timestamp", "timestamp2"])
     return txs_data, stats_data
 
+def _convert_timestamps_to_datetime(df):
+    """Convert timestamps to datetime objects."""
+
+
 def flag_error_in_data(file):
     """Flag error lines in traces. There are timestamp errors and parsing errors
     if they are not timestamp errors.
@@ -121,13 +127,8 @@ def flag_error_in_data(file):
         "timestamp_error",
     ]
     # Skip ap_info lines
-    ap_info_len = df.loc[df['timestamp2'] == 'group'].index[-1]
-    phy_len = df['phy_nr'].unique().size
-    df_data = df.iloc[ap_info_len+phy_len:]
-    # Set the `parsing_error` flag of lines with NaN as type to True
-    df_data.loc[:, 'parsing_error'] = False
-    df_data.loc[:, 'timestamp_error'] = False
-    df_data.loc[df_data.type.isna(), 'parsing_error'] = True
+    df_data = _skip_ap_info_lines(df)
+    # Find timestamp errors
     ts_new, ts_error = _interpolate_error_timestamps(df_data.timestamp)
     df_data.loc[:, 'timestamp'] = ts_new
     df_data.loc[ts_error, 'timestamp_error'] = True
@@ -135,6 +136,13 @@ def flag_error_in_data(file):
     df_data.loc[:, 'timestamp2'] = ts_new2
     df_data.loc[ts_error2, 'timestamp_error'] = True
     df_data = df_data.set_index(["timestamp", "timestamp2"])
+    return df_data
+
+def _skip_ap_info_lines(df):
+    """Return dataframe without the ap_info lines."""
+    ap_info_len = df.loc[df['timestamp2'] == 'group'].index[-1]
+    phy_len = df['phy_nr'].unique().size
+    df_data = df.iloc[ap_info_len+phy_len:]
     return df_data
 
 def _interpolate_error_timestamps(timestamps, ns=False, error_interval=1000):
@@ -224,6 +232,16 @@ def _interpolate_error_timestamps(timestamps, ns=False, error_interval=1000):
             ts_errors.append(True)
     return ts, ts_errors
 
+def _get_timestamp_errors(df):
+    """Find errors in timestamps and flag them."""
+    ts = [
+        datetime.fromtimestamp(
+            float(str(i1)+"."+str(i2))
+        ) for i1, i2 in df_error.index
+    ]
+    return ts
+
+
 def timedInput(prompt="", timeout=1, timeoutmsg=None):
     def timeout_error(*_):
         raise TimeoutError
@@ -241,7 +259,50 @@ def timedInput(prompt="", timeout=1, timeoutmsg=None):
         return None
 
 def plot_timestamp_errors(error_df):
-    x = error_df['timestamp']
+    x = [datetime.fromtimestamp(float(str(i1)+"."+str(i2))) for i1, i2 in df_error.index]
+    y1 = df_error.timestamp_error
+    plt.stem(x, y1)
+    plt.show()
 
-def plot_parsing_errors(error_df):
+def get_error_stats(df_error):
+    """Get error statistics of txs and stats data, e.g. number of trace lines,
+    number of timestamp error lines, number of parsing error lines.
+    """
+    lines = df_error.shape[0]
+    lines_timestamp_error = np.sum(df_error.timestamp_error)
+    lines_parsing_error = np.sum(df_error.parsing_error)
+    return lines, lines_timestamp_error, lines_parsing_error
+
+def _get_missing_rate_errors(df):
+    """Return a pandas series with missing rate errors of the txs dataframe.
+    """
+    txs_columns = [
+        'phy_nr',
+        'type',
+        'macaddr',
+        'num_frames',
+        'num_acked',
+        'probe',
+        'rate_count1',
+        'rate_count2',
+        'rate_count3',
+        'rate_count4'
+    ]
+    # Check if the given dateframe is a txs dataframe.
+    if (df.columns == txs_columns).all():
+        res = (df.loc[:, 'rate_count1':] == '0,0').all(axis='columns')
+    else:
+        raise ValueError
+
+def _get_timestamp_order_errors(df):
+    """Returns two lists: `ts_new` and `ts_errors` containing new interpolated
+    timestamps and a list with bools for timestamp order errors"""
+    #TODO: Check if already avaiable!
     pass
+
+if __name__ == '__main__':
+    file = ''
+    df = pd.read_csv(file, sep=';', names=range(12))
+    df_txs, df_stats = read_stats_txs_csv(file)
+    df_error = flag_error_in_data(file)
+    plot_timestamp_errors(df_error)
