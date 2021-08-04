@@ -20,9 +20,6 @@ from .connman import *
 import random
 import os
 import logging
-import datetime
-
-# logging.info("Start: %s", datetime.datetime.now().strftime("%Y.%m.%d, %H:%M:%S"))
 
 __all__ = [
     "setup_rateman_tasks",
@@ -83,9 +80,6 @@ async def setup_rateman_tasks(net_info, loop, duration=10, output_dir=""):
 
         setup_monitoring_tasks(net_info, loop, output_dir)
 
-        # loop.create_task(obtain_data(net_info))
-
-        # loop.create_task(set_rate(net_info))
     else:
         logging.error("Couldn't connect to any access points!")
         await stop_rateman(net_info, loop, stop_cmd=False)
@@ -130,10 +124,7 @@ async def connect_AP(ap_info: dict, output_dir):
                 ap_info["APID"], ap_info["IPADD"], ap_info["MPORT"], e
             )
         )
-        # fileHandle.write(datetime.datetime.now().strftime("%Y.%m.%d, %H:%M:%S"), ':',
-        #     "Failed to connect {} {}: {}".format(ap_info["IPADD"], ap_info["MPORT"], e)
-        # )
-
+       
         # Set active connection to False
         ap_info["conn"] = False
 
@@ -190,9 +181,6 @@ def start_radios(ap_info):
         cmd = phy + cmd_footer
         writer.write(cmd.encode("ascii") + b"\n")
 
-    # logging.info("{} : Radios restarted!".format(ap_info["APID"]))
-
-
 async def meas_timer(net_info, duration, loop):
     """
     This async function stops the rateman after the TX and rc data have
@@ -247,8 +235,6 @@ def setup_monitoring_tasks(net_info, loop, output_dir):
 
     APIDs = list(net_info.keys())
 
-    # logging.info("Initiating monitoring.")
-
     for APID in APIDs:
         if net_info[APID]["conn"] is True:
             loop.create_task(recv_data(net_info[APID], output_dir))
@@ -278,7 +264,6 @@ async def recv_data(ap_info, output_dir, reconn_time=600):
             reader = ap_info["reader"]
             fileHandle = ap_info["fileHandle"]
 
-            # await asyncio.sleep(0.01)
             dataLine = await asyncio.wait_for(reader.readline(), reconn_time)
 
             # If rateman reads empty string from reader stream

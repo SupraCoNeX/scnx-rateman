@@ -144,7 +144,7 @@ class RateMan:
             + self._ap_list_filename
         )
 
-        # self._notify(text_start)
+        self._notify(text_start)
 
         time_start = datetime.now()
 
@@ -181,16 +181,11 @@ class RateMan:
                     + str(duration)
                     + " seconds!"
                 )
-            # self._notify(text_end)
+            self._notify(text_end)
 
             self._loop.close()
         pass
 
-    def savedata(self, host: str, port: str) -> None:
-
-        # data is structured per AP and can be structure per client
-
-        pass
 
     def _notify(self, text) -> None:
         """
