@@ -68,7 +68,7 @@ async def setup_rateman_tasks(net_info, loop, duration=10, output_dir=""):
     for APID in APIDs:
         ap_info = net_info[APID]
 
-        ap_info = connect_AP(APID, ap_info, loop, output_dir)
+        ap_info = await connect_AP(APID, ap_info, loop, output_dir)
 
         if ap_info["conn"] is True:
             start_radios(ap_info)
