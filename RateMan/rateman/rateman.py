@@ -149,7 +149,7 @@ class RateMan:
         time_start = datetime.now()
 
         self._loop.create_task(
-            main_AP_tasks(self._accesspoints, self._loop, duration, output_dir)
+            setup_rateman_tasks(self._accesspoints, self._loop, duration, output_dir)
         )
 
         try:
