@@ -29,21 +29,21 @@ import argparse
 import sys
 
 if __name__ == "__main__":
-    
+
     ### pre-requisites
 
     # Parser to set file path (-p) and time duration (-t)
     parser = argparse.ArgumentParser(description="Rateman")
-    parser.add_argument("-p", help="Path to the Access Point File",
-                        type = str)
-    parser.add_argument("-t", help="Time duration in seconds",
-                        type = float)
-    
+    parser.add_argument("-p", help="Path to the Access Point File", type=str)
+    parser.add_argument("-t", help="Time duration in seconds", type=float)
+
     args = parser.parse_args()
 
-    #If one of the arguments, from -p and -t, is missing then print_help() and terminate
+    # If one of the arguments, from -p and -t, is missing then print_help() and terminate
     if args.p is None or args.t is None:
-        print("\nThis rateman script needs both time and path arguments to run. Please see the help below!\n")
+        print(
+            "\nThis rateman script needs both time and path arguments to run. Please see the help below!\n"
+        )
         parser.print_help()
         sys.exit(1)
 
@@ -64,14 +64,11 @@ if __name__ == "__main__":
         else:
             print("Oops! Time duration cannot be negative.")
 
-
     # # Create rateman object
     rateMan = rateman.RateMan()
 
     rateMan.addaccesspoints(path)
 
     rateMan.start(path, duration)
-    
+
     ### clean-up
-   
- 

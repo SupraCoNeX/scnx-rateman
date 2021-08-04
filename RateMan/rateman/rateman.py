@@ -66,7 +66,7 @@ class RateMan:
         None
 
         """
-        
+
         self._ap_list_filename = ap_list_filename
         with open(ap_list_filename, newline="") as csvfile:
             reader = csv.DictReader(csvfile)
@@ -109,7 +109,7 @@ class RateMan:
 
         pass
 
-    def start(self, duration: float, output_dir: str = '') -> None:
+    def start(self, duration: float, output_dir: str = "") -> None:
         """
         Start monitoring of TX Status (txs) and Rate Control Statistics
         (rc_stats). Send notification about the experiment from RateMan
@@ -117,10 +117,10 @@ class RateMan:
 
         Parameters
         ----------
-       
+
         duration: float
             time duration for which the data from APs has to be collected
-            
+
         output_dir : str
             directory to which parsed data is saved
 
@@ -133,10 +133,18 @@ class RateMan:
         self._duration = duration
 
         # Notify RateMan telegram bot to send text_start to the listed chat_ids in keys.json
-        text_start = (os.getcwd() + ":\n\nExperiment Started at " + str(datetime.now())
-                     + "\nTime duration: " + str(duration) + " seconds" + "\nAP List: " + self._ap_list_filename)
-        
-        self._notify(text_start)
+        text_start = (
+            os.getcwd()
+            + ":\n\nExperiment Started at "
+            + str(datetime.now())
+            + "\nTime duration: "
+            + str(duration)
+            + " seconds"
+            + "\nAP List: "
+            + self._ap_list_filename
+        )
+
+        # self._notify(text_start)
 
         time_start = datetime.now()
 
@@ -149,16 +157,31 @@ class RateMan:
         finally:
             # Notify RateMan telegram bot to send text_end to chat_ids in keys.json
             elapsed_time = datetime.now() - time_start
-            text_end = os.getcwd() + ":\n\nExperiment Finished at " + str(datetime.now()) + "\n"
-            
+            text_end = (
+                os.getcwd()
+                + ":\n\nExperiment Finished at "
+                + str(datetime.now())
+                + "\n"
+            )
+
             # If RateMan stopped earlier than the specified duration
-            if (elapsed_time.total_seconds() < duration):
-                text_end += ("Error: RateMan stopped before the specified time duration of " + str(duration) + "!\n"
-                            + "RateMan was fetching data from " + str(self._ap_list_filename))
+            if elapsed_time.total_seconds() < duration:
+                text_end += (
+                    "Error: RateMan stopped before the specified time duration of "
+                    + str(duration)
+                    + "!\n"
+                    + "RateMan was fetching data from "
+                    + str(self._ap_list_filename)
+                )
             else:
-                text_end += ("Data for the AP List, " + str(self._ap_list_filename) + ", has been successfully collected for " 
-                            + str(duration) + " seconds!")
-            self._notify(text_end)
+                text_end += (
+                    "Data for the AP List, "
+                    + str(self._ap_list_filename)
+                    + ", has been successfully collected for "
+                    + str(duration)
+                    + " seconds!"
+                )
+            # self._notify(text_end)
 
             self._loop.close()
         pass
@@ -171,7 +194,7 @@ class RateMan:
 
     def _notify(self, text) -> None:
         """
-        This function sends message (text) to all the chat_ids, listed in 
+        This function sends message (text) to all the chat_ids, listed in
         keys.json, from the RateMan Telegram Bot
 
         Parameters
@@ -185,13 +208,11 @@ class RateMan:
         None.
 
         """
-    
+
         bot_token = "1655932249:AAGWAhAJwBwnI6Kk0LrQc7CvN44B8ju7TsQ"
-        chat_ids = ["-580120177"] 
+        chat_ids = ["-580120177"]
         bot = telegram.Bot(token=bot_token)
-        #Marking end of notification for readability
+        # Marking end of notification for readability
         text += "\n--------------------------------------------"
         for chat_id in chat_ids:
             bot.sendMessage(chat_id=chat_id, text=text)
-
-  
