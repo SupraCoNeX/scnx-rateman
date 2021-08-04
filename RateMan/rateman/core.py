@@ -68,7 +68,7 @@ async def setup_rateman_tasks(net_info, loop, duration=10, output_dir=""):
     for APID in APIDs:
         ap_info = net_info[APID]
 
-        ap_info = await connect_AP(APID, ap_info, loop, output_dir)
+        ap_info = await connect_AP(ap_info, output_dir)
 
         if ap_info["conn"] is True:
             start_radios(ap_info)
@@ -77,12 +77,11 @@ async def setup_rateman_tasks(net_info, loop, duration=10, output_dir=""):
 
     net_active = await check_net_conn(net_info, loop)
 
-    # If we have accesible AP/s
     if net_active:
-        # Start fetching TX and RC status for accessible APs
-        loop.create_task(meas_timer(net_info, duration, loop))
 
-        setup_monitoring_tasks(net_info, loop)
+        loop.create_task(meas_timer(net_info, duration, loop))
+        
+        setup_monitoring_tasks(net_info, loop, output_dir)
 
         # loop.create_task(obtain_data(net_info))
 
@@ -103,22 +102,23 @@ def setup_outputdir(output_dir):
         output_dir = os.path.join(os.getcwd(), "data")
 
 
-async def connect_AP(APID, ap_info: dict, loop, output_dir):
+async def connect_AP(ap_info: dict, output_dir):
 
     if "fileHandle" not in ap_info:
-        fileHandle = open(output_dir + "/data_" + APID + ".csv", "w")
+                
+        fileHandle = open(output_dir + "/data_" + ap_info['APID'] + ".csv", "w")
         ap_info["fileHandle"] = fileHandle
 
-    conn = asyncio.open_connection(ap_info["IPADD"], ap_info["MPORT"])
+    conn_handle = asyncio.open_connection(ap_info["IPADD"], ap_info["MPORT"])
 
     try:
         # Try connecting to the AP within a timeout duration
-        reader, writer = await asyncio.wait_for(conn, timeout=5)
+        reader, writer = await asyncio.wait_for(conn_handle, timeout=5)
 
         logging.info(
             datetime.datetime.now().strftime("%Y.%m.%d, %H:%M:%S"),
             ":",
-            "Connected to {} : {} {}".format(APID, ap_info["IPADD"], ap_info["MPORT"]),
+            "Connected to {} : {} {}".format(ap_info['APID'], ap_info["IPADD"], ap_info["MPORT"]),
         )
 
         ap_info["writer"] = writer
@@ -131,7 +131,7 @@ async def connect_AP(APID, ap_info: dict, loop, output_dir):
             datetime.datetime.now().strftime("%Y.%m.%d, %H:%M:%S"),
             ":",
             "Failed to connect {} : {} {} -> {}".format(
-                APID, ap_info["IPADD"], ap_info["MPORT"], e
+                ap_info['APID'], ap_info["IPADD"], ap_info["MPORT"], e
             ),
         )
         # fileHandle.write(datetime.datetime.now().strftime("%Y.%m.%d, %H:%M:%S"), ':',
@@ -236,7 +236,7 @@ async def meas_timer(net_info, duration, loop):
     await stop_rateman(net_info, loop)
 
 
-def setup_monitoring_tasks(net_info, loop):
+def setup_monitoring_tasks(net_info, loop, output_dir):
     """
     This function, for each AP, calls the recv_data function.
 
@@ -260,10 +260,10 @@ def setup_monitoring_tasks(net_info, loop):
 
     for APID in APIDs:
         if net_info[APID]["conn"] is True:
-            loop.create_task(recv_data(net_info[APID]))
+            loop.create_task(recv_data(net_info[APID], output_dir))
 
 
-async def recv_data(ap_info, reconn_time=600):
+async def recv_data(ap_info, output_dir, reconn_time=600):
     """
     This async function for an AP reads the TX and rc status and writes
     it to the data_AP.csv file
@@ -297,7 +297,7 @@ async def recv_data(ap_info, reconn_time=600):
                     ":",
                     "Disconnected from {}".format(ap_info["APID"]),
                 )
-                ap_info = await connect_AP(ap_info)
+                ap_info = await connect_AP(ap_info, output_dir)
                 start_radios(ap_info)
             else:
                 fileHandle.write(dataLine.decode("utf-8"))
@@ -311,7 +311,7 @@ async def recv_data(ap_info, reconn_time=600):
                 ":",
                 "Disconnected from {}".format(ap_info["APID"]),
             )
-            ap_info = await connect_AP(ap_info)
+            ap_info = await connect_AP(ap_info, output_dir)
             start_radios(ap_info)
             continue
 
