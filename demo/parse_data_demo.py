@@ -6,34 +6,24 @@
 r"""
 Demo for parsing data (TXS and RCSTATS) into a .csv file per AP
 ----------------
-
 This demo script illustrates the basic use of the RateManager package to 
 parse data from multiple APs into designated .csv files. Data denotes TX Status
 Rate Control Statistics piped using the 'phyX;start;stats;txs' command with 
 minstrel-rcd. 
-
 Run the demo script in the terminal using,
-
 python parse_data_demo.py
-
-
 RateMan is stopped within the terminal, observe the print statements.
-
-
 """
 
 import rateman
 import time
 import paramiko
 import argparse
+import sys
 
 if __name__ == "__main__":
     
     ### pre-requisites
-
-    # Default values for path and duration
-    path = "sample_ap_lists/ap_list_sample_1.csv"
-    duration = 5
 
     # Parser to set file path (-p) and time duration (-t)
     parser = argparse.ArgumentParser(description="Rateman")
@@ -44,20 +34,30 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
+    #If one of the arguments, from -p and -t, is missing then print_help() and terminate
+    if args.p is None or args.t is None:
+        print("\nThis rateman script needs both time and path arguments to run. Please see the help below!\n")
+        parser.print_help()
+        sys.exit(1)
+
+    # Store path of the AP file
     if args.p:
         try:
             f = open(args.p)
             f.close()
         except IOError as e:
             print(e)
+            sys.exit(2)
         else:
             path = args.p
 
+    # Store the duration of the experiment
     if args.t:
         if args.t > 0:
             duration = args.t
         else:
             print("Oops! Time duration cannot be negative.")
+            sys.exit(3)
 
 
     # # Create rateman object
@@ -66,7 +66,6 @@ if __name__ == "__main__":
     rateMan.addaccesspoints(path)
 
     rateMan.start(duration)
-    
     
     ### clean-up
    

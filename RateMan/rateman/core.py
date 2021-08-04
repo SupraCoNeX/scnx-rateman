@@ -16,6 +16,7 @@ import time
 import pdb
 import io
 import asyncio
+from typing import Awaitable
 from .utils import *
 import numpy as np
 from .connman import *
@@ -30,7 +31,6 @@ __all__ = [
     "stop_trigger",
     "init_data_parsing",
     "monitoring_tasks",
-    "obtain_data",
     "stop_loop",
     "main_AP_tasks",
     "connect_to_AP",
@@ -38,7 +38,8 @@ __all__ = [
     "stop_rateman",
     "check_APs_connection",
     "reconnect_to_AP",
-    "restart_radios"
+    "restart_radios",
+    "handle_disconnects"
 ]
 
 
@@ -60,7 +61,6 @@ async def main_AP_tasks(APInfo, loop, duration=10, output_dir=''):
     Returns
     -------
     None.
-
     """
 
     APInfo = await connect_to_AP(APInfo, loop, output_dir)
@@ -107,7 +107,6 @@ async def connect_to_AP(APInfo: dict, loop, output_dir):
     APInfo : dictionary
         contains parameters such as ID, IP Address, Port, relevant file
         streams and connection status with each AP as key
-
     """
 
     APIDs = list(APInfo.keys())
@@ -177,7 +176,6 @@ async def check_APs_connection(APInfo: dict, loop):
     -------
     True: If there is atleast one active connection in APInfo
     False: If none of the APs were connected
-
     """
 
     APIDs = list(APInfo.keys())
@@ -203,7 +201,6 @@ def init_data_parsing(APInfo: dict) -> None:
     Returns
     -------
     None.
-
     """
 
     APIDs = list(APInfo.keys())
@@ -240,8 +237,8 @@ async def timer(APInfo, duration, loop):
     Returns
     -------
     None.
-
     """
+
     start_time = time.time()
     while True:
         await asyncio.sleep(0)
@@ -267,7 +264,6 @@ def monitoring_tasks(APInfo, loop):
     Returns
     -------
     None.
-
     """
 
     APIDs = list(APInfo.keys())
@@ -293,8 +289,8 @@ async def recv_data(APInfo):
     Returns
     -------
     None.
-
     """
+
     while True:
         try:
             reader = APInfo['reader']
@@ -306,9 +302,7 @@ async def recv_data(APInfo):
 
             # If rateman reads empty string from reader stream
             if not len(dataLine):
-                logging.error("Disconnected from {}".format(APInfo['APID']))
-                APInfo['reader'], APInfo['writer'] = await reconnect_to_AP(APInfo)
-                await restart_radios(APInfo)
+                APInfo = await handle_disconnects(APInfo, remove_header=True)
             else:
                 fileHandle.write(dataLine.decode("utf-8"))
 
@@ -316,10 +310,42 @@ async def recv_data(APInfo):
             pass
 
         except (ConnectionError, asyncio.TimeoutError):
-            logging.error("Disconnected from {}".format(APInfo['APID']))
-            APInfo['reader'], APInfo['writer'] = await reconnect_to_AP(APInfo)
-            await restart_radios(APInfo)
+            APInfo = await handle_disconnects(APInfo, remove_header=True)
             continue
+
+async def handle_disconnects(APInfo, remove_header: bool):
+    """
+        This async function handles disconnect from AP and, if specified,
+        skips headers when reading from the ReaderStream again.
+    """
+
+    logging.error("Disconnected from {}".format(APInfo['APID']))
+
+    APInfo['conn'] = False
+
+    APInfo = await reconnect_to_AP(APInfo)
+
+    # Removes headers
+    if remove_header is True:
+        try:
+            await restart_radios(APInfo)
+
+            reader = APInfo['reader']
+            fileHandle = APInfo['fileHandle']
+
+            while True:
+                dataLine = await asyncio.wait_for(reader.readline(), timeout=5)
+                line = dataLine.decode("utf-8")
+
+                # Headers have * at the beginning
+                if line[0] != '*':
+                    fileHandle.write(line)
+                    break
+        
+        except (ConnectionError, asyncio.TimeoutError):
+            APInfo = await handle_disconnects(APInfo, remove_header)
+
+    return APInfo
 
 
 async def reconnect_to_AP(APInfo):
@@ -353,15 +379,15 @@ async def reconnect_to_AP(APInfo):
 
         try:
             # Try connecting to the AP within a timeout duration
-            reader, writer = await asyncio.wait_for(conn, timeout=5)
+            APInfo['reader'], APInfo['writer'] = await asyncio.wait_for(conn, timeout=5)
             logging.info("Reconnected to {} : {} {}".format(APInfo['APID'], APInfo['IPADD'], APInfo['MPORT']))
             APInfo['conn'] = True
-            return reader, writer
+
+            return APInfo
 
         except (asyncio.TimeoutError, ConnectionError) as e:
             # If timeout duration is exceeded i.e. AP is not accessible
             logging.error("Failed to reconnect {} : {} {} -> {}".format(APInfo['APID'], APInfo['IPADD'], APInfo['MPORT'], e))
-            APInfo['conn'] = False
             continue
 
 
@@ -373,13 +399,12 @@ async def restart_radios(APInfo):
     Parameters
     ----------
     APInfo : dictionary
-        ccontains parameters such as ID, IP Address, Port, relevant file
-        streams and connection status of an AP
+        contains parameters such as ID, IP Address, Port, relevant file streams
+        and connection status of an AP
 
     Returns
     -------
     None.
-
     """
 
     cmd_footer = ";start;stats;txs"
@@ -390,10 +415,6 @@ async def restart_radios(APInfo):
         writer.write(cmd.encode("ascii") + b"\n")
     
     logging.info("{} : Radios restarted!".format(APInfo['APID']))
-
-
-async def obtain_data(fileHandle) -> None:
-    pass
 
 
 async def set_rate(APInfo) -> None:
@@ -440,8 +461,8 @@ async def stop_trigger(APInfo, loop):
     Returns
     -------
     None.
-
     """
+
     prompt = "To stop RateMan, enter x: \n"
     timeout = 1
     allowedKeys = ["x"]
@@ -479,8 +500,8 @@ async def stop_rateman(APInfo, loop, stop_cmd: bool = True):
     Returns
     -------
     None.
-
     """
+
     cmd_footer = ";stop"
 
     APIDs = list(APInfo.keys())
