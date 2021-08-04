@@ -312,11 +312,27 @@ async def recv_data(APInfo):
         except (ConnectionError, asyncio.TimeoutError):
             APInfo = await handle_disconnects(APInfo, remove_header=True)
             continue
+        
 
 async def handle_disconnects(APInfo, remove_header: bool):
     """
         This async function handles disconnect from AP and, if specified,
         skips headers when reading from the ReaderStream again.
+
+            Parameters
+        ----------
+        APInfo : dictionary
+            contains parameters such as ID, IP Address, Port, relevant file
+            streams and connection status of an AP
+        remove_header: bool
+            indicates whether to include the headers after reconnecting to
+            the AP
+
+        Returns
+        -------
+        APInfo : dictionary
+            contains parameters such as ID, IP Address, Port, relevant file 
+            streams and connection status of an AP
     """
 
     logging.error("Disconnected from {}".format(APInfo['APID']))
@@ -361,11 +377,9 @@ async def reconnect_to_AP(APInfo):
 
     Returns
     -------
-    reader : reader object
-        object from which the TX and rc status of an AP is read
-    writer : writer object
-        object used to execute commands to the rate control API 
-        of an AP
+    APInfo : dictionary
+        contains parameters such as ID, IP Address, Port, relevant file 
+        streams and connection status of an AP
     """
 
     while True:
