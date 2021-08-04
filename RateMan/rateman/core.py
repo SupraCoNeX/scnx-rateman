@@ -80,18 +80,14 @@ async def setup_rateman_tasks(net_info, loop, duration=10, output_dir=""):
     if net_active:
 
         loop.create_task(meas_timer(net_info, duration, loop))
-        
+
         setup_monitoring_tasks(net_info, loop, output_dir)
 
         # loop.create_task(obtain_data(net_info))
 
         # loop.create_task(set_rate(net_info))
     else:
-        logging.error(
-            datetime.datetime.now().strftime("%Y.%m.%d, %H:%M:%S"),
-            ":",
-            "Couldn't connect to any access points!",
-        )
+        logging.error("Couldn't connect to any access points!")
         await stop_rateman(net_info, loop, stop_cmd=False)
 
 
@@ -101,12 +97,14 @@ def setup_outputdir(output_dir):
         os.mkdir("data")
         output_dir = os.path.join(os.getcwd(), "data")
 
+    return output_dir
+
 
 async def connect_AP(ap_info: dict, output_dir):
 
     if "fileHandle" not in ap_info:
-                
-        fileHandle = open(output_dir + "/data_" + ap_info['APID'] + ".csv", "w")
+
+        fileHandle = open(output_dir + "/data_" + ap_info["APID"] + ".csv", "w")
         ap_info["fileHandle"] = fileHandle
 
     conn_handle = asyncio.open_connection(ap_info["IPADD"], ap_info["MPORT"])
@@ -116,9 +114,9 @@ async def connect_AP(ap_info: dict, output_dir):
         reader, writer = await asyncio.wait_for(conn_handle, timeout=5)
 
         logging.info(
-            datetime.datetime.now().strftime("%Y.%m.%d, %H:%M:%S"),
-            ":",
-            "Connected to {} : {} {}".format(ap_info['APID'], ap_info["IPADD"], ap_info["MPORT"]),
+            "Connected to {} : {} {}".format(
+                ap_info["APID"], ap_info["IPADD"], ap_info["MPORT"]
+            )
         )
 
         ap_info["writer"] = writer
@@ -128,11 +126,9 @@ async def connect_AP(ap_info: dict, output_dir):
     except (asyncio.TimeoutError, ConnectionError) as e:
         # Incase of a connection error or if the timeout duration is exceeded
         logging.error(
-            datetime.datetime.now().strftime("%Y.%m.%d, %H:%M:%S"),
-            ":",
             "Failed to connect {} : {} {} -> {}".format(
-                ap_info['APID'], ap_info["IPADD"], ap_info["MPORT"], e
-            ),
+                ap_info["APID"], ap_info["IPADD"], ap_info["MPORT"], e
+            )
         )
         # fileHandle.write(datetime.datetime.now().strftime("%Y.%m.%d, %H:%M:%S"), ':',
         #     "Failed to connect {} {}: {}".format(ap_info["IPADD"], ap_info["MPORT"], e)
@@ -219,18 +215,13 @@ async def meas_timer(net_info, duration, loop):
     """
     start_time = time.time()
 
-    logging.info(
-        datetime.datetime.now().strftime("%Y.%m.%d, %H:%M:%S"), ":", "RateMan started"
-    )
+    logging.info("RateMan started")
     while True:
         await asyncio.sleep(0)
         time_elapsed = time.time() - start_time
         if time_elapsed > duration:
             logging.info(
-                datetime.datetime.now().strftime("%Y.%m.%d, %H:%M:%S"),
-                ":",
-                "Given duration has been exceeded! Time duration: %f",
-                time_elapsed,
+                "Given duration has been exceeded! Time duration: %f", time_elapsed
             )
             break
     await stop_rateman(net_info, loop)
@@ -292,11 +283,7 @@ async def recv_data(ap_info, output_dir, reconn_time=600):
 
             # If rateman reads empty string from reader stream
             if not len(dataLine):
-                logging.error(
-                    datetime.datetime.now().strftime("%Y.%m.%d, %H:%M:%S"),
-                    ":",
-                    "Disconnected from {}".format(ap_info["APID"]),
-                )
+                logging.error("Disconnected from {}".format(ap_info["APID"]))
                 ap_info = await connect_AP(ap_info, output_dir)
                 start_radios(ap_info)
             else:
@@ -306,11 +293,7 @@ async def recv_data(ap_info, output_dir, reconn_time=600):
             pass
 
         except (ConnectionError, asyncio.TimeoutError):
-            logging.error(
-                datetime.datetime.now().strftime("%Y.%m.%d, %H:%M:%S"),
-                ":",
-                "Disconnected from {}".format(ap_info["APID"]),
-            )
+            logging.error("Disconnected from {}".format(ap_info["APID"]))
             ap_info = await connect_AP(ap_info, output_dir)
             start_radios(ap_info)
             continue
@@ -382,11 +365,7 @@ async def stop_rateman(net_info, loop, stop_cmd: bool = True):
                     cmd = phy + cmd_footer
                     writer.write(cmd.encode("ascii") + b"\n")
 
-    logging.info(
-        datetime.datetime.now().strftime("%Y.%m.%d, %H:%M:%S"),
-        ":",
-        "Stopping rateman.....",
-    )
+    logging.info("Stopping rateman.....")
 
     await stop_tasks()
     stop_loop(loop)
