@@ -174,13 +174,19 @@ def start_radios(ap_info):
     None.
 
     """
-    cmd_footer = ";start;stats;txs"
+    
     writer = ap_info["writer"]
-
+	
+	cmd_footer = ";stop"
     for phy in ap_info["phyList"]:
-        cmd = phy + cmd_footer
+		cmd = phy + cmd_footer
         writer.write(cmd.encode("ascii") + b"\n")
-
+	
+	cmd_footer = ";start;stats;txs"
+	for phy in ap_info["phyList"]:
+		cmd = phy + cmd_footer
+        writer.write(cmd.encode("ascii") + b"\n")
+        
 async def meas_timer(net_info, duration, loop):
     """
     This async function stops the rateman after the TX and rc data have
