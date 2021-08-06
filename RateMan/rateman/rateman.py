@@ -186,7 +186,6 @@ class RateMan:
             self._loop.close()
         pass
 
-
     def _notify(self, text) -> None:
         """
         This function sends message (text) to all the chat_ids, listed in

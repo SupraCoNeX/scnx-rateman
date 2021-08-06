@@ -124,7 +124,7 @@ async def connect_AP(ap_info: dict, output_dir):
                 ap_info["APID"], ap_info["IPADD"], ap_info["MPORT"], e
             )
         )
-       
+
         # Set active connection to False
         ap_info["conn"] = False
 
@@ -174,19 +174,20 @@ def start_radios(ap_info):
     None.
 
     """
-    
+
     writer = ap_info["writer"]
-	
-	cmd_footer = ";stop"
+
+    cmd_footer = ";stop"
     for phy in ap_info["phyList"]:
-		cmd = phy + cmd_footer
+        cmd = phy + cmd_footer
         writer.write(cmd.encode("ascii") + b"\n")
-	
-	cmd_footer = ";start;stats;txs"
-	for phy in ap_info["phyList"]:
-		cmd = phy + cmd_footer
+
+    cmd_footer = ";start;stats;txs"
+    for phy in ap_info["phyList"]:
+        cmd = phy + cmd_footer
         writer.write(cmd.encode("ascii") + b"\n")
-        
+
+
 async def meas_timer(net_info, duration, loop):
     """
     This async function stops the rateman after the TX and rc data have
