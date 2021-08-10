@@ -52,6 +52,8 @@ async def setup_rateman_tasks(net_info, loop, duration=10, output_dir=""):
         SSHPort, and Minstrel Port.
     duration : float
         time duration until which data has to be collected
+    output_dir : str
+        the main directory where results of the experiment are stored
 
     Returns
     -------
@@ -72,7 +74,7 @@ async def setup_rateman_tasks(net_info, loop, duration=10, output_dir=""):
 
         net_info[APID] = ap_info
 
-    net_active = await check_net_conn(net_info, loop)
+    net_active = await check_net_conn(net_info)
 
     if net_active:
 
@@ -95,6 +97,23 @@ def setup_outputdir(output_dir):
 
 
 async def connect_AP(ap_info: dict, output_dir):
+    """
+    This async function takes a dictionary containing information about
+    an AP and connects with it.
+
+    Parameters
+    ----------
+    ap_info : dictionary
+        contains parameters such as ID, IP Address and Port of an AP
+    output_dir : str
+        the main directory where results of the experiment are stored
+
+    Returns
+    -------
+    ap_info : dictionary
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status of an AP
+    """
 
     if "fileHandle" not in ap_info:
 
@@ -131,7 +150,7 @@ async def connect_AP(ap_info: dict, output_dir):
     return ap_info
 
 
-async def check_net_conn(net_info: dict, loop):
+async def check_net_conn(net_info: dict):
     """
     This async function check if any of the AP in net_info has been sucessfully
     connected. If not then rateman terminates.
@@ -140,8 +159,6 @@ async def check_net_conn(net_info: dict, loop):
     ----------
     net_info : dictionary
         contains each AP in the network as key with relevant parameters
-    loop : event_loop
-        DESCRIPTION.
 
     Returns
     -------
@@ -165,8 +182,8 @@ def start_radios(ap_info):
 
     Parameters
     ----------
-    net_info : dictionary
-        ccontains parameters such as ID, IP Address, Port, relevant file
+    ap_info : dictionary
+        contains parameters such as ID, IP Address, Port, relevant file
         streams and connection status of an AP
 
     Returns
@@ -233,6 +250,8 @@ def setup_monitoring_tasks(net_info, loop, output_dir):
         streams and connection status with each AP as key
     loop : event_loop
         DESCRIPTION.
+    output_dir : str
+        the main directory where results of the experiment are stored
 
     Returns
     -------
@@ -257,9 +276,11 @@ async def recv_data(ap_info, output_dir, reconn_time=600):
     ap_info : dictionary
         contains parameters such as ID, IP Address, Port, relevant file
         streams and connection status of an AP
-    time_recon : int
-        time duration after which reconnected to a currently inactive AP is
-        done.
+    output_dir : str
+        the main directory where results of the experiment are stored
+    reconn_time : int
+        duration for readline timeout after which reconnection to a currently 
+        inactive AP is attempted.
 
     Returns
     -------
@@ -273,11 +294,9 @@ async def recv_data(ap_info, output_dir, reconn_time=600):
 
             dataLine = await asyncio.wait_for(reader.readline(), reconn_time)
 
-            # If rateman reads empty string from reader stream
+            # Reading empty string means rateman is no longer connected to AP
             if not len(dataLine):
-                logging.error("Disconnected from {}".format(ap_info["APID"]))
-                ap_info = await connect_AP(ap_info, output_dir)
-                start_radios(ap_info)
+                ap_info = await handle_disconnects(ap_info, output_dir)
             else:
                 fileHandle.write(dataLine.decode("utf-8"))
 
@@ -285,10 +304,87 @@ async def recv_data(ap_info, output_dir, reconn_time=600):
             pass
 
         except (ConnectionError, asyncio.TimeoutError):
-            logging.error("Disconnected from {}".format(ap_info["APID"]))
-            ap_info = await connect_AP(ap_info, output_dir)
-            start_radios(ap_info)
+            ap_info = await handle_disconnects(ap_info, output_dir)
             continue
+
+
+async def handle_disconnects(ap_info, output_dir, reconn_delay=20):
+    """
+    This async function handles disconnect from AP and skips headers when
+    reading from the ReaderStream again.
+
+    Parameters
+    ----------
+    ap_info : dictionary
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status of an AP
+    output_dir : str
+        the main directory where results of the experiment are stored
+    reconn_delay: int
+        time delay between consecutive reconnection attempts
+
+    Returns
+    -------
+    ap_info : dictionary
+        contains parameters such as ID, IP Address, Port, relevant file 
+        streams and connection status of an AP
+    """
+
+    logging.error("Disconnected from {}".format(ap_info["APID"]))
+    ap_info["conn"] = False
+
+    while ap_info["conn"] is not True:
+        await asyncio.sleep(reconn_delay)
+        ap_info = await connect_AP(ap_info, output_dir)
+    
+    start_radios(ap_info)
+
+    await remove_headers(ap_info, output_dir)
+
+    return ap_info
+
+
+async def remove_headers(ap_info, output_dir):
+    """
+    This async function for a reconnected AP skips writing format header
+    to the data file again.
+
+    Parameters
+    ----------
+    ap_info : dictionary
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status of an AP
+    output_dir : str
+        the main directory where results of the experiment are stored
+
+    Returns
+    -------
+    None.
+
+    """
+    while True:
+        try:
+            reader = ap_info["reader"]
+            fileHandle = ap_info["fileHandle"]
+
+            dataLine = await asyncio.wait_for(reader.readline(), timeout=10)
+
+            # Reading empty string means rateman is no longer connected to AP
+            if not len(dataLine):
+                ap_info = handle_disconnects(ap_info, output_dir)
+                break
+            else:
+                # terminate while loop when it encounters a non header line
+                line = dataLine.decode("utf-8")
+                if line[0] != '*':
+                    fileHandle.write(line)
+                    break
+
+        except (ConnectionError, asyncio.TimeoutError):
+            ap_info = handle_disconnects(ap_info, output_dir)
+            break
+    
+    return ap_info
 
 
 async def obtain_data(fileHandle) -> None:
