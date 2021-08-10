@@ -1,3 +1,4 @@
+#%%
 import io
 from pathlib import Path
 from re import I
@@ -103,6 +104,7 @@ def read_stats_txs_csv(
 
 def _convert_timestamps_to_datetime(df):
     """Convert timestamps to datetime objects."""
+    pass
 
 
 def flag_error_in_data(file):
@@ -234,6 +236,7 @@ def _interpolate_error_timestamps(timestamps, ns=False, error_interval=1000):
 
 def _get_timestamp_errors(df):
     """Find errors in timestamps and flag them."""
+    #TODO: Check if it really does what it should
     ts = [
         datetime.fromtimestamp(
             float(str(i1)+"."+str(i2))
@@ -293,15 +296,24 @@ def _get_missing_rate_errors(df):
         res = (df.loc[:, 'rate_count1':] == '0,0').all(axis='columns')
     else:
         raise ValueError
+    return res
 
-def _get_timestamp_order_errors(df):
-    """Returns two lists: `ts_new` and `ts_errors` containing new interpolated
-    timestamps and a list with bools for timestamp order errors"""
-    #TODO: Check if already avaiable!
-    pass
+def _get_invalid_type_errors(df):
+    """Returns a list with bool values for invalid types in trace lines."""
+    valid_types = [
+        'txs',
+        'stats',
+        'group',
+        'sta',
+        'rates',
+        'probe'
+
+    ]
+    hlp = df['type'] in valid_types 
+    return hlp
 
 if __name__ == '__main__':
-    file = ''
+    file = '/home/martin/Projects/SupraCoNeX/data/Meas_20210713_173006/data/data_AP1.csv'
     df = pd.read_csv(file, sep=';', names=range(12))
     df_txs, df_stats = read_stats_txs_csv(file)
     df_error = flag_error_in_data(file)
