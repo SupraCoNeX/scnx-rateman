@@ -29,6 +29,8 @@ __all__ = [
     "meas_timer",
     "setup_monitoring_tasks",
     "recv_data",
+    "handle_disconnects",
+    "remove_headers",
     "obtain_data",
     "set_rate",
     "stop_rateman",
