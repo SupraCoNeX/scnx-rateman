@@ -26,10 +26,14 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+from datetime import datetime
+import matplotlib.pyplot as plt
+
 
 from rateman import read_stats_txs_csv
 
-__all__ = ["plot"]
+__all__ = ["plot", "plot_timestamp_errors"]
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -150,3 +154,26 @@ def liveplot(n, dd_val, t_interval=20):
 
 def plot():
     app.run_server(debug=False)
+
+
+def plot_timestamp_errors(error_df):
+
+
+    x = [datetime.fromtimestamp(float(str(i1)+"."+str(i2))) for i1, i2 in error_df.index]
+    y1 = error_df.timestamp_error
+    plt.stem(x, y1)
+    plt.show()
+
+    """Returns a list with bool values for invalid types in trace lines."""
+    valid_types = [
+        'txs',
+        'stats',
+        'group',
+        'sta',
+        'rates',
+        'probe'
+
+    ]
+    hlp = error_df['type'] in valid_types 
+    
+    return hlp
