@@ -240,6 +240,8 @@ def _check_num_fields(line: str):
     return num_fields_flag
 
 
+       
+
 def obtain_data_flags(filename: dir):
     """
     Obtain dataframe with flags denoting validity lines in a given data file.
@@ -260,11 +262,12 @@ def obtain_data_flags(filename: dir):
         number of fields, and has a valid timestamp.
 
     """
-    num_lines = sum(1 for line in open(filename, mode="r"))
-
-    stat_array = np.empty((3,), dtype="<U11")
-
+    
     latest_timestamp = 0
+    
+    num_lines = sum(1 for line in open(filename, mode="r"))
+    stat_array = np.empty((num_lines, 3), dtype = int)
+    
     for ii in range(num_lines):
         line = linecache.getline(filename, ii)
         
@@ -291,11 +294,8 @@ def obtain_data_flags(filename: dir):
             num_fields_flag = 0
             timestamp_flag = 0
  
-        stat_array = np.vstack((stat_array,
-                                np.array([stats_field, num_fields_flag,
-                                          timestamp_flag])))
+        stat_array[ii,:] = [stats_field, num_fields_flag, timestamp_flag]
 
-    stat_array = stat_array[1:, :]
     stat_df = pd.DataFrame(
         stat_array,
         columns=[

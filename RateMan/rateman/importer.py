@@ -16,20 +16,58 @@ import linecache
 import numpy as np
 
 
-__all__ = ["read_stats_txs_csv", "obtain_txs_df", "obtain_rcs_df"]
+__all__ = ["read_stats_txs_csv", "obtain_txs_df", "obtain_rcs_df", "obtain_timestamps_df"]
+
+
+def _obtain_valid_txs_line_ind(filename: dir):
+    
+    num_lines = sum(1 for line in open(filename, mode="r"))
+    valid_line_ind = []
+    
+    for ii in range(num_lines):
+        line = linecache.getline(filename, ii)
+
+        if (line.find("*") == -1 and line.find("txs") != -1):
+            valid_line_ind.append(ii)
+            
+    return valid_line_ind
+
+
+def _obtain_valid_rcs_line_ind(filename: dir):
+    
+    num_lines = sum(1 for line in open(filename, mode="r"))
+    valid_line_ind = []
+    
+    for ii in range(num_lines):
+        line = linecache.getline(filename, ii)
+
+        if (line.find("*") == -1 and line.find("stats") != -1):
+            valid_line_ind.append(ii)
+            
+    return valid_line_ind
+
+def _obtain_valid_stat_line_ind(filename: dir):
+    
+    num_lines = sum(1 for line in open(filename, mode="r"))
+    valid_line_ind = []
+    
+    for ii in range(num_lines):
+        line = linecache.getline(filename, ii)
+
+        if (line.find("*") == -1 and 
+            (line.find("stats") != -1 or line.find("txs") != -1)):
+            valid_line_ind.append(ii)
+            
+    return valid_line_ind
 
 
 def obtain_txs_df(filename):
     
-    num_lines = sum(1 for line in open(filename, mode="r"))
-
-    
-    txs_array = np.empty((15,), dtype="<U11")
-    temp_txs = np.empty((15,), dtype="<U11")
-
-    
-    for ii in range(num_lines):
-        line = linecache.getline(filename, ii)
+    valid_line_ind = _obtain_valid_txs_line_ind(filename)
+    txs_array = np.empty((len(valid_line_ind),15), dtype="<U21")
+        
+    for ii in range(len(valid_line_ind)):
+        line = linecache.getline(filename, valid_line_ind[ii])
         
         if (line.find("*") == -1 and line.find("txs") != -1):
     
@@ -51,8 +89,8 @@ def obtain_txs_df(filename):
             count4 = int(fields[11].strip().split(sep=",")[1], 16)
         
             attempts = sum(num_frames * list(map(int, [count1, count2, count3, count4])))
-            
-            temp_txs =  np.array([
+                    
+            txs_array[ii,:] =  [
                 timestamp_ns,
                 mac_addr,
                 num_frames,
@@ -68,11 +106,8 @@ def obtain_txs_df(filename):
                 count4,
                 attempts,
                 num_ack,
-            ])
-        
-            txs_array = np.vstack((txs_array, temp_txs))
+            ]
     
-    txs_array = txs_array[1:,:]
     txs_df = pd.DataFrame(
         txs_array,
         columns=[
@@ -96,15 +131,15 @@ def obtain_txs_df(filename):
 
     return txs_df
 
+
 def obtain_rcs_df(filename):
     
-    num_lines = sum(1 for line in open(filename, mode="r"))
+    valid_line_ind = _obtain_valid_rcs_line_ind(filename)
 
-    rcs_array = np.empty((9,), dtype="<U11")   
-    temp_rcs = np.empty((9,), dtype="<U11")
-
-    for ii in range(num_lines):
-        line = linecache.getline(filename, ii)
+    rcs_array = np.empty((len(valid_line_ind), 9), dtype="<U21")   
+    
+    for ii in range(len(valid_line_ind)):
+        line = linecache.getline(filename, valid_line_ind[ii])
         
         if (line.find("*") == -1 and line.find("stats") != -1):
        
@@ -120,8 +155,7 @@ def obtain_rcs_df(filename):
             hist_success = fields[10]
             hist_attempts = fields[11]
             
-        
-            temp_rcs = [
+            rcs_array[ii,:] = [
                 timestamp_ns,
                 mac_addr,
                 rate,
@@ -132,8 +166,6 @@ def obtain_rcs_df(filename):
                 hist_success,
                 hist_attempts
             ]
-            
-            rcs_array = np.vstack((rcs_array, temp_rcs))
     
     rcs_df = pd.DataFrame(
         rcs_array,
@@ -152,7 +184,29 @@ def obtain_rcs_df(filename):
 
     return rcs_df
 
+def obtain_timestamps_df(filename):
+    valid_line_ind = _obtain_valid_stat_line_ind(filename)
+    timestamp_array = np.empty((len(valid_line_ind),1), dtype="<U21")
+        
+    for ii in range(len(valid_line_ind)):
+        line = linecache.getline(filename, valid_line_ind[ii])
+        fields = line.split(sep=";")            
+        timestamp_ns = int(fields[1]+fields[2])
+                           
+        timestamp_array[ii] =  timestamp_ns
+    
+    timestamp_df = pd.DataFrame(
+        timestamp_array,
+        columns=[
+            "timestamp_ns",
+            
+        ],
+    )
 
+    return timestamp_df
+
+
+    
 def read_stats_txs_csv(
     data: str, shifttime: bool = False, humanread: bool = True, bin_enc: bool = False
 ) -> pd.core.frame.DataFrame:
