@@ -31,8 +31,6 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 
 
-from rateman import read_stats_txs_csv
-
 __all__ = ["plot", "plot_timestamp_errors"]
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
@@ -114,42 +112,43 @@ def update_traces_to_plot(value):
               Input('interval-component', 'n_intervals'),
               Input('traces-dropdown', 'value'))
 def liveplot(n, dd_val, t_interval=20):
-    if not dd_val:
-        return go.Figure()
-    dfs, df2s = [], []
-    for apid in dd_val:
-        d1, d2 = read_stats_txs_csv("../demo/collected_data/data_{}.csv".format(apid), shifttime=True)
-        dfs.append(d1)
-        df2s.append(d2)
+    # if not dd_val:
+    #     return go.Figure()
+    # dfs, df2s = [], []
+    # for apid in dd_val:
+    #     # d1, d2 = read_stats_txs_csv("../demo/collected_data/data_{}.csv".format(apid), shifttime=True)
+    #     dfs.append(d1)
+    #     df2s.append(d2)
     
-    # Collect some data
-    end_list = []
-    start_list = []
-    for df, df2 in zip(dfs, df2s):
-        end_list.extend([df.index[-1], df2.index[-1]])
-        start_list.extend([df.index[0], df2.index[0]])
+    # # Collect some data
+    # end_list = []
+    # start_list = []
+    # for df, df2 in zip(dfs, df2s):
+    #     end_list.extend([df.index[-1], df2.index[-1]])
+    #     start_list.extend([df.index[0], df2.index[0]])
 
-    t_end = np.amax(end_list)
-    t_start = np.amin(start_list)
-    t_help = t_end - t_interval
-    if t_start < t_help:
-        t_start = t_help
+    # t_end = np.amax(end_list)
+    # t_start = np.amin(start_list)
+    # t_help = t_end - t_interval
+    # if t_start < t_help:
+    #     t_start = t_help
 
-    fig = make_subplots(
-        rows= 2, cols=1, subplot_titles=('Rate Index vs Time',
-        'Average Throughput vs Time'), shared_xaxes=True,
-    )
-    for df, df2 in zip(dfs, df2s):
-        fig.add_trace(
-            go.Scatter(x=df[df.index > t_start].index, y=df[df.index > t_start].rates),
-            row=1, col=1
-        )
-        fig.add_trace(
-            go.Scatter(x=df2[df2.index > t_start].index, y=df2[df2.index > t_start].avg_tp), 
-            row=2, col=1
-        )
-    fig.update_layout(showlegend=False)
-    return fig
+    # fig = make_subplots(
+    #     rows= 2, cols=1, subplot_titles=('Rate Index vs Time',
+    #     'Average Throughput vs Time'), shared_xaxes=True,
+    # )
+    # for df, df2 in zip(dfs, df2s):
+    #     fig.add_trace(
+    #         go.Scatter(x=df[df.index > t_start].index, y=df[df.index > t_start].rates),
+    #         row=1, col=1
+    #     )
+    #     fig.add_trace(
+    #         go.Scatter(x=df2[df2.index > t_start].index, y=df2[df2.index > t_start].avg_tp), 
+    #         row=2, col=1
+    #     )
+    # fig.update_layout(showlegend=False)
+    # return fig
+    pass
 
 
 def plot():
