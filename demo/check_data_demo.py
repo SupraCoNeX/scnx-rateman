@@ -16,7 +16,7 @@ import pandas as pd
 import numpy as np
 import linecache
 
-filename = 'C:/Users/pawarsp/Desktop/PhD/1_ResourceAllocation/Code/SupraCoNeX/scnx-rateman/dev_tests/data/data_Mesh_Andre.csv'
+filename = "C:/Users/pawarsp/Desktop/PhD/1_ResourceAllocation/Code/SupraCoNeX/scnx-analysis/data_Mesh_Andre.csv"
 
 
 # Obtain TXS and RCS Dataframes
@@ -36,7 +36,7 @@ data_flags_array = data_flags_df.to_numpy()
 num_total_lines = len(data_flags_array)
 
 # Subselect complete dataframe for traces with TXS or RCS information
-stats_flags_df = data_flags_df[data_flags_df['stats_field'] == 1]
+stats_flags_df = data_flags_df[data_flags_df["stats_field"] == 1]
 stats_flags_array = stats_flags_df.to_numpy()
 
 num_stat_lines = len(stats_flags_array)
@@ -48,10 +48,9 @@ num_invalid_lines = len(np.where(stats_flags_array == 0)[0])
 num_valid_stat_lines = num_stat_lines - num_invalid_lines
 
 
-print('Number of valid traces in data file %d from %s total lines' %
-      (num_valid_stat_lines, num_total_lines))
+print(
+    "Number of valid traces in data file %d from %s total lines"
+    % (num_valid_stat_lines, num_total_lines)
+)
 
-
-print('Number of invalid traces in data file %d' %
-      (num_invalid_lines))
-
+print("Number of invalid traces in data file %d" % (num_invalid_lines))

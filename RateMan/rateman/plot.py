@@ -12,7 +12,7 @@ control statistics from access points.
 
 """
 
-#TODO: AP data folder is fixed. Make it variable!
+# TODO: AP data folder is fixed. Make it variable!
 
 import base64
 import io
@@ -33,69 +33,59 @@ import matplotlib.pyplot as plt
 
 __all__ = ["plot", "plot_timestamp_errors"]
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-app.layout = html.Div(children=[
-    html.H1(children='Example Plots'),
-    
-    html.Div(id='output-state'),
+app.layout = html.Div(
+    children=[
+        html.H1(children="Example Plots"),
+        html.Div(id="output-state"),
+        dcc.Graph(id="graph", figure=go.Figure()),
+        dcc.Interval(
+            id="interval-component", interval=1 * 1000, n_intervals=0  # in milliseconds
+        ),
+        # dcc.Store inside the app that stores the intermediate value
+        dcc.Store(id="traces-to-plot"),
+        html.Div(children="Select AP list:"),
+        dcc.Upload(
+            id="select-aplist",
+            children=html.Div(["Drag and Drop or ", html.A("Select Files")]),
+            style={
+                "width": "100%",
+                "height": "60px",
+                "lineHeight": "60px",
+                "borderWidth": "1px",
+                "borderStyle": "dashed",
+                "borderRadius": "5px",
+                "textAlign": "center",
+                "margin": "10px",
+            },
+        ),
+        html.Div(children="Select AP to plot:", id="test-id"),
+        dcc.Dropdown(
+            options=[],
+            value=[],
+            multi=True,
+            id="traces-dropdown",
+        ),
+    ]
+)
 
-    dcc.Graph(id='graph', figure=go.Figure()),
-    dcc.Interval(
-            id='interval-component',
-            interval=1*1000, # in milliseconds
-            n_intervals=0
-    ),
-    # dcc.Store inside the app that stores the intermediate value
-    dcc.Store(id='traces-to-plot'),
 
-    html.Div(children='Select AP list:'),
-
-    dcc.Upload(
-        id='select-aplist',
-        children=html.Div([
-            'Drag and Drop or ',
-            html.A('Select Files')
-        ]),
-        style={
-            'width': '100%',
-            'height': '60px',
-            'lineHeight': '60px',
-            'borderWidth': '1px',
-            'borderStyle': 'dashed',
-            'borderRadius': '5px',
-            'textAlign': 'center',
-            'margin': '10px'
-        },
-    ),
-
-    html.Div(children='Select AP to plot:', id='test-id'),
-
-    dcc.Dropdown(
-        options=[],
-        value=[],
-        multi=True,
-        id='traces-dropdown',
-    )  
-])
-
-@app.callback(Output('traces-dropdown', 'options'),
-              Input('select-aplist', 'contents'))
+@app.callback(Output("traces-dropdown", "options"), Input("select-aplist", "contents"))
 def select_aplist(contents):
     if contents is not None:
-        _, content_string = contents.split(',')
+        _, content_string = contents.split(",")
         decoded = base64.b64decode(content_string)
         # Assume that the user uploaded a CSV file
-        ap_list_df = pd.read_csv(
-            io.StringIO(decoded.decode('utf-8')))
+        ap_list_df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
         options = []
         for _, row in ap_list_df.iterrows():
             options.append(
                 {
-                    'label': '{} - {}'.format(row['APID'], row['IPADD']),
-                    'value': row['APID']
+                    "label": "{} - {}".format(row["APID"], row["IPADD"]),
+                    "value": row["APID"],
                 }
             )
         return options
@@ -103,14 +93,16 @@ def select_aplist(contents):
         return []
 
 
-@app.callback(Output('traces-to-plot', 'data'),
-              Input('traces-dropdown', 'value'))
+@app.callback(Output("traces-to-plot", "data"), Input("traces-dropdown", "value"))
 def update_traces_to_plot(value):
     return value
 
-@app.callback(Output('graph', 'figure'),
-              Input('interval-component', 'n_intervals'),
-              Input('traces-dropdown', 'value'))
+
+@app.callback(
+    Output("graph", "figure"),
+    Input("interval-component", "n_intervals"),
+    Input("traces-dropdown", "value"),
+)
 def liveplot(n, dd_val, t_interval=20):
     # if not dd_val:
     #     return go.Figure()
@@ -119,7 +111,7 @@ def liveplot(n, dd_val, t_interval=20):
     #     # d1, d2 = read_stats_txs_csv("../demo/collected_data/data_{}.csv".format(apid), shifttime=True)
     #     dfs.append(d1)
     #     df2s.append(d2)
-    
+
     # # Collect some data
     # end_list = []
     # start_list = []
@@ -143,7 +135,7 @@ def liveplot(n, dd_val, t_interval=20):
     #         row=1, col=1
     #     )
     #     fig.add_trace(
-    #         go.Scatter(x=df2[df2.index > t_start].index, y=df2[df2.index > t_start].avg_tp), 
+    #         go.Scatter(x=df2[df2.index > t_start].index, y=df2[df2.index > t_start].avg_tp),
     #         row=2, col=1
     #     )
     # fig.update_layout(showlegend=False)
@@ -157,22 +149,16 @@ def plot():
 
 def plot_timestamp_errors(error_df):
 
-
-    x = [datetime.fromtimestamp(float(str(i1)+"."+str(i2))) for i1, i2 in error_df.index]
+    x = [
+        datetime.fromtimestamp(float(str(i1) + "." + str(i2)))
+        for i1, i2 in error_df.index
+    ]
     y1 = error_df.timestamp_error
     plt.stem(x, y1)
     plt.show()
 
     """Returns a list with bool values for invalid types in trace lines."""
-    valid_types = [
-        'txs',
-        'stats',
-        'group',
-        'sta',
-        'rates',
-        'probe'
+    valid_types = ["txs", "stats", "group", "sta", "rates", "probe"]
+    hlp = error_df["type"] in valid_types
 
-    ]
-    hlp = error_df['type'] in valid_types 
-    
     return hlp

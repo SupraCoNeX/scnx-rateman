@@ -13,14 +13,14 @@ import pandas as pd
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
-#TODO: Output of tx status and stats are not consistent. Sometimes already converted.
-#TODO: Improve Timestamp 2 interpolation. Very dirty now. 
-
+# TODO: Output of tx status and stats are not consistent. Sometimes already converted.
+# TODO: Improve Timestamp 2 interpolation. Very dirty now.
 
 
 def _convert_timestamps_to_datetime(df):
     """Convert timestamps to datetime objects."""
     pass
+
 
 def timedInput(prompt="", timeout=1, timeoutmsg=None):
     def timeout_error(*_):
