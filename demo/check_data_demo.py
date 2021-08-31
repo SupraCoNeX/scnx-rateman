@@ -15,15 +15,18 @@ import rateman
 import pandas as pd
 import numpy as np
 import linecache
+import logging
+
+logging.basicConfig(filename='/tmp/test_error.log', level=logging.DEBUG,
+                    format='\n%(asctime)s %(levelname)s %(name)s %(message)s')
+logger = logging.getLogger(__name__)
 
 filename = 'C:/Users/pawarsp/Desktop/PhD/1_ResourceAllocation/Code/SupraCoNeX/scnx-rateman/dev_tests/data/data_Mesh_Andre.csv'
 
-
 # Obtain TXS and RCS Dataframes
 
-txs_df = rateman.obtain_txs_df(filename)
-rcs_df = rateman.obtain_rcs_df(filename)
-
+txs_df = rateman.obtain_txs_df(filename, logger=logger)
+rcs_df = rateman.obtain_rcs_df(filename, logger=logger)
 
 ts_txs_df = txs_df.timestamp_ns.to_numpy().astype(np.int64)
 ts_rcs_df = rcs_df.timestamp_ns.to_numpy().astype(np.int64)
