@@ -28,6 +28,7 @@ __all__ = [
 class DebugException(Exception):
     pass
 
+
 def _obtain_valid_txs_line_ind(filename: dir):
 
     num_lines = sum(1 for line in open(filename, mode="r"))
@@ -107,7 +108,7 @@ def obtain_txs_df(filename: str, logger):
         line = linecache.getline(filename, valid_line_ind[ii])
 
         fields = line.split(sep=";")
-      
+
         try:
             timestamp_ns = int(fields[1] + fields[2])
             mac_addr = fields[4]
@@ -118,14 +119,16 @@ def obtain_txs_df(filename: str, logger):
             rate_ind2 = fields[9].split(sep=",")[0]
             rate_ind3 = fields[10].split(sep=",")[0]
             rate_ind4 = fields[11].split(sep=",")[0]
-    
+
             count1 = int(fields[8].split(sep=",")[1], 16)
             count2 = int(fields[9].split(sep=",")[1], 16)
             count3 = int(fields[10].split(sep=",")[1], 16)
             count4 = int(fields[11].strip().split(sep=",")[1], 16)
-    
-            attempts = sum(num_frames * list(map(int, [count1, count2, count3, count4])))
-    
+
+            attempts = sum(
+                num_frames * list(map(int, [count1, count2, count3, count4]))
+            )
+
             txs_array[ii, :] = [
                 timestamp_ns,
                 mac_addr,
@@ -143,11 +146,11 @@ def obtain_txs_df(filename: str, logger):
                 attempts,
                 num_ack,
             ]
-      
+
         except Exception as e:
             if logger:
-                logger.exception(f"{e}\nline: {line}")
-    
+                logger.exception(f"{e}\nMeasurement file:{filename}\nline: {line}")
+
     txs_df = pd.DataFrame(
         txs_array,
         columns=[
@@ -206,7 +209,7 @@ def obtain_rcs_df(filename: str, logger):
             cur_attempts = fields[9]
             hist_success = fields[10]
             hist_attempts = fields[11]
-    
+
             rcs_array[ii, :] = [
                 timestamp_ns,
                 mac_addr,
@@ -217,11 +220,11 @@ def obtain_rcs_df(filename: str, logger):
                 cur_attempts,
                 hist_success,
                 hist_attempts,
-        ]
+            ]
         except Exception as e:
             if logger:
-                logger.exception(f"{e}\nline: {line}")
-    
+                logger.exception(f"{e}\nMeasurement file: {filename}\nline: {line}")
+
     rcs_df = pd.DataFrame(
         rcs_array,
         columns=[
