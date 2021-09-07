@@ -5,7 +5,7 @@ from check_data_demo import create_logger, check_data
 if __name__ == "__main__":
     # Create Parser for directory
     parser = argparse.ArgumentParser(
-        description="Run a script on all measurements in given directory and log all errors in given logfile."
+        description="Run a script on all measurements (directories with `Meas_` prefix) in given directory and log all errors in the given logfile (default: error.log). Example: `python3 check_data_batch_demo.py ~/scnx-rateman/demo/collected_data`"
     )
     parser.add_argument(
         "directory", type=str, help="Path of directory where measurements are stored."
