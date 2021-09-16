@@ -26,8 +26,10 @@ __all__ = [
     "setup_outputdir",
     "connect_AP",
     "check_net_conn",
+    "start_radios"
     "meas_timer",
     "setup_monitoring_tasks",
+    "handle_initial_disconnect",
     "recv_data",
     "handle_disconnects",
     "remove_headers",
@@ -270,6 +272,22 @@ def setup_monitoring_tasks(net_info, loop, output_dir):
             loop.create_task(handle_initial_disconnect(net_info[APID], output_dir))
 
 async def handle_initial_disconnect(ap_info, output_dir):
+    """
+    This async function retries connecting to APs that weren't succesfully 
+    connected during the first attempt. 
+
+    Parameters
+    ----------
+    ap_info : dictionary
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status of an AP
+    output_dir : str
+        the main directory where results of the experiment are stored
+
+    Returns
+    -------
+    None.
+    """
     ap_info = await handle_disconnects(ap_info, output_dir, prev_conn=False)
     await recv_data(ap_info, output_dir)
 
