@@ -22,6 +22,7 @@ __all__ = [
     "obtain_txs_df",
     "obtain_rcs_df",
     "obtain_timestamps_df",
+    "obtain_rates"
 ]
 
 
@@ -55,6 +56,19 @@ def _obtain_valid_rcs_line_ind(filename: dir):
 
     return valid_line_ind
 
+def _obtain_valid_group_line_ind(filename: dir):
+
+    num_lines = sum(1 for line in open(filename, mode="r"))
+    valid_line_ind = []
+
+    for ii in range(num_lines):
+        line = linecache.getline(filename, ii)
+        fields = line.split(sep=";")
+        if line.find("*;0;group;") != -1:
+            valid_line_ind.append(ii)
+
+    return valid_line_ind
+
 
 def _obtain_valid_stat_line_ind(filename: dir):
     """
@@ -84,7 +98,7 @@ def _obtain_valid_stat_line_ind(filename: dir):
     return valid_line_ind
 
 
-def obtain_txs_df(filename: str, logger):
+def obtain_txs_df(filename: str):
     """
 
 
@@ -108,25 +122,24 @@ def obtain_txs_df(filename: str, logger):
 
         fields = line.split(sep=";")
       
-        try:
-            timestamp_ns = int(fields[1] + fields[2])
-            mac_addr = fields[4]
-            num_frames = int(fields[5], 16)
-            num_ack = int(fields[6], 16)
-            probe = fields[7]
-            rate_ind1 = fields[8].split(sep=",")[0]
-            rate_ind2 = fields[9].split(sep=",")[0]
-            rate_ind3 = fields[10].split(sep=",")[0]
-            rate_ind4 = fields[11].split(sep=",")[0]
+        timestamp_ns = int(fields[1] + fields[2])
+        mac_addr = fields[4]
+        num_frames = int(fields[5], 16)
+        num_ack = int(fields[6], 16)
+        probe = fields[7]
+        rate_ind1 = fields[8].split(sep=",")[0]
+        rate_ind2 = fields[9].split(sep=",")[0]
+        rate_ind3 = fields[10].split(sep=",")[0]
+        rate_ind4 = fields[11].split(sep=",")[0]
+
+        count1 = int(fields[8].split(sep=",")[1], 16)
+        count2 = int(fields[9].split(sep=",")[1], 16)
+        count3 = int(fields[10].split(sep=",")[1], 16)
+        count4 = int(fields[11].strip().split(sep=",")[1], 16)
+
+        attempts = sum(num_frames * list(map(int, [count1, count2, count3, count4])))
     
-            count1 = int(fields[8].split(sep=",")[1], 16)
-            count2 = int(fields[9].split(sep=",")[1], 16)
-            count3 = int(fields[10].split(sep=",")[1], 16)
-            count4 = int(fields[11].strip().split(sep=",")[1], 16)
-    
-            attempts = sum(num_frames * list(map(int, [count1, count2, count3, count4])))
-    
-            txs_array[ii, :] = [
+        txs_array[ii, :] = [
                 timestamp_ns,
                 mac_addr,
                 num_frames,
@@ -143,11 +156,7 @@ def obtain_txs_df(filename: str, logger):
                 attempts,
                 num_ack,
             ]
-      
-        except Exception as e:
-            if logger:
-                logger.exception(f"{e}\nline: {line}")
-    
+          
     txs_df = pd.DataFrame(
         txs_array,
         columns=[
@@ -172,7 +181,7 @@ def obtain_txs_df(filename: str, logger):
     return txs_df
 
 
-def obtain_rcs_df(filename: str, logger):
+def obtain_rcs_df(filename: str):
     """
 
 
@@ -190,41 +199,41 @@ def obtain_rcs_df(filename: str, logger):
 
     valid_line_ind = _obtain_valid_rcs_line_ind(filename)
 
-    rcs_array = np.empty((len(valid_line_ind), 9), dtype="<U21")
+    rcs_array = np.empty((len(valid_line_ind), 10), dtype="<U21")
 
     for ii in range(len(valid_line_ind)):
         line = linecache.getline(filename, valid_line_ind[ii])
 
         fields = line.split(sep=";")
-        try:
-            timestamp_ns = int(fields[1] + fields[2])
-            mac_addr = fields[4]
-            rate = fields[5]
-            avg_prob = fields[6]
-            avg_tp = fields[7]
-            cur_success = fields[8]
-            cur_attempts = fields[9]
-            hist_success = fields[10]
-            hist_attempts = fields[11]
     
-            rcs_array[ii, :] = [
-                timestamp_ns,
-                mac_addr,
-                rate,
-                avg_prob,
-                avg_tp,
-                cur_success,
-                cur_attempts,
-                hist_success,
-                hist_attempts,
-        ]
-        except Exception as e:
-            if logger:
-                logger.exception(f"{e}\nline: {line}")
+        phy = fields[0]
+        timestamp_ns = int(fields[1] + fields[2])
+        mac_addr = fields[4]
+        rate = fields[5]
+        avg_prob = fields[6]
+        avg_tp = fields[7]
+        cur_success = fields[8]
+        cur_attempts = fields[9]
+        hist_success = fields[10]
+        hist_attempts = fields[11]
+
+        rcs_array[ii, :] = [
+            phy,
+            timestamp_ns,
+            mac_addr,
+            rate,
+            avg_prob,
+            avg_tp,
+            cur_success,
+            cur_attempts,
+            hist_success,
+            hist_attempts,
+            ]
     
     rcs_df = pd.DataFrame(
         rcs_array,
         columns=[
+            "phy",
             "timestamp_ns",
             "mac_addr",
             "rate",
@@ -355,3 +364,41 @@ def read_stats_txs_csv(
     # `stats_data`.
 
     return txs_data, stats_data
+
+
+def obtain_rates(filename: str):
+    '''
+    
+
+    Parameters
+    ----------
+    filename : str
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    '''
+    
+    valid_line_ind = _obtain_valid_group_line_ind(filename)
+    
+    rates = [] #np.empty((len(valid_line_ind), 10), dtype="<U21")
+
+    for ii in range(len(valid_line_ind)):
+        line = linecache.getline(filename, valid_line_ind[ii])
+        fields = line.split(sep=";")
+        rate_index = fields[3]
+        rate_airtimes = fields[9].strip('\n').split(',')
+        for jj in range(len(rate_airtimes)):
+            rates.append(rate_index+str(jj))
+            
+    return rates
+            
+        
+        
+    
+    
+
+    
+    
