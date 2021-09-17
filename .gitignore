@@ -143,3 +143,7 @@ cython_debug/
 # Python virtualenv
 *-venv/
 *-env/
+Pipfile*
+
+# data_files
+Meas_*/
