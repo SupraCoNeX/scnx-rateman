@@ -9,6 +9,8 @@ import signal
 from datetime import datetime
 from pandas.io.parsers import read_csv
 import pandas as pd
+import argparse
+import sys
 
 
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -39,9 +41,29 @@ def timedInput(prompt="", timeout=1, timeoutmsg=None):
         return None
 
 
-# if __name__ == '__main__':
-#     file = '/home/martin/Projects/SupraCoNeX/data/Meas_20210713_173006/data/data_AP1.csv'
-#     df = pd.read_csv(file, sep=';', names=range(12))
-#     df_txs, df_stats = read_stats_txs_csv(file)
-#     df_error = flag_error_in_data(file)
-#     plot_timestamp_errors(df_error)
+def get_path_arg():
+    """
+    Parses path argument provided in the exec command
+    """
+
+    parser = argparse.ArgumentParser(description="Scnx-Py-Minstrel")
+    parser.add_argument("-p", help="Path to the txs/rcs data file", type=str)
+
+    args = parser.parse_args()
+
+    if args.p:
+        try:
+            # Checking if the file exists
+            f = open(args.p)
+            f.close()
+        except IOError as e:
+            print(e)
+        else:
+            path = args.p
+    else:
+        print(
+            "Please specify a path, with -p, to the data file for minstrel-py to run!"
+        )
+        sys.exit(1)
+
+    return path
