@@ -394,15 +394,18 @@ def obtain_rates(filename: str):
     
     valid_line_ind = _obtain_valid_group_line_ind(filename)
     
-    rates = [] #np.empty((len(valid_line_ind), 10), dtype="<U21")
-
+    rates = []
+    
     for ii in range(len(valid_line_ind)):
         line = linecache.getline(filename, valid_line_ind[ii])
         fields = line.split(sep=";")
         rate_index = fields[3]
         rate_airtimes = fields[9].strip('\n').split(',')
         for jj in range(len(rate_airtimes)):
-            rates.append(rate_index+str(jj))
+            if rate_index == '0':
+                rates.append(str(jj))
+            else:
+                rates.append(rate_index+str(jj))
             
     return rates
             
