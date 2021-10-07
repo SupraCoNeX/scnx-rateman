@@ -23,3 +23,6 @@ from .rateman import *
 from .connman import *
 from .core import *
 from .utils import *
+from .plot import *
+from .errors import *
+from .importer import *
