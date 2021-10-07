@@ -16,12 +16,7 @@ import numpy as np
 from .errors import *
 
 
-__all__ = [
-    "obtain_txs_df",
-    "obtain_rcs_df",
-    "obtain_timestamps_df",
-    "obtain_rates"
-]
+__all__ = ["obtain_txs_df", "obtain_rcs_df", "obtain_timestamps_df", "obtain_rates"]
 
 
 class DebugException(Exception):
@@ -41,6 +36,7 @@ def _obtain_valid_txs_line_ind(filename: dir):
 
     return valid_line_ind
 
+
 def _obtain_valid_rcs_line_ind(filename: dir):
 
     num_lines = sum(1 for line in open(filename, mode="r"))
@@ -54,6 +50,7 @@ def _obtain_valid_rcs_line_ind(filename: dir):
 
     return valid_line_ind
 
+
 def _obtain_valid_group_line_ind(filename: dir):
 
     num_lines = sum(1 for line in open(filename, mode="r"))
@@ -66,6 +63,7 @@ def _obtain_valid_group_line_ind(filename: dir):
             valid_line_ind.append(ii)
 
     return valid_line_ind
+
 
 def _obtain_valid_stat_line_ind(filename: dir):
     """
@@ -117,8 +115,8 @@ def obtain_txs_df(filename: str):
     for ii in range(len(valid_line_ind)):
         line = linecache.getline(filename, valid_line_ind[ii])
 
-        fields = line.split(sep=";")    
-        
+        fields = line.split(sep=";")
+
         timestamp_ns = int(fields[1] + fields[2])
         mac_addr = fields[4]
         num_frames = int(fields[5], 16)
@@ -134,9 +132,7 @@ def obtain_txs_df(filename: str):
         count3 = int(fields[10].split(sep=",")[1], 16)
         count4 = int(fields[11].strip().split(sep=",")[1], 16)
 
-        attempts = sum(
-            num_frames * list(map(int, [count1, count2, count3, count4]))
-        )
+        attempts = sum(num_frames * list(map(int, [count1, count2, count3, count4])))
 
         txs_array[ii, :] = [
             timestamp_ns,
@@ -179,6 +175,7 @@ def obtain_txs_df(filename: str):
 
     return txs_df
 
+
 def obtain_rcs_df(filename: str):
     """
 
@@ -203,7 +200,7 @@ def obtain_rcs_df(filename: str):
         line = linecache.getline(filename, valid_line_ind[ii])
 
         fields = line.split(sep=";")
-    
+
         phy = fields[0]
         timestamp_ns = int(fields[1] + fields[2])
         mac_addr = fields[4]
@@ -227,7 +224,7 @@ def obtain_rcs_df(filename: str):
             hist_success,
             hist_attempts,
         ]
-    
+
     rcs_df = pd.DataFrame(
         rcs_array,
         columns=[
@@ -245,6 +242,7 @@ def obtain_rcs_df(filename: str):
     )
 
     return rcs_df
+
 
 def obtain_timestamps_df(filename: str):
     """
@@ -280,9 +278,10 @@ def obtain_timestamps_df(filename: str):
 
     return timestamp_df
 
+
 def obtain_rates(filename: str):
-    '''
-    
+    """
+
 
     Parameters
     ----------
@@ -293,31 +292,23 @@ def obtain_rates(filename: str):
     -------
     None.
 
-    '''
-    
+    """
+
     valid_line_ind = _obtain_valid_group_line_ind(filename)
-    
+
     rates = []
-    
+
     for ii in range(len(valid_line_ind)):
         line = linecache.getline(filename, valid_line_ind[ii])
         fields = line.split(sep=";")
         rate_index = fields[3]
-        rate_airtimes = fields[9].strip('\n').split(',')
+        rate_airtimes = fields[9].strip("\n").split(",")
         for jj in range(len(rate_airtimes)):
-            if rate_index == '0':
+            if rate_index == "0":
                 cur_rate = str(jj)
             else:
-                cur_rate = rate_index+str(jj)
-            if cur_rate not in rates:              
+                cur_rate = rate_index + str(jj)
+            if cur_rate not in rates:
                 rates.append(cur_rate)
-            
-    return np.array(rates)
-            
-        
-        
-    
-    
 
-    
-    
+    return np.array(rates)

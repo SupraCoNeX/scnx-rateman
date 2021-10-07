@@ -17,8 +17,9 @@ import numpy as np
 import logging
 
 
-#filename = "C:/Users/pawarsp/Desktop/PhD/1_ResourceAllocation/Code/SupraCoNeX/scnx-analysis/data_Mesh_Andre.csv"
+# filename = "C:/Users/pawarsp/Desktop/PhD/1_ResourceAllocation/Code/SupraCoNeX/scnx-analysis/data_Mesh_Andre.csv"
 filename = "/home/martin/Projects/SupraCoNeX/scnx-rateman/demo/collected_data/Meas_20210808_122005/data/data_Mesh_Andre.csv"
+
 
 def create_logger(filename="error.log"):
     logging.basicConfig(

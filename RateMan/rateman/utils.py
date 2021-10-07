@@ -2,21 +2,9 @@
 # Copyright SupraCoNeX
 #     https://www.supraconex.org
 
-import io
-from pathlib import Path
-from re import I
 import signal
-from datetime import datetime
-from pandas.io.parsers import read_csv
-import pandas as pd
 import argparse
 import sys
-
-
-pd.options.mode.chained_assignment = None  # default='warn'
-
-# TODO: Output of tx status and stats are not consistent. Sometimes already converted.
-# TODO: Improve Timestamp 2 interpolation. Very dirty now.
 
 
 def _convert_timestamps_to_datetime(df):

@@ -22,6 +22,7 @@ __all__ = [
     "getPhyList",
     "getWLANList",
     "getStationList",
+    "get_meta_data",
 ]
 
 
@@ -172,3 +173,11 @@ def getStationList(APInfo: dict) -> None:
                 APInfo[APID]["staList"][wlan] = station_list
 
     return APInfo
+
+
+def get_meta_data(APInfo: dict) -> None:
+    APIDs = list(APInfo.keys())
+
+    metadata_cmds = ["uname -a", "uptime"]
+
+    pass

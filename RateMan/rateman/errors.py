@@ -12,12 +12,7 @@ import pandas as pd
 import numpy as np
 import linecache
 
-__all__ = [
-    "check_trace_txs",
-    "check_trace_rcs",
-    "check_timestamp",
-    "obtain_data_flags"
-]
+__all__ = ["check_trace_txs", "check_trace_rcs", "check_timestamp", "obtain_data_flags"]
 
 
 def check_trace_txs(line: str):
@@ -57,6 +52,7 @@ def check_trace_txs(line: str):
 
     return valid_txs
 
+
 def check_trace_rcs(line: str):
     """
     Check if a given txs trace data line contains the expected number of
@@ -91,6 +87,7 @@ def check_trace_rcs(line: str):
 
     return valid_rcs
 
+
 def check_timestamp(line: str, latest_timestamp: int):
     """
     Add docum
@@ -115,6 +112,7 @@ def check_timestamp(line: str, latest_timestamp: int):
         valid_timestamp = False
 
     return valid_timestamp
+
 
 def obtain_data_flags(filename: dir):
     """
