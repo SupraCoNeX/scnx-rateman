@@ -17,8 +17,8 @@ import numpy as np
 import logging
 
 
-filename = "C:/Users/pawarsp/Desktop/PhD/1_ResourceAllocation/Code/SupraCoNeX/scnx-analysis/data_Mesh_Andre.csv"
-
+#filename = "C:/Users/pawarsp/Desktop/PhD/1_ResourceAllocation/Code/SupraCoNeX/scnx-analysis/data_Mesh_Andre.csv"
+filename = "/home/martin/Projects/SupraCoNeX/scnx-rateman/demo/collected_data/Meas_20210808_122005/data/data_Mesh_Andre.csv"
 
 def create_logger(filename="error.log"):
     logging.basicConfig(
@@ -59,12 +59,16 @@ def check_data(filename, logger=None):
 
     print(f"File: {filename}")
 
+    print(f"Number of lines with invalid timestamps:\t {num_invalid_timestamps}")
+
+    print(f"Number of lines with parsing error:\t\t {num_invalid_num_fields}")
+
     print(
-        "Number of valid traces in data file %d from %s total lines"
+        "Number of valid lines in data file:\t\t %d from %s total lines"
         % (num_valid_stat_lines, num_total_lines)
     )
 
-    print("Number of invalid traces in data file %d" % (num_invalid_lines))
+    print("Number of invalid lines in data file:\t\t %d" % (num_invalid_lines))
 
 
 if __name__ == "__main__":
