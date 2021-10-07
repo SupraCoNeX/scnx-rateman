@@ -26,7 +26,7 @@ __all__ = [
     "setup_outputdir",
     "connect_AP",
     "check_net_conn",
-    "start_radios"
+    "start_radios",
     "meas_timer",
     "setup_monitoring_tasks",
     "handle_initial_disconnect",
