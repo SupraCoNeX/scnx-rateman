@@ -27,7 +27,7 @@ repos:
     rev: v2.6.0
     hooks:
     -   id: reorder-python-imports
-        args: [--application-directories=./rateman, --py36-plus]
+        args: ['--application-directories=.:RateMan:demo', '--py3-plus']
 
 -   repo: https://github.com/asottile/pyupgrade
     rev: v2.29.0
