@@ -1,148 +1,18 @@
-import io
-from os import stat
-from pathlib import Path
-from pdb import set_trace
+# -*- coding: UTF8 -*-
+# Copyright SupraCoNeX
+#     https://www.supraconex.org
+
 import signal
-import time
-from pytimedinput import timedKey
-
-import pandas as pd
-
-pd.options.mode.chained_assignment = None  # default='warn'
-
-# TODO: Output of tx status and stats are not consistent. Sometimes already converted.
+import argparse
+import sys
 
 
-__all__ = ["read_stats_txs_csv", "timedInput", "timedInputKey"]
-
-
-def read_stats_txs_csv(
-    data: str, shifttime: bool = False, humanread: bool = True, bin_enc: bool = False
-) -> pd.core.frame.DataFrame:
-    """
-    Read rc_stats and tx status from the given csv file.
-
-    Parameters:
-    -----------
-    filename : str
-        Path plus filename of csv file containing the tx-status data.
-
-    Returns:
-    --------
-    txs_data : pd.core.frame.DataFrame
-        Pandas dataframe with tx status of the client.
-    stats_data : pd.core.frame.DataFrame
-        Pandas datafram with rc_stats data of the client.
-    """
-
-    if bin_enc:
-        p = io.StringIO(data.decode("utf-8"))
-    else:
-        p = Path(data)
-        if not p.exists():
-            raise FileNotFoundError
-    # Read CSV file containing tx status and rc_stats and save in
-    # dataframe `df`.
-    df = pd.read_csv(p, sep=";", header=3)
-    # Filter tx status from dataframe `df`.
-    txs_data = df[df.iloc[:, 2] == "txs"].iloc[:, :9]
-    txs_data.columns = [
-        "phy_nr",
-        "timestamp",
-        "type",
-        "macaddr",
-        "num_frames",
-        "num_acked",
-        "probe",
-        "rates",
-        "counts",
-    ]
-    # Filter rc_stats from dataframe `df`.
-    stats_data = df[df.iloc[:, 2] == "stats"]
-    stats_data.columns = [
-        "phy_nr",
-        "timestamp",
-        "type",
-        "macaddr",
-        "rate",
-        "avg_prob",
-        "avg_tp",
-        "cur_success",
-        "cur_attempts",
-        "hist_success",
-        "hist_attempts",
-    ]
-    if humanread:
-        # Convert boot timestamp into seconds (uptime of system)
-        def to_sec(x):
-            return int(x, 16) / 1000000000
-
-        txs_data["timestamp"] = txs_data.timestamp.apply(to_sec)
-        stats_data["timestamp"] = stats_data.timestamp.apply(to_sec)
-        # Convert avg throughput from hex to bit/s
-        def to_bits(x):
-            return int(x, 16)
-
-        try:
-            stats_data["avg_tp"] = stats_data.avg_tp.apply(to_bits)
-        except TypeError:
-            print("Average Throughput probably already converted...")
-    # Reset index of dataframes
-    txs_data = txs_data.reset_index(drop=True)
-    stats_data = stats_data.reset_index(drop=True)
-    # Omit probably defective packets (wrong timestamp) and shift time to
-    # zero if `shifttime = True`.
-    if not txs_data.empty:
-        txs_ts0 = txs_data.loc[0].timestamp
-        txs_data = txs_data[txs_data["timestamp"] > txs_ts0]
-        if shifttime:
-
-            def shifttxs(x):
-                return x - txs_ts0
-
-            txs_data["timestamp"] = txs_data.timestamp.apply(shifttxs)
-    if not stats_data.empty:
-        stats_ts0 = stats_data.loc[0].timestamp
-        stats_data = stats_data[stats_data["timestamp"] > stats_ts0]
-        if shifttime:
-
-            def shiftstats(x):
-                return x - stats_ts0
-
-            stats_data["timestamp"] = stats_data.timestamp.apply(shiftstats)
-    # Set timestamps as index for both dataframes `txs_data` and
-    # `stats_data`.
-    txs_data = txs_data.set_index("timestamp")
-    stats_data = stats_data.set_index("timestamp")
-    return txs_data, stats_data
+def _convert_timestamps_to_datetime(df):
+    """Convert timestamps to datetime objects."""
+    pass
 
 
 def timedInput(prompt="", timeout=1, timeoutmsg=None):
-    """
-    This function displays a prompt to which an input has to be entered within
-    the timeout duration.
-
-    Parameters
-    ----------
-    prompt : str
-        Prompt for the timedInput
-
-    timeout : float
-        Duration within which input must be entered
-
-    timeoutmsg: str
-        Message to be displayed when duration of timeout is exceeded
-
-    Returns
-    -------
-    None.
-        Returns None if timeout duration is exceeded
-
-    answer : str
-        Returns the input to the prompt
-
-    """
-
     def timeout_error(*_):
         raise TimeoutError
 
@@ -159,33 +29,29 @@ def timedInput(prompt="", timeout=1, timeoutmsg=None):
         return None
 
 
-def timedInputKey(prompt="", timeout=1, allowedKeys=[], timeoutmsg=None):
+def get_path_arg():
     """
-    This function displays a prompt to which an input key has to be
-    entered within the timeout duration.
-
-    Parameters
-    ----------
-    prompt : str
-        Prompt for the timedInput
-
-    timeout : float
-        Duration within which input must be entered
-
-    allowedKeys: list
-        Character keys expected to but input
-
-    timeoutmsg: str
-        Message to be displayed when duration of timeout is exceeded
-
-    Returns
-    -------
-
-    answer : str or None
-        Returns the input to the prompt
-
+    Parses path argument provided in the exec command
     """
 
-    userText, _ = timedKey(prompt, timeOut=1, allowCharacters=allowedKeys)
+    parser = argparse.ArgumentParser(description="Scnx-Py-Minstrel")
+    parser.add_argument("-p", help="Path to the txs/rcs data file", type=str)
 
-    return userText
+    args = parser.parse_args()
+
+    if args.p:
+        try:
+            # Checking if the file exists
+            f = open(args.p)
+            f.close()
+        except IOError as e:
+            print(e)
+        else:
+            path = args.p
+    else:
+        print(
+            "Please specify a path, with -p, to the data file for minstrel-py to run!"
+        )
+        sys.exit(1)
+
+    return path
