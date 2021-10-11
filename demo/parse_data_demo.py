@@ -69,6 +69,6 @@ if __name__ == "__main__":
 
     rateMan.addaccesspoints(path)
 
-    rateMan.start(path, duration)
+    rateMan.start(duration)
 
     ### clean-up

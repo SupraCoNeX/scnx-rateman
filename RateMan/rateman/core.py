@@ -25,8 +25,10 @@ __all__ = [
     "setup_rateman_tasks",
     "setup_data_dir",
     "connect_AP",
+    "start_radios",
     "meas_timer",
     "setup_monitoring_tasks",
+    "handle_initial_disconnect",
     "recv_data",
     "handle_ap_disconn",
     "remove_headers",
@@ -264,6 +266,28 @@ def setup_monitoring_tasks(net_info, loop, output_dir):
     for APID in APIDs:
         if net_info[APID]["conn"] is True:
             loop.create_task(recv_data(net_info[APID], output_dir))
+        else:
+            loop.create_task(handle_initial_disconnect(net_info[APID], output_dir))
+
+async def handle_initial_disconnect(ap_info, output_dir):
+    """
+    This async function retries connecting to APs that weren't succesfully 
+    connected during the first attempt. 
+
+    Parameters
+    ----------
+    ap_info : dictionary
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status of an AP
+    output_dir : str
+        the main directory where results of the experiment are stored
+
+    Returns
+    -------
+    None.
+    """
+    ap_info = await handle_disconnects(ap_info, output_dir, prev_conn=False)
+    await recv_data(ap_info, output_dir)
 
 
 async def recv_data(ap_info, output_dir, reconn_time=600):
@@ -296,7 +320,7 @@ async def recv_data(ap_info, output_dir, reconn_time=600):
 
             # Reading empty string means rateman is no longer connected to AP
             if not len(dataLine):
-                ap_info = await handle_ap_disconn(ap_info, output_dir)
+                ap_info = await handle_ap_disconn(ap_info, output_dir, prev_conn=True)
             else:
                 fileHandle.write(dataLine.decode("utf-8"))
 
@@ -304,11 +328,10 @@ async def recv_data(ap_info, output_dir, reconn_time=600):
             pass
 
         except (ConnectionError, asyncio.TimeoutError):
-            ap_info = await handle_ap_disconn(ap_info, output_dir)
+            ap_info = await handle_ap_disconn(ap_info, output_dir, prev_conn=True)
             continue
 
-
-async def handle_ap_disconn(ap_info, output_dir, reconn_delay=20):
+async def handle_ap_disconn(ap_info, output_dir, prev_conn, reconn_delay=20):
     """
     This async function handles disconnect from AP and skips headers when
     reading from the ReaderStream again.
@@ -322,6 +345,9 @@ async def handle_ap_disconn(ap_info, output_dir, reconn_delay=20):
         the main directory where results of the experiment are stored
     reconn_delay: int
         time delay between consecutive reconnection attempts
+    prev_conn: bool
+        specifies whether the connection has been established before or
+        not. This determines whether to remove headers or not.
 
     Returns
     -------
@@ -330,7 +356,11 @@ async def handle_ap_disconn(ap_info, output_dir, reconn_delay=20):
         streams and connection status of an AP
     """
 
-    logging.error("Disconnected from {}".format(ap_info["APID"]))
+    if prev_conn is True:
+        logging.error("Disconnected from {}".format(ap_info["APID"]))
+    else:
+        logging.error("Couldn't establish initial connection to {}".format(ap_info["APID"]))
+    
     ap_info["conn"] = False
 
     while ap_info["conn"] is not True:
@@ -339,7 +369,8 @@ async def handle_ap_disconn(ap_info, output_dir, reconn_delay=20):
 
     start_radios(ap_info)
 
-    await remove_headers(ap_info, output_dir)
+    if prev_conn is True:
+        await remove_headers(ap_info, output_dir)
 
     return ap_info
 
