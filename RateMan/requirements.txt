@@ -1,3 +1,20 @@
+<<<<<<< HEAD
+codecov
+dash
+dask
+matplotlib
+numpy
+pandas
+paramiko
+pint==0.9
+pycodestyle
+scipy
+six
+sphinx
+sphinx_rtd_theme
+tornado
+python-telegram-bot
+=======
 codecov
 dash
 dask
@@ -13,3 +30,4 @@ six
 sphinx
 sphinx_rtd_theme
 tornado
+>>>>>>> main
