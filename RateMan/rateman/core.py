@@ -62,7 +62,7 @@ async def setup_rateman_tasks(net_info, loop, duration=10, output_dir=""):
     None.
 
     """
-    output_dir = setup_outputdir(output_dir)
+    output_dir = setup_data_dir(output_dir)
 
     APIDs = list(net_info.keys())
 
@@ -76,7 +76,7 @@ async def setup_rateman_tasks(net_info, loop, duration=10, output_dir=""):
 
         net_info[APID] = ap_info
 
-    net_active = await __check_net_conn(net_info)
+    net_active = await _check_net_conn(net_info)
 
     if net_active:
 
@@ -92,7 +92,8 @@ async def setup_rateman_tasks(net_info, loop, duration=10, output_dir=""):
 def setup_data_dir(output_dir):
 
     if len(output_dir) == 0:
-        os.mkdir("data")
+        if not os.path.exists('data'):
+            os.mkdir("data")
         output_dir = os.path.join(os.getcwd(), "data")
 
     return output_dir
@@ -269,10 +270,11 @@ def setup_monitoring_tasks(net_info, loop, output_dir):
         else:
             loop.create_task(handle_initial_disconnect(net_info[APID], output_dir))
 
+
 async def handle_initial_disconnect(ap_info, output_dir):
     """
-    This async function retries connecting to APs that weren't succesfully 
-    connected during the first attempt. 
+    This async function retries connecting to APs that weren't succesfully
+    connected during the first attempt.
 
     Parameters
     ----------
@@ -286,7 +288,7 @@ async def handle_initial_disconnect(ap_info, output_dir):
     -------
     None.
     """
-    ap_info = await handle_disconnects(ap_info, output_dir, prev_conn=False)
+    ap_info = await handle_ap_disconn(ap_info, output_dir, prev_conn=False)
     await recv_data(ap_info, output_dir)
 
 
@@ -331,6 +333,7 @@ async def recv_data(ap_info, output_dir, reconn_time=600):
             ap_info = await handle_ap_disconn(ap_info, output_dir, prev_conn=True)
             continue
 
+
 async def handle_ap_disconn(ap_info, output_dir, prev_conn, reconn_delay=20):
     """
     This async function handles disconnect from AP and skips headers when
@@ -359,8 +362,10 @@ async def handle_ap_disconn(ap_info, output_dir, prev_conn, reconn_delay=20):
     if prev_conn is True:
         logging.error("Disconnected from {}".format(ap_info["APID"]))
     else:
-        logging.error("Couldn't establish initial connection to {}".format(ap_info["APID"]))
-    
+        logging.error(
+            "Couldn't establish initial connection to {}".format(ap_info["APID"])
+        )
+
     ap_info["conn"] = False
 
     while ap_info["conn"] is not True:

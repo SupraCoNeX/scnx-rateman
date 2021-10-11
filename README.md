@@ -28,7 +28,7 @@ Here, functions which can be run through the `minstrel-rcd` are considered as ma
 
 |Function|Description|Kernel Function|Command example|Additional Information|
 |:------:|:----------|:--------------|---------------|----------------------|
-|dump    |Print out the supported data rate set for each client already connected - usefull to seperate tx_status packets that are supported by minstrel.|`minstrel_ht_dump_stations(mp)`|`phy0;dump`||
+|dump    |Print out the supported data rate set for each client already connected - usefull to separate tx_status packets that are supported by minstrel.|`minstrel_ht_dump_stations(mp)`|`phy0;dump`||
 |start   |Enable live print outs of tx statuses of connected STAs.|`minstrel_ht_api_set_active(mp, true)`|`phy0;start`||
 |stop    |Disable live print outs of tx statuses of connected STAs.|`minstrel_ht_api_set_active(mp, false)`|`phy0;stop`||
 |manual  |Disable minstrel-ht of kernel space and enable manual rate settings.|`minstrel_ht_api_set_manual(mp, true)`|`phy0;manual`||

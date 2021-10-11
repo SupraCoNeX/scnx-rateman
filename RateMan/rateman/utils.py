@@ -3,8 +3,10 @@
 #     https://www.supraconex.org
 
 import signal
-import argparse
 import sys
+
+
+__all__ = ["timedInput", "get_path_arg", "get_duration_arg"]
 
 
 def _convert_timestamps_to_datetime(df):
@@ -29,29 +31,47 @@ def timedInput(prompt="", timeout=1, timeoutmsg=None):
         return None
 
 
-def get_path_arg():
+def get_path_arg(parser):
     """
     Parses path argument provided in the exec command
     """
-
-    parser = argparse.ArgumentParser(description="Scnx-Py-Minstrel")
-    parser.add_argument("-p", help="Path to the txs/rcs data file", type=str)
 
     args = parser.parse_args()
 
     if args.p:
         try:
-            # Checking if the file exists
-            f = open(args.p)
-            f.close()
-        except IOError as e:
-            print(e)
+            fileHandle = open(args.p)
+            fileHandle.close()
+        except IOError as errorDef:
+            print(errorDef)
         else:
             path = args.p
+            
+            return path
     else:
         print(
             "Please specify a path, with -p, to the data file for minstrel-py to run!"
         )
         sys.exit(1)
 
-    return path
+    
+def get_duration_arg(parser):
+    
+    """
+    Parses duration argument provided in the exec command
+    """
+    
+    args = parser.parse_args()
+    
+    if args.t:
+        if args.t > 0:
+            duration = args.t
+            
+            return duration
+        else:
+            print("Oops! Time duration cannot be negative.")
+    else:
+        print("Argument for duration not found.")        
+            
+            
+    
