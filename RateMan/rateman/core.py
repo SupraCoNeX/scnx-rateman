@@ -23,17 +23,15 @@ import logging
 
 __all__ = [
     "setup_rateman_tasks",
-    "setup_outputdir",
+    "setup_data_dir",
     "connect_AP",
-    "check_net_conn",
     "start_radios",
     "meas_timer",
     "setup_monitoring_tasks",
     "handle_initial_disconnect",
     "recv_data",
-    "handle_disconnects",
+    "handle_ap_disconn",
     "remove_headers",
-    "obtain_data",
     "set_rate",
     "stop_rateman",
     "stop_tasks",
@@ -78,7 +76,7 @@ async def setup_rateman_tasks(net_info, loop, duration=10, output_dir=""):
 
         net_info[APID] = ap_info
 
-    net_active = await check_net_conn(net_info)
+    net_active = await __check_net_conn(net_info)
 
     if net_active:
 
@@ -91,7 +89,7 @@ async def setup_rateman_tasks(net_info, loop, duration=10, output_dir=""):
         await stop_rateman(net_info, loop, stop_cmd=False)
 
 
-def setup_outputdir(output_dir):
+def setup_data_dir(output_dir):
 
     if len(output_dir) == 0:
         os.mkdir("data")
@@ -154,7 +152,7 @@ async def connect_AP(ap_info: dict, output_dir):
     return ap_info
 
 
-async def check_net_conn(net_info: dict):
+async def _check_net_conn(net_info: dict):
     """
     This async function check if any of the AP in net_info has been sucessfully
     connected. If not then rateman terminates.
@@ -305,7 +303,7 @@ async def recv_data(ap_info, output_dir, reconn_time=600):
     output_dir : str
         the main directory where results of the experiment are stored
     reconn_time : int
-        duration for readline timeout after which reconnection to a currently 
+        duration for readline timeout after which reconnection to a currently
         inactive AP is attempted.
 
     Returns
@@ -322,7 +320,7 @@ async def recv_data(ap_info, output_dir, reconn_time=600):
 
             # Reading empty string means rateman is no longer connected to AP
             if not len(dataLine):
-                ap_info = await handle_disconnects(ap_info, output_dir, prev_conn=True)
+                ap_info = await handle_ap_disconn(ap_info, output_dir, prev_conn=True)
             else:
                 fileHandle.write(dataLine.decode("utf-8"))
 
@@ -330,11 +328,10 @@ async def recv_data(ap_info, output_dir, reconn_time=600):
             pass
 
         except (ConnectionError, asyncio.TimeoutError):
-            ap_info = await handle_disconnects(ap_info, output_dir, prev_conn=True)
+            ap_info = await handle_ap_disconn(ap_info, output_dir, prev_conn=True)
             continue
 
-
-async def handle_disconnects(ap_info, output_dir, prev_conn, reconn_delay=20):
+async def handle_ap_disconn(ap_info, output_dir, prev_conn, reconn_delay=20):
     """
     This async function handles disconnect from AP and skips headers when
     reading from the ReaderStream again.
@@ -355,7 +352,7 @@ async def handle_disconnects(ap_info, output_dir, prev_conn, reconn_delay=20):
     Returns
     -------
     ap_info : dictionary
-        contains parameters such as ID, IP Address, Port, relevant file 
+        contains parameters such as ID, IP Address, Port, relevant file
         streams and connection status of an AP
     """
 
@@ -369,7 +366,7 @@ async def handle_disconnects(ap_info, output_dir, prev_conn, reconn_delay=20):
     while ap_info["conn"] is not True:
         await asyncio.sleep(reconn_delay)
         ap_info = await connect_AP(ap_info, output_dir)
-    
+
     start_radios(ap_info)
 
     if prev_conn is True:
@@ -405,24 +402,20 @@ async def remove_headers(ap_info, output_dir):
 
             # Reading empty string means rateman is no longer connected to AP
             if not len(dataLine):
-                ap_info = handle_disconnects(ap_info, output_dir)
+                ap_info = handle_ap_disconn(ap_info, output_dir)
                 break
             else:
                 # terminate while loop when it encounters a non header line
                 line = dataLine.decode("utf-8")
-                if line[0] != '*':
+                if line[0] != "*":
                     fileHandle.write(line)
                     break
 
         except (ConnectionError, asyncio.TimeoutError):
-            ap_info = handle_disconnects(ap_info, output_dir)
+            ap_info = handle_ap_disconn(ap_info, output_dir)
             break
-    
+
     return ap_info
-
-
-async def obtain_data(fileHandle) -> None:
-    pass
 
 
 async def set_rate(net_info) -> None:

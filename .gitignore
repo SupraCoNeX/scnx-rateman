@@ -144,3 +144,8 @@ cython_debug/
 *-venv/
 *-env/
 
+Pipfile*
+
+# data_files
+Meas_*/
+
