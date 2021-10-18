@@ -1,0 +1,4 @@
+{
+    "bot_token": "Your telegram bot token",
+    "chat_ids": ["Chat ids"] 
+}
