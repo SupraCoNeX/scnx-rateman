@@ -30,25 +30,77 @@ __all__ = ["RateMan"]
 class RateMan:
     def __init__(self) -> None:
 
-        self._accesspoints = {}
-        self._txsDataFrame = []
-        self._rcstats = []
+        self._accesspoints = dict()
+        self._txsDataFrame = list()
+        self._rcstats = list()
+        self._allGroup_idx = dict(list())
+        self._clients = dict()
 
         self._loop = asyncio.get_event_loop()
 
     @property
-    def clients(self) -> dict:
-        # list of clients for a given AP at a given radio
-
-        return 0
+    def clients(self):
+        return self._clients
+    
+    @clients.setter
+    def clients(self, updated_data: dict):
+        self._clients = updated_data
 
     @property
     def accesspoints(self) -> dict:
         # provides a list of access points in the network
         # dict with APID keys, with each key having a dict with radios,
         # which is also a dict with clients
-
         return self._accesspoints
+    
+    @accesspoints.setter
+    def accesspoints(self, net_info: dict):
+        self._accesspoints = net_info
+
+    @property
+    def allGroup_idx(self) -> set:
+        return self._allGroup_idx
+    
+    @allGroup_idx.setter
+    def allGroup_idx(self, group_indices: set):
+        self._allGroup_idx = group_indices
+    
+    @property
+    def loop(self):
+        return self._loop
+
+    def set_reader_stream(self, APID: str, reader):
+        self._accesspoints[APID]["reader"] = reader
+
+    def set_writer_stream(self, APID: str, writer):
+        self._accesspoints[APID]["writer"] = writer
+    
+    def set_fileHandle(self, APID: str, fileHandle):
+        self._accesspoints[APID]["fileHandle"] = fileHandle
+
+    def set_conn(self, APID: str, status: bool):
+        self._accesspoints[APID]["conn"] = status
+    
+    def get_conn(self, APID: str):
+        net_info = self._accesspoints
+        status = net_info[APID]["conn"]
+
+        return status
+    
+    def add_station(self, APID: str, client_MAC: str, supp_rates: list):
+        if APID in self._clients:
+            self._clients[APID][client_MAC] = supp_rates
+        else:
+            init_client = dict()
+            init_client.update({client_MAC: supp_rates})
+            self._clients.update({APID : init_client})
+
+    def add_group_index(self, APID: str, group_idx: str):
+        if APID in self._allGroup_idx:
+            self._allGroup_idx[APID].append(group_idx)
+        else:
+            groups = [group_idx]
+            self._allGroup_idx.update({APID : groups})
 
     def addaccesspoints(self, ap_list_filename: dir) -> None:
         """
@@ -85,7 +137,6 @@ class RateMan:
                 # phy list is hard-coded -> ToDo: obtain list automatically
                 # using getPhyList function
                 self._accesspoints[APID]["phyList"] = ["phy0", "phy1"]
-
         pass
 
     def _enableMinstrelRCD(self, SSHClient: object) -> None:
@@ -109,7 +160,7 @@ class RateMan:
 
         pass
 
-    def start(self, duration: float, output_dir: str = "") -> None:
+    def start(self, duration: float, rateMan: object, output_dir: str = "") -> None:
         """
         Start monitoring of TX Status (txs) and Rate Control Statistics
         (rc_stats). Send notification about the experiment from RateMan
@@ -148,7 +199,7 @@ class RateMan:
         time_start = datetime.now()
 
         self._loop.create_task(
-            setup_rateman_tasks(self._accesspoints, self._loop, duration, output_dir)
+            setup_rateman_tasks(rateMan, duration, output_dir)
         )
 
         try:
@@ -208,4 +259,5 @@ class RateMan:
         # Marking end of notification for readability
         text += "\n--------------------------------------------"
         for chat_id in chat_ids:
-            bot.sendMessage(chat_id=chat_id, text=text)
+            #bot.sendMessage(chat_id=chat_id, text=text)
+            pass
