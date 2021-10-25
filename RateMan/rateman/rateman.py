@@ -109,7 +109,7 @@ class RateMan:
 
         pass
 
-    def start(self, duration: float, output_dir: str = "") -> None:
+    def start(self, duration: float, notify: bool, output_dir: str = "") -> None:
         """
         Start monitoring of TX Status (txs) and Rate Control Statistics
         (rc_stats). Send notification about the experiment from RateMan
@@ -132,20 +132,21 @@ class RateMan:
 
         self._duration = duration
 
-        text_start = (
-            os.getcwd()
-            + ":\n\nExperiment Started at "
-            + str(datetime.now())
-            + "\nTime duration: "
-            + str(duration)
-            + " seconds"
-            + "\nAP List: "
-            + self._ap_list_filename
-        )
+        if notify:
+            text_start = (
+                os.getcwd()
+                + ":\n\nExperiment Started at "
+                + str(datetime.now())
+                + "\nTime duration: "
+                + str(duration)
+                + " seconds"
+                + "\nAP List: "
+                + self._ap_list_filename
+            )
 
-        self._notify(text_start)
+            self._notify(text_start)
 
-        time_start = datetime.now()
+            time_start = datetime.now()
 
         self._loop.create_task(
             setup_rateman_tasks(self._accesspoints, self._loop, duration, output_dir)
@@ -155,32 +156,33 @@ class RateMan:
             self._loop.run_forever()
         finally:
             # Notify RateMan telegram bot to send text_end to chat_ids in keys.json
-            elapsed_time = datetime.now() - time_start
-            text_end = (
-                os.getcwd()
-                + ":\n\nExperiment Finished at "
-                + str(datetime.now())
-                + "\n"
-            )
+            if notify:
+                elapsed_time = datetime.now() - time_start
+                text_end = (
+                    os.getcwd()
+                    + ":\n\nExperiment Finished at "
+                    + str(datetime.now())
+                    + "\n"
+                )
 
-            # If RateMan stopped earlier than the specified duration
-            if elapsed_time.total_seconds() < duration:
-                text_end += (
-                    "Error: RateMan stopped before the specified time duration of "
-                    + str(duration)
-                    + "!\n"
-                    + "RateMan was fetching data from "
-                    + str(self._ap_list_filename)
-                )
-            else:
-                text_end += (
-                    "Data for the AP List, "
-                    + str(self._ap_list_filename)
-                    + ", has been successfully collected for "
-                    + str(duration)
-                    + " seconds!"
-                )
-            self._notify(text_end)
+                # If RateMan stopped earlier than the specified duration
+                if elapsed_time.total_seconds() < duration:
+                    text_end += (
+                        "Error: RateMan stopped before the specified time duration of "
+                        + str(duration)
+                        + "!\n"
+                        + "RateMan was fetching data from "
+                        + str(self._ap_list_filename)
+                    )
+                else:
+                    text_end += (
+                        "Data for the AP List, "
+                        + str(self._ap_list_filename)
+                        + ", has been successfully collected for "
+                        + str(duration)
+                        + " seconds!"
+                    )
+                self._notify(text_end)
 
             self._loop.close()
         pass
@@ -202,10 +204,21 @@ class RateMan:
 
         """
 
-        bot_token = "1655932249:AAGWAhAJwBwnI6Kk0LrQc7CvN44B8ju7TsQ"
-        chat_ids = ["-580120177"]
-        bot = telegram.Bot(token=bot_token)
-        # Marking end of notification for readability
-        text += "\n--------------------------------------------"
-        for chat_id in chat_ids:
-            bot.sendMessage(chat_id=chat_id, text=text)
+        original_cwd = os.getcwd()
+
+        # Change working directory to rateman
+        dirpath = os.path.dirname(__file__)
+        os.chdir(dirpath)
+
+        with open('../docs/keys.json', 'r') as telegram_keys:
+            keys = json.load(telegram_keys)
+            bot_token = keys['bot_token']
+            bot = telegram.Bot(token=bot_token)
+
+            # Marking end of notification for readability
+            text += "\n--------------------------------------------"
+            
+            for chat_id in keys['chat_ids']:
+                bot.sendMessage(chat_id=chat_id, text=text)
+        
+        os.chdir(original_cwd)

@@ -33,6 +33,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Rateman")
     parser.add_argument("-p", help="Path to the access point list file.", type=str)
     parser.add_argument("-t", help="Measurement time duration in seconds.", type=float)
+    parser.add_argument('--notify', help='Enable telegram notification', action='store_true')
 
     args = parser.parse_args()
 
@@ -51,4 +52,4 @@ if __name__ == "__main__":
 
     rateMan.addaccesspoints(path)
 
-    rateMan.start(duration)
+    rateMan.start(duration, notify=args.notify)
