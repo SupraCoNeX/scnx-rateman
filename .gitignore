@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Keys
+RateMan/docs/keys.json
+
 # Distribution / packaging
 .Python
 build/

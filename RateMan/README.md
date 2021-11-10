@@ -35,7 +35,13 @@ Install `rateman` package with the command:
 
 ### How to configure rateman with your telegram bot?
 
-The token of your telegram bot should be added to the `keys.json` file which is inside the `docs` directory. The json file consists of two parameters: "bot_token" and "chat_ids". 
+Start with copying the keys.json.dist as keys.json which is inside the `docs` directory. The following command can be executed to achieve this:
+```console
+foo@bar docs:~$ cp keys.json.dist keys.json
+```
+
+
+The token of your telegram bot should be added to the `keys.json` file. The json file consists of two parameters: "bot_token" and "chat_ids". 
 
 ```json
 {
