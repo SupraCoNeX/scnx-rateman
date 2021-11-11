@@ -34,7 +34,7 @@ Here, functions which can be run through the `minstrel-rcd` are considered as ma
 |manual  |Disable minstrel-ht of kernel space and enable manual rate settings.|`minstrel_ht_api_set_manual(mp, true)`|`phy0;manual`||
 |auto    |Enable minstrel-ht of kernel space.|`minstrel_ht_api_set_manual(mp, false)`|`phy0;auto`||
 |rates   |Set rate table with given rates.|`minstrel_ht_set_rates(mp, mi, args[1], args[2])`|`phy0;{MAC address};{list of rate idxs};{num of counts for each rate}`|`args[1]` = list of rates seperated by `,` and `args[2]` = list of number of tries for a rate until choosing next rate.|
-|probe   |??? Look for STAs or APs with given supported rates???|`minstrel_ht_set_probe_rate(mp, mi, args[1])`|`phy0;probe;{MAC address};{rate_idx}`|`args[1]` = list of rates supported by STA or AP???|
+|probe   |Set rate to be probed for secific STA|`minstrel_ht_set_probe_rate(mp, mi, args[1])`|`phy0;probe;{MAC address};{rate_idx}`|`args[1]` = list of rates supported by STA or AP???|
 
 _Note: `mp` stands for `phy0` or `phy1`. `mi` stands for a station (MAC address)._
 
