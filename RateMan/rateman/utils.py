@@ -4,6 +4,9 @@
 
 import signal
 import sys
+import time
+import logging
+import asyncio
 
 
 __all__ = ["timedInput", "get_path_arg", "get_duration_arg"]
@@ -71,7 +74,4 @@ def get_duration_arg(parser):
         else:
             print("Oops! Time duration cannot be negative.")
     else:
-        print("Argument for duration not found.")        
-            
-            
-    
+        print("Argument for duration not found.")

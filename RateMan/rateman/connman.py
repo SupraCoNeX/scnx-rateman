@@ -13,10 +13,13 @@ Functions to obtain certain data from the APs are available too.
 
 """
 
-import socket
+import asyncio
 import paramiko
+import logging
 
 __all__ = [
+    "connect_AP",
+    "_check_net_conn",
     "obtain_SSHClient",
     "execute_command_SSH",
     "getPhyList",
@@ -24,6 +27,85 @@ __all__ = [
     "getStationList",
     "get_meta_data",
 ]
+
+
+async def connect_AP(APID: str, rateMan: object, output_dir):
+    """
+    This async function takes a dictionary containing information about
+    an AP and connects with it.
+
+    Parameters
+    ----------
+    APID: str
+        ID of the Access Point which is to be connected with
+    rateMan: object
+        Instance of RateMan class which consists of accesspoint information
+        for initial connection
+    output_dir : str
+        the main directory where results of the experiment are stored
+
+    """
+
+    net_info = rateMan.accesspoints
+    ap_info = net_info[APID]
+
+    if "fileHandle" not in ap_info:
+
+        fileHandle = open(output_dir + "/data_" + ap_info["APID"] + ".csv", "w")
+        rateMan.set_fileHandle(APID, fileHandle)
+
+    conn_handle = asyncio.open_connection(ap_info["IPADD"], ap_info["MPORT"])
+
+    try:
+        # Try connecting to the AP within a timeout duration
+        reader, writer = await asyncio.wait_for(conn_handle, timeout=5)
+
+        logging.info(
+            "Connected to {} : {} {}".format(
+                ap_info["APID"], ap_info["IPADD"], ap_info["MPORT"]
+            )
+        )
+
+        rateMan.set_writer_stream(APID, writer)
+        rateMan.set_reader_stream(APID, reader)
+        rateMan.set_conn(APID, status=True)
+
+    except (asyncio.TimeoutError, ConnectionError) as e:
+        # Incase of a connection error or if the timeout duration is exceeded
+        logging.error(
+            "Failed to connect {} : {} {} -> {}".format(
+                ap_info["APID"], ap_info["IPADD"], ap_info["MPORT"], e
+            )
+        )
+
+        # Set active connection to False
+        rateMan.set_conn(APID, status=False)
+
+
+async def _check_net_conn(rateMan: object):
+    """
+    This async function check if any of the AP in net_info has been sucessfully
+    connected. If not then rateman terminates.
+
+    Parameters
+    ----------
+    rateMan: object
+        Instance of RateMan class
+
+    Returns
+    -------
+    True: If there is atleast one active connection in net_info
+    False: If none of the APs were connected
+
+    """
+    net_info = rateMan.accesspoints
+    APIDs = list(net_info.keys())
+
+    for APID in APIDs:
+        if net_info[APID]["conn"] is True:
+            return True
+
+    return False
 
 
 def obtain_SSHClient(SSHHost: str, SSHPort: int, SSHUsr: str, SSHPass: str) -> object:
