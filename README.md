@@ -1,7 +1,7 @@
 # Rate Manager
 
 The RateManager or simply RateMan provides a Python-based package for
- - Monitoring of status through `txs` (TX status) and `rcs` (Rate control statistics) information of one or more access points in a network.
+ - Monitoring of status through TX status (`txs`), Received Signal Strength Indicator (`rxs`), and Rate control statistics (`rcs`) information of one or more access points in a network.
  - Rate control through setting of appropriate MCS Rate per client/station per access point.
  - Data collection and management from network measurements.
 
@@ -28,8 +28,11 @@ Here, functions which can be run through the `minstrel-rcd` are considered as ma
 
 |Function|Description|Kernel Function|Command example|Additional Information|
 |:------:|:----------|:--------------|---------------|----------------------|
-|dump    |Print out the supported data rate set for each client already connected - usefull to separate tx_status packets that are supported by minstrel.|`minstrel_ht_dump_stations(mp)`|`phy0;dump`||
+|dump    |Print out the supported data rate set for each client already connected - useful to separate tx_status packets that are supported by minstrel.|`minstrel_ht_dump_stations(mp)`|`phy0;dump`||
 |start   |Enable live print outs of tx statuses of connected STAs.|`minstrel_ht_api_set_active(mp, true)`|`phy0;start`||
+|start;txs   |Enable live print outs of tx statuses of connected STAs.|> ?|`phy0;start;txs`||
+|start;rxs  |Enable live print outs of RSSI of connected STAs.|> ?|`phy0;start;rxs`||
+|start;stats   |Enable live print outs of tx statuses of connected STAs.|> ?|`phy0;start;stats`||
 |stop    |Disable live print outs of tx statuses of connected STAs.|`minstrel_ht_api_set_active(mp, false)`|`phy0;stop`||
 |manual  |Disable minstrel-ht of kernel space and enable manual rate settings.|`minstrel_ht_api_set_manual(mp, true)`|`phy0;manual`||
 |auto    |Enable minstrel-ht of kernel space.|`minstrel_ht_api_set_manual(mp, false)`|`phy0;auto`||
@@ -67,32 +70,35 @@ For monitoring the status of a given access point, make sure the TCP/IP connecti
 
 #### To trigger receiving the `txs`, run:
   ```
-  phy1;start
+  phy1;start;txs
+  ```
+#### To trigger receiving the `txs`, run:
+  ```
+  phy1;start;rxs
   ```
 #### To trigger receiving the `rcs`, run:
   ```
   phy1;start;stats
   ```
-#### To trigger receiving both `txs` and `rcs`, run:
+#### To trigger receiving multiple functions together run:
   ```
   phy1;start;stats;txs
   ```
-- Note that upon triggering this command, trace lines for `txs` and `rcs` will be printed separately.
+_Note: Upon triggering this command, trace lines for `txs` and `rcs` will be printed separately. You can include combinations of the three available functions -  `txs`, `rxs`, and `rcs`.
 
 
 ### Monitoring information format
-Once the monitoring tasks have been triggered as above, the `txs` and/or `rcs` information is received/printed in the Terminal T2. Format of these traces is as follows,
+Once the monitoring tasks have been triggered as above, the trace lines are received/printed in the Terminal T2. Format of these lines is as follows,
 
 #### Format of trace for `txs` information
 ```
-phyID;timestamp_sec;timestamp_nanosec;txs;macaddr;num_frames;num_acked;probe;rate0,count0;rate1,count1;rate2,count2;rate3,count3
+phyID;hex_timestamp_nanosec;txs;macaddr;num_frames;num_acked;probe;rate0,count0;rate1,count1;rate2,count2;rate3,count3
 ```
 
 |Field|Description|
 |:------|:----------|
 | `phyID`| Radio ID, e.g. `phy0`.|
-|`timestamp_sec`| Timestamp for system time (Unix time) in seconds.|
-|`timestamp_nanosec`| Timestamp for system time (Unix time) in nanoseconds. Complete timestamp is derived as `timestamp_sec.timestamp_nanosec`.|
+|`hex_timestamp_nanosec`| Timestamp for system time (Unix time) in nanoseconds in hex format.|
 |`txs`| Denotes that the traces is for TX status.|
 |`macaddr`| MAC address of the station/client for which trace is received.|
 |`num_frames`| Number of data packets in a given TX frame.|
@@ -103,28 +109,30 @@ phyID;timestamp_sec;timestamp_nanosec;txs;macaddr;num_frames;num_acked;probe;rat
 |`rate2,count2`| 3rd MCS rate (`rate2`) chosen for probing or data frame with `count2` attempts/tries.|
 |`rate3,count3`| 4th MCS rate (`rate3`) chosen for probing or data frame with `count3` attempts/tries.|
 
+_Note: In the rate table containing upto four rates and corresponding counts, if a sequential rate-count is not used, the rate field is denoted by `ffff`.
+
 E.g. 1. Successful transmission on 1st MCS rate
 ```
-phy0;1626196159;112026795;txs;cc:32:e5:9d:ab:58;3;3;0;d7,1;0,0;0,0;0,0
+phy0;16c4added930f1b4;txs;cc:32:e5:9d:ab:58;3;3;0;d7,1;ffff,0;ffff,0;ffff,0
 ```
 Here we have a trace from `phy0` at timestamp, `1626196159.112026795`, for client with the MAC address of `cc:32:e5:9d:ab:58`, with `num_frames = 3`, `num_acked = 3`, `probe = 0` denotes that it was not a probing frame, index of 1st MCS rate tried `rate0` is `d7`, number of transmission tries for `rate0`, `count0 = 1`. In this case only one MCS rate tried and was successfully used. 
 
 E.g. 2. Successful transmission on 2nd MCS rate 
 ```
-phy1;1626189830;926593008;txs;d4:a3:3d:5f:76:4a;1;1;1;266,2;272,1;0,0;0,0
+phy1;16c4added930f1b4;txs;d4:a3:3d:5f:76:4a;1;1;1;266,2;272,1;ffff,0;ffff,0
 ```
 Here we have a trace from `phy1` at timestamp, `1626189830.926593008`, for client with the MAC address of `d4:a3:3d:5f:76:4a`, with `num_frames = 1`, `num_acked = 1`, `probe = 1` denotes that it was a probing frame, index of 1st MCS rate tried `rate0` is `266`, number of transmission tries for `rate0`, `count0 = 2`. In this case the `rate0` was not successful and hence a 2nd MCS rate with index `rate1` of `272` was tried `count1 = 1` times and this transmission was successful.
 
 E.g. 3. Erroneous `txs` trace
 ```
-phy1;1626189830;926593018;txs;86:f9:1e:47:68:da;2;0;0;0,0;0,0;0,0;0,0
+phy1;16c4added930f1b4;txs;86:f9:1e:47:68:da;2;0;0;ffff,0;ffff,0;ffff,0;ffff,0
 ```
 In this case, the trace implies that no MCS rate has been tried.
 
 #### How to Read the `rateX` Fields
 Consider again the example from the previous section:
 ```
-phy1;1626189830;926593008;txs;d4:a3:3d:5f:76:4a;1;1;1;266,2;272,1;0,0;0,0
+phy1;16c4added930f1b4;txs;d4:a3:3d:5f:76:4a;1;1;1;266,2;272,1;ffff,0;ffff,0
 ```
 The first digits of `rateX` tell us in which rate group to look. The rightmost digit from the rate entries gives us the group offset. *Note, that these are hex digits!*
 In our example, rate `266` refers to the `6`th rate from group `26` and `272` refers to the `2`nd rate from group `27`. Looking at the `group` output mentioned above, we can find the exact rates. What `minstrel-rcd` is telling us is that we first tried to send a frame at rate **TODO RATE** twice before falling back to rate **TODO RATE** where transmission succeeded after one attempt.
@@ -137,6 +145,7 @@ Description of fields that are not present in `txs` trace:
 |Field|Description|
 |:------|:----------|
 |`stats`| Denotes that the traces is for Rate Control Statistics.|
+|`macaddr`| MAC address of the station/client for which trace is received.|
 |`rate`| |
 |`avg_prob`||
 |`avg_tp`||
@@ -151,7 +160,7 @@ Description of fields that are not present in `txs` trace:
   
 E.g. 1. 
 ```
-phy0;1626196159;020667844;stats;cc:32:e5:9d:ab:58;d7;3e8;281;1;1;c0d7;f6c4
+phy0;16c4addf534d8869;stats;cc:32:e5:9d:ab:58;d7;3e8;281;1;1;c0d7;f6c4
 ```
 
 > TODO: Explain example

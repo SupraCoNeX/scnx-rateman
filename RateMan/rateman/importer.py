@@ -16,11 +16,74 @@ import numpy as np
 from .errors import *
 
 
-__all__ = ["obtain_txs_df", "obtain_rcs_df", "obtain_timestamps_df", "obtain_rates"]
+__all__ = ["obtain_txs_df", "obtain_rcs_df", "obtain_timestamps_df", "obtain_rates", "obtain_file_start", "obtain_file_end"]
 
 
 class DebugException(Exception):
     pass
+
+
+def obtain_file_start(filename: str) -> int:
+    """
+    Obtain the starting line number for txs information in a given file.
+
+    Parameters
+    ----------
+    filename : str
+        Directory location of data file.
+
+    Returns
+    -------
+    txs_line_start : int
+
+    """
+    num_lines = sum(1 for line in open(filename, mode="r"))
+
+    txs_line_start = 0
+
+    for ii in range(num_lines):
+        line = linecache.getline(filename, ii)
+        if check_trace_rcs(line) and ii != num_lines:
+            next_line = linecache.getline(filename, ii + 1)
+            if check_trace_txs(next_line):
+                txs_line_start = ii + 1
+                break
+
+    return txs_line_start
+
+
+def obtain_file_end(filename: str) -> int:
+    """
+    Obtain the end line number for txs information in a given file. We
+    consider statistical data only until this line.
+
+    Parameters
+    ----------
+    filename : str
+        Directory location of data file.
+
+
+    Returns
+    -------
+    txs_line_end: int
+
+    """
+    num_lines = sum(1 for line in open(filename, mode="r"))
+
+    txs_line_end = num_lines
+
+    for ii in range(num_lines, -1, -1):
+        line = linecache.getline(filename, ii)
+        if check_trace_txs(line) and ii != 1:
+            previous_line = linecache.getline(filename, ii - 1)
+            if check_trace_rcs(previous_line):
+                txs_line_end = ii - 1
+                break
+
+    return txs_line_end
+
+
+
 
 
 def _obtain_valid_txs_line_ind(filename: dir):
@@ -259,24 +322,20 @@ def obtain_timestamps_df(filename: str):
         DESCRIPTION.
 
     """
-    valid_line_ind = _obtain_valid_stat_line_ind(filename)
-    timestamp_array = np.empty((len(valid_line_ind), 1), dtype="<U21")
+    
+    traceline_start = obtain_file_start(filename)
+    traceline_end = obtain_file_end(filename)
+    timestamps = []
+    
+    for ii in range(traceline_start, traceline_end + 1, 1):
+        line = linecache.getline(filename, ii)
+        
+        if check_trace_txs(line) or check_trace_rcs(line):
+            fields = line.split(sep=";")    
+            timestamp = int(fields[1],16)
+            timestamps.append(timestamp)
 
-    for ii in range(len(valid_line_ind)):
-        line = linecache.getline(filename, valid_line_ind[ii])
-        fields = line.split(sep=";")
-        timestamp_ns = int(fields[1] + fields[2])
-
-        timestamp_array[ii] = timestamp_ns
-
-    timestamp_df = pd.DataFrame(
-        timestamp_array,
-        columns=[
-            "timestamp_ns",
-        ],
-    )
-
-    return timestamp_df
+    return timestamps
 
 
 def obtain_rates(filename: str):

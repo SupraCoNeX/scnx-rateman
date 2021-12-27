@@ -6,6 +6,7 @@ import signal
 import sys
 
 
+
 __all__ = ["timedInput", "get_path_arg", "get_duration_arg"]
 
 

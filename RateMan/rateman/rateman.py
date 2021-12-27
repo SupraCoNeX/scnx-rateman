@@ -109,7 +109,7 @@ class RateMan:
 
         pass
 
-    def start(self, duration: float, notify: bool, output_dir: str = "") -> None:
+    def start(self, duration: float, notify: bool = False, output_dir: str = "") -> None:
         """
         Start monitoring of TX Status (txs) and Rate Control Statistics
         (rc_stats). Send notification about the experiment from RateMan
