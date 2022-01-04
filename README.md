@@ -1,3 +1,10 @@
+```
+ __                             
+ )_)  _  _)_   _   )\/)  _   _  
+/ \  (_( (_   )_) (  (  (_( ) ) 
+             (_                 
+```
+
 # Rate Manager
 
 The RateManager or simply RateMan provides a Python-based package for
