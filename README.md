@@ -5,11 +5,15 @@
              (_                 
 ```
 
-**...provides a user-space API to annotate IEEE 8021.11 transmit rate & power values per packet, hence per connected STA**
+**...provides a user-space API to annotate IEEE 8021.11 transmit rate & power per packet, hence per connected STA**
 
 ### RateMan - user-space API for in-Kernel Rate & Transmit Power Control (RC & TPC)
 
-RateMan provides a Linux kernel API Python-based package for
+RateMan provides a ```mac802.11 kernel <-> user-space``` API to control per packet rate & transmit power ressource allocations.
+
+RateMans core components are:
+- 
+Based on OpenWrt Linux kernel patches and patchset to enable in OpenWrt that exports Python-based package for
  - Monitoring of status through TX status (`txs`), Received Signal Strength Indicator (`rxs`), and Rate control statistics (`rcs`) information of one or more access points in a network.
  - Rate control through setting of appropriate MCS Rate per client/station per access point.
  - Data collection and management from network measurements.
