@@ -123,10 +123,16 @@ def start_radios(APID, rateMan: object):
         cmd = phy + cmd_footer
         writer.write(cmd.encode("ascii") + b"\n")
 
+    cmd_footer = ";dump"
+    for phy in phy_list:
+        cmd = phy + cmd_footer
+        writer.write(cmd.encode("ascii") + b"\n")
+
     cmd_footer = ";start;stats;txs"
     for phy in phy_list:
         cmd = phy + cmd_footer
         writer.write(cmd.encode("ascii") + b"\n")
+
 
 async def meas_timer(rateMan: object, duration):
     """
@@ -158,6 +164,7 @@ async def meas_timer(rateMan: object, duration):
             break
     await stop_rateman(rateMan)
 
+
 def setup_monitoring_tasks(rateMan: object, output_dir):
     """
     This function, for each AP, calls the recv_data function.
@@ -185,6 +192,7 @@ def setup_monitoring_tasks(rateMan: object, output_dir):
                 handle_initial_disconnect(APID, rateMan, output_dir)
             )
 
+
 async def handle_initial_disconnect(APID: str, rateMan: object, output_dir):
     """
     This async function retries connecting to APs that weren't succesfully
@@ -202,34 +210,37 @@ async def handle_initial_disconnect(APID: str, rateMan: object, output_dir):
     Returns
     -------
     None.
+
     """
     await handle_ap_disconn(APID, rateMan, output_dir, prev_conn=False)
     await recv_data(APID, rateMan, output_dir)
 
 
-async def handle_ap_disconn(APID: str, rateMan: object, output_dir, prev_conn, reconn_delay=20):
+async def handle_ap_disconn(
+    APID: str, rateMan: object, output_dir, prev_conn, reconn_delay=20
+):
     """
     This async function handles disconnect from AP and skips headers when
     reading from the ReaderStream again.
 
     Parameters
     ----------
-    ap_info : dictionary
-        contains parameters such as ID, IP Address, Port, relevant file
-        streams and connection status of an AP
+    APID : str
+        ID of the Access Point
+    rateMan: object
+        Instance of RateMan class
     output_dir : str
         the main directory where results of the experiment are stored
+    prev_conn: bool
+        specifies whether the connection has been established before. This
+        determines whether to remove headers or not
     reconn_delay: int
         time delay between consecutive reconnection attempts
-    prev_conn: bool
-        specifies whether the connection has been established before or
-        not. This determines whether to remove headers or not.
 
     Returns
     -------
-    ap_info : dictionary
-        contains parameters such as ID, IP Address, Port, relevant file
-        streams and connection status of an AP
+    None.
+
     """
 
     if prev_conn is True:
@@ -241,14 +252,13 @@ async def handle_ap_disconn(APID: str, rateMan: object, output_dir, prev_conn, r
 
     while rateMan.get_conn(APID) is not True:
         await asyncio.sleep(reconn_delay)
-        ap_info = await connect_AP(APID, rateMan, output_dir)
+        await connect_AP(APID, rateMan, output_dir)
 
     start_radios(APID, rateMan)
 
     if prev_conn is True:
         await remove_headers(APID, rateMan, output_dir)
 
-    return ap_info
 
 async def recv_data(APID: str, rateMan: object, output_dir, reconn_time=600):
     """
@@ -264,8 +274,8 @@ async def recv_data(APID: str, rateMan: object, output_dir, reconn_time=600):
     output_dir : str
         the main directory where results of the experiment are stored
     reconn_time : int
-        duration for readline timeout after which reconnection to a currently
-        inactive AP is attempted.
+        timeout duration for readline after which reconnection to an AP
+        is attempted.
 
     Returns
     -------
@@ -289,9 +299,7 @@ async def recv_data(APID: str, rateMan: object, output_dir, reconn_time=600):
 
             # Reading empty string means rateman is no longer connected to AP
             if not len(dataLine):
-                ap_info = await handle_ap_disconn(
-                    APID, rateMan, output_dir, prev_conn=True
-                )
+                await handle_ap_disconn(APID, rateMan, output_dir, prev_conn=True)
             else:
                 fileHandle.write(dataLine)
 
@@ -299,11 +307,11 @@ async def recv_data(APID: str, rateMan: object, output_dir, reconn_time=600):
             pass
 
         except (ConnectionError, asyncio.TimeoutError):
-            ap_info = await handle_ap_disconn(APID, rateMan, output_dir, prev_conn=True)
+            await handle_ap_disconn(APID, rateMan, output_dir, prev_conn=True)
             continue
 
 
-def detect_txs_lines(APID, rateMan, dataLine):
+def detect_txs_lines(APID: str, rateMan: object, dataLine):
     """
     This function updates the stats (success and attempts) for rates listed in the txs
     lines.
@@ -312,10 +320,14 @@ def detect_txs_lines(APID, rateMan, dataLine):
     ----------
     APID : str
         ID of the Access Point associated with the txs_line
-    rateMan : str
-        the main directory where results of the experiment are stored
+    rateMan : object
+        Instance of RateMan class
     dataLine:
         data line recevied from the AP
+
+    Returns
+    -------
+    None.
 
     """
 
@@ -326,38 +338,43 @@ def detect_txs_lines(APID, rateMan, dataLine):
     client_MAC = txs_line[3]
     data_frames_dec = int(txs_line[4], 16)
 
-    rate_count_raw = [txs_line[index] for index in range(7, len(txs_line))]
-    rate_count = list(map(lambda x: x.split(","), rate_count_raw))
+    # Current implementation requires rate-count info to start from 8th position
+    rate_count_raw = txs_line[7:]
+    rate = rate_count_raw[0::2]
+    count = rate_count_raw[1::2]
+    rate_count = list(zip(rate, count))
 
     try:
         while True:
-            rate_count.remove(["ffff", "0"])
+            rate_count.remove(("ffff", "0"))
     except ValueError:
         pass
 
     len_rates = len(rate_count)
 
-    for i, rate_attempt in enumerate(list(rate_count)):
+    for i, rate_attempt in enumerate(rate_count):
         rate, count = rate_attempt
         if len(rate) == 1:
             rate = "0" + rate
 
-        client_info = rateMan.clients[APID][client_MAC]
-        supp_rates = client_info["supp_rates"]
+        supp_rates = rateMan.get_suppRates_client(APID, client_MAC)
+
+        if not supp_rates:
+            return
 
         if rate in supp_rates:
 
             count_dec = int(count, 16)
 
-            if rate in supp_rates:
-                attempts = supp_rates[rate]["attempts"] + (count_dec * data_frames_dec)
-                rateMan.update_attempts(APID, client_MAC, rate, attempts)
+            attempts = supp_rates[rate]["attempts"] + (count_dec * data_frames_dec)
+            rateMan.update_attempts(APID, client_MAC, rate, attempts)
 
-                # If it is last rate_count, we know this was the successful one
-                if i + 1 == len_rates:
-                    num_ack_frame = txs_line[5]
-                    success = supp_rates[rate]["success"] + int(num_ack_frame, 16)
-                    rateMan.update_success(APID, client_MAC, rate, success)
+            # If it is the last rate_count pair, thenit was successful
+            if i + 1 == len_rates:
+                num_ack_frame = txs_line[5]
+                success = supp_rates[rate]["success"] + int(num_ack_frame, 16)
+                rateMan.update_success(APID, client_MAC, rate, success)
+
         else:
             logging.info(
                 "TXS line with unsupported rate for",
@@ -378,22 +395,30 @@ def detect_sta_lines(APID: str, rateMan: object, dataLine):
     ----------
     APID : str
         ID of the Access Point associated with the sta_line
-    rateMan : str
-        the main directory where results of the experiment are stored
+    rateMan : object
+        Instance of RateMan class
     dataLine:
         data line recevied from the AP
 
+    Returns
+    -------
+    None.
+
     """
+
     param = dataLine.split(";")
 
     if len(param) > 5 and param[2] == "sta":
         MAC_Add = param[4]
 
-        if param[3] == "add":
-            rates_flag = param[-1].split(",")
+        if param[3] == "add" or param[3] == "dump":
+            phy = param[0]
+            rates_flag = param[7:]
             supp_groupIdx = []
 
-            for i, (groupIdx, max_offset) in enumerate(rateMan.get_suppRates_AP(APID).items()):
+            for i, (groupIdx, max_offset) in enumerate(
+                rateMan.get_suppRates_AP(APID).items()
+            ):
                 # Still need to implement for other masks
                 if rates_flag[i] == "ff":
                     offset = groupIdx + "0"
@@ -402,7 +427,7 @@ def detect_sta_lines(APID: str, rateMan: object, dataLine):
                     supp_groupIdx += [offset[:-1] + str(i) for i in range(no_rates)]
 
             if supp_groupIdx:
-                rateMan.add_station(APID, MAC_Add, supp_groupIdx)
+                rateMan.add_station(APID, MAC_Add, supp_groupIdx, phy)
 
         if param[3] == "remove":
             # rateMan.remove_station(APID, MAC_Add)
@@ -418,35 +443,40 @@ def detect_group_header(APID: str, rateMan: object, dataLine):
     ----------
     APID : str
         ID of the Access Point
-    rateMan : str
-        the main directory where results of the experiment are stored
+    rateMan : object
+        Instance of RateMan class
     dataLine:
         data line recevied from the AP
+
+    Returns
+    -------
+    None.
 
     """
     pattern = "*;0;group;"
 
     if pattern in dataLine:
-        param = dataLine.split(";")
+        param = dataLine.strip("\n").split(";")
+        param = list(filter(None, param))
         groupIdx = param[3]
         offset = param[4]
 
-        no_rates = len(param[-1].split(","))
-        max_offset = offset[:-1] + str(no_rates)
+        max_offset = offset[:-1] + str(len(param[9:]) - 1)
         rateMan.add_suppRate_AP(APID, groupIdx, max_offset)
 
 
-async def remove_headers(APID, rateMan, output_dir):
+async def remove_headers(APID: str, rateMan: object, output_dir):
     """
     This async function for a reconnected AP skips writing format header
     to the data file again.
 
     Parameters
     ----------
-    ap_info : dictionary
-        contains parameters such as ID, IP Address, Port, relevant file
-        streams and connection status of an AP
-    output_dir : str
+    APID : str
+        ID of the Access Point
+    rateMan : object
+        Instance of RateMan class
+    output_dir:
         the main directory where results of the experiment are stored
 
     Returns
@@ -516,11 +546,8 @@ async def stop_rateman(rateMan: object, stop_cmd: bool = True):
 
     Parameters
     ----------
-    net_info : dictionary
-        contains parameters such as ID, IP Address, Port, relevant file
-        streams and connection status with each AP as key
-    loop : event_loop
-        DESCRIPTION.
+    rateMan : object
+        Instance of RateMan class
     stop_cmd : bool
         if True, it indicates that stop command for TX and rc status must
         be executed before stopping the program

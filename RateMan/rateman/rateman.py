@@ -80,10 +80,11 @@ class RateMan:
         status = net_info[APID]["conn"]
         return status
 
-    def add_station(self, APID: str, client_MAC: str, supp_rates: list):
+    def add_station(self, APID: str, client_MAC: str, supp_rates: list, phy: str):
         """
         Adds MACID (client), its supported rates and attempts and success for
-        each rate to the client data strucutre
+        each supported rate index, and associated phy_id to the clients data 
+        structure.
 
         Parameters
         ----------
@@ -93,6 +94,8 @@ class RateMan:
             MACID of the client
         supp_rates : list
             list of rates supported by the client
+        phy: str
+            phy identifier associated with the MAC address
 
         Returns
         -------
@@ -117,8 +120,9 @@ class RateMan:
                 client_info["supp_rates"].update(init_rates)
             else:
                 init_supp_rates.update({"supp_rates": init_rates})
-                init_client.update({client_MAC: init_supp_rates})
                 self._clients[APID].update({client_MAC: init_supp_rates})
+
+        self._clients[APID][client_MAC].update({"phy": phy})
 
     def remove_station(self, APID: str, client_MAC: str):
         if APID in self._clients:
@@ -126,6 +130,42 @@ class RateMan:
 
     def get_suppRates_AP(self, APID):
         return self.accesspoints[APID]["supp_rates"]
+
+    def get_suppRates_client(self, APID, client_MAC):
+        """
+        Given an APID and MAC Address, this function returns the supported
+        rate of that client MAC.
+
+        Parameters
+        ----------
+        APID: str
+            ID of the Access Point associated with the client MAC
+        client_MAC : str
+            MACID of the client
+
+        Returns
+        -------
+        None.
+
+        """
+        if APID not in self._clients:
+            print(
+                APID,
+                "didn't show any active clients during initial dump but rcd is sending txs_lines for",
+                client_MAC,
+            )
+        else:
+            if client_MAC not in self._clients[APID]:
+                print(
+                    client_MAC,
+                    "is not in the list of connected clients for",
+                    APID,
+                    "but rcd is sending txs_lines for it",
+                )
+            else:
+                client_info = self._clients[APID][client_MAC]
+                supp_rates = client_info["supp_rates"]
+                return supp_rates
 
     def add_suppRate_AP(self, APID, groupIdx, max_offset):
         if groupIdx not in self._accesspoints[APID]["supp_rates"]:
@@ -145,7 +185,7 @@ class RateMan:
         rate : str
             rate index
         attempts: int
-            number of attempts to be updated
+            the updated number of attempts
 
         Returns
         -------
@@ -169,8 +209,8 @@ class RateMan:
             MACID of the client
         rate : str
             rate index
-        attempts: int
-            number of attempts to be updated
+        success: int
+            updated number of successes
 
         Returns
         -------
@@ -186,7 +226,7 @@ class RateMan:
         Function to add a list of access points available in a network.
         Each access point has given a unique ID and relevant information
         is organized as a dict in the Rate Manager object as the
-        the 'accesspoints' variable.
+        'accesspoints' variable.
 
         Parameters
         ----------
@@ -223,19 +263,13 @@ class RateMan:
 
     def load_mcsRates(self, file):
         """
-        Loads the RC_idx to MCS index conversion file into the mcsRates
+        Loads the RC_idx to rate in megabit conversion file into the mcsRates
         data structure
 
         Parameters
         ----------
-        APID: str
-            ID of the Access Point associated with the client MAC
-        client_MAC : str
-            MACID of the client
-        rate : str
-            rate index
-        attempts: int
-            number of attempts to be updated
+        file: str
+            filename which contains RC_idx to rate in megabit information
 
         Returns
         -------
@@ -279,7 +313,8 @@ class RateMan:
 
         duration: float
             time duration for which the data from APs has to be collected
-
+        rateMan: object
+            Instance of RateMan class
         output_dir : str
             directory to which parsed data is saved
 
@@ -346,8 +381,6 @@ class RateMan:
 
     def _enableMinstrelRCD(self, SSHClient: object) -> None:
         """
-
-
         Parameters
         ----------
         SSHClient : object
@@ -388,5 +421,5 @@ class RateMan:
         # Marking end of notification for readability
         text += "\n--------------------------------------------"
         for chat_id in chat_ids:
-            # bot.sendMessage(chat_id=chat_id, text=text)
+            #bot.sendMessage(chat_id=chat_id, text=text)
             pass

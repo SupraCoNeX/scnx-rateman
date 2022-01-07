@@ -44,6 +44,10 @@ async def connect_AP(APID: str, rateMan: object, output_dir):
     output_dir : str
         the main directory where results of the experiment are stored
 
+    Returns
+    -------
+    None.
+
     """
 
     net_info = rateMan.accesspoints
@@ -70,7 +74,7 @@ async def connect_AP(APID: str, rateMan: object, output_dir):
         rateMan.set_reader_stream(APID, reader)
         rateMan.set_conn(APID, status=True)
 
-    except (asyncio.TimeoutError, ConnectionError) as e:
+    except (asyncio.TimeoutError, ConnectionError, OSError) as e:
         # Incase of a connection error or if the timeout duration is exceeded
         logging.error(
             "Failed to connect {} : {} {} -> {}".format(
@@ -125,7 +129,7 @@ def obtain_SSHClient(SSHHost: str, SSHPort: int, SSHUsr: str, SSHPass: str) -> o
 
     Returns
     -------
-    object
+    SSHClient: object
         SSH client object.
 
     """
@@ -170,7 +174,7 @@ def getPhyList(SSHClient: object) -> list:
 
     Returns
     -------
-    list
+    phy_list: list
         List containing Phy ID strings.
 
     """
@@ -201,7 +205,7 @@ def getWLANList(SSHClient: object) -> list:
 
     Returns
     -------
-    list
+    wlan_list: list
         List containing WLAN device ID strings.
 
     """
@@ -234,8 +238,9 @@ def getStationList(APInfo: dict) -> None:
 
     Returns
     -------
-    None
-
+    APInfo: dict
+        Dictionary with information about available access points added
+        with list of stations.
     """
 
     APIDs = list(APInfo.keys())
