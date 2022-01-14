@@ -419,12 +419,18 @@ def detect_sta_lines(APID: str, rateMan: object, dataLine):
             for i, (groupIdx, max_offset) in enumerate(
                 rateMan.get_suppRates_AP(APID).items()
             ):
-                # Still need to implement for other masks
-                if rates_flag[i] == "ff":
+                # Only works for all masks with ff at the end, eg. 1ff, 3ff, ff
+                if 'ff' in rates_flag[i]:
+                    dec_mask = int(rates_flag[i], base=16)
+                    bin_mask = str(bin(dec_mask))[2:]
+                    no_supp_rates = bin_mask.count('1')
+
                     offset = groupIdx + "0"
                     no_rates = int(max_offset[-1]) + 1
 
-                    supp_groupIdx += [offset[:-1] + str(i) for i in range(no_rates)]
+                    # Making sure no of 1s in bit mask isn't greater than rates in that group index
+                    if no_supp_rates <= no_rates:
+                        supp_groupIdx += [offset[:-1] + str(i) for i in range(no_supp_rates)]
 
             if supp_groupIdx:
                 rateMan.add_station(APID, MAC_Add, supp_groupIdx, phy)
