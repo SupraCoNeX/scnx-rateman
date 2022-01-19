@@ -35,8 +35,7 @@ def check_trace_txs(line: str):
 
     """
 
-    exp_num_fields = 11
-    num_elem = 2
+    exp_num_fields = 15
     fields = line.split(sep=";")
 
     valid_txs = False
@@ -46,9 +45,7 @@ def check_trace_txs(line: str):
         and line.find("txs") != -1
         and exp_num_fields == len(fields)
     ):
-        for ii in range(7, 11, 1):
-            if len(fields[ii].split(",")) == num_elem:
-                valid_txs = True
+        valid_txs = True
 
     return valid_txs
 
