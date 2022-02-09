@@ -22,6 +22,7 @@ import json
 import telegram
 import os
 
+from .utils import get_curr_time_ms
 
 __all__ = ["RateMan"]
 
@@ -105,7 +106,7 @@ class RateMan:
         init_client = dict()
         init_supp_rates = dict()
         init_rates = dict()
-        init_stats = {"attempts": 0, "success": 0}
+        init_stats = {"attempts": 0, "success": 0, "last_updated": get_curr_time_ms()}
 
         for rate in supp_rates:
             init_rates.update({rate: init_stats.copy()})
@@ -195,6 +196,7 @@ class RateMan:
         client_info = self._clients[APID][client_MAC]
         rate_stat = client_info["supp_rates"][rate]
         rate_stat["attempts"] = attempts
+        rate_stat["last_updated"] = get_curr_time_ms()
 
     def update_success(self, APID, client_MAC, rate, success):
         """
@@ -218,8 +220,9 @@ class RateMan:
 
         """
         client_info = self._clients[APID][client_MAC]
-        rate = client_info["supp_rates"][rate]
-        rate["success"] = success
+        rate_stat = client_info["supp_rates"][rate]
+        rate_stat["success"] = success
+        rate_stat["last_updated"] = get_curr_time_ms()
 
     def addaccesspoints(self, ap_list_filename: dir) -> None:
         """
@@ -276,7 +279,7 @@ class RateMan:
         None.
 
         """
-        path = os.path.dirname(__file__) + file
+        path = os.path.dirname(__file__) + "/" + file
 
         with open(path, newline="") as csvfile:
             dataRows = csv.reader(csvfile, delimiter=";")
@@ -299,8 +302,27 @@ class RateMan:
                     }
                     self._mcsRates.update({groupIdx: group_info})
 
-    def mcsIdx_to_rate(mcsIdx):
-        pass
+    def mcsIdx_to_rate(self, mcsIdx: str):
+
+        if len(mcsIdx) < 2:
+            print("MCS Index must be of at least two characters!")
+
+        groupIdx = mcsIdx[:-1]
+        local_offset = int(mcsIdx[-1])
+        conv_table = self._mcsRates
+
+        try:
+            rates = conv_table[groupIdx]["allRates"]
+            data_rate = rates[local_offset]
+            
+            print("MCS Rate ", mcsIdx, "is equal to", data_rate, "Mbps")
+
+            if data_rate != "nan":
+                return data_rate
+            raise KeyError
+
+        except KeyError:
+            print("Provided MCS Index is invalid!")
 
     def start(self, duration: float, rateMan: object, output_dir: str = "") -> None:
         """
@@ -339,7 +361,7 @@ class RateMan:
 
         self._notify(text_start)
 
-        #self.load_mcsRates("rates.csv")
+        self.load_mcsRates("rates.csv")
 
         time_start = datetime.now()
 

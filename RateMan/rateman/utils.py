@@ -9,7 +9,7 @@ import logging
 import asyncio
 
 
-__all__ = ["timedInput", "get_path_arg", "get_duration_arg"]
+__all__ = ["timedInput", "get_path_arg", "get_duration_arg", "get_curr_time_ms"]
 
 
 def _convert_timestamps_to_datetime(df):
@@ -75,3 +75,7 @@ def get_duration_arg(parser):
             print("Oops! Time duration cannot be negative.")
     else:
         print("Argument for duration not found.")
+
+def get_curr_time_ms():
+    timestamp = int(round(time.time() * 1000))
+    return timestamp
