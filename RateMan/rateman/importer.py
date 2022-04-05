@@ -16,7 +16,14 @@ import numpy as np
 from .errors import *
 
 
-__all__ = ["obtain_txs_df", "obtain_rcs_df", "obtain_timestamps_df", "obtain_rates", "obtain_file_start", "obtain_file_end"]
+__all__ = [
+    "obtain_txs_df",
+    "obtain_rcs_df",
+    "obtain_timestamps_df",
+    "obtain_rates",
+    "obtain_file_start",
+    "obtain_file_end",
+]
 
 
 class DebugException(Exception):
@@ -81,9 +88,6 @@ def obtain_file_end(filename: str) -> int:
                 break
 
     return txs_line_end
-
-
-
 
 
 def _obtain_valid_txs_line_ind(filename: dir):
@@ -322,17 +326,17 @@ def obtain_timestamps_df(filename: str):
         DESCRIPTION.
 
     """
-    
+
     traceline_start = obtain_file_start(filename)
     traceline_end = obtain_file_end(filename)
     timestamps = []
-    
+
     for ii in range(traceline_start, traceline_end + 1, 1):
         line = linecache.getline(filename, ii)
-        
+
         if check_trace_txs(line) or check_trace_rcs(line):
-            fields = line.split(sep=";")    
-            timestamp = int(fields[1],16)
+            fields = line.split(sep=";")
+            timestamp = int(fields[1], 16)
             timestamps.append(timestamp)
 
     return timestamps

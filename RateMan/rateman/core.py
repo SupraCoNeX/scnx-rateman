@@ -92,7 +92,7 @@ async def setup_rateman_tasks(net_info, loop, duration=10, output_dir=""):
 def setup_data_dir(output_dir):
 
     if len(output_dir) == 0:
-        if not os.path.exists('data'):
+        if not os.path.exists("data"):
             os.mkdir("data")
         output_dir = os.path.join(os.getcwd(), "data")
 

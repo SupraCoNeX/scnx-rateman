@@ -12,17 +12,13 @@ in different modules.
 
 """
 import csv
-import numpy as np
-from .connman import *
-from .core import *
-import io
 from datetime import datetime
-import paramiko
 import asyncio
 import json
 import telegram
 import os
-
+from .accesspoint import Accesspoint
+from .manage_asyncio import *
 
 __all__ = ["RateMan"]
 
@@ -30,9 +26,10 @@ __all__ = ["RateMan"]
 class RateMan:
     def __init__(self) -> None:
 
+        self._net_info = {}
+        self._ap_handles = {}
         self._accesspoints = {}
-        self._txsDataFrame = []
-        self._rcstats = []
+        self._meas_info = ""
 
         self._loop = asyncio.get_event_loop()
 
@@ -50,7 +47,7 @@ class RateMan:
 
         return self._accesspoints
 
-    def addaccesspoints(self, ap_list_filename: dir) -> None:
+    def add_ap_list(self, ap_list_filename: dir) -> None:
         """
         Function to add a list of access points available in a network.
         Each access point has given a unique ID and relevant information
@@ -70,46 +67,26 @@ class RateMan:
         self._ap_list_filename = ap_list_filename
         with open(ap_list_filename, newline="") as csvfile:
             reader = csv.DictReader(csvfile)
-            for currentAP in reader:
+            for cur_AP in reader:
 
-                APID = currentAP["APID"]
-                IPAdd = currentAP["IPADD"]
-                portSSH = int(currentAP["PORT"])
-                portMinstrel = 21059  # default port for Minstrel-RCD
+                AP_ID = cur_AP["APID"]
+                AP_IP = cur_AP["IPADD"]
+                AP_SSH_port = int(cur_AP["PORT"])
+                AP_MinstrelRCD_port = 21059
 
-                self._accesspoints[APID] = APID
-                self._accesspoints[APID] = currentAP
-                self._accesspoints[APID]["PORT"] = portSSH
-                self._accesspoints[APID]["MPORT"] = portMinstrel
+                self._net_info[AP_ID] = AP_ID
+                self._net_info[AP_ID] = cur_AP
+                self._net_info[AP_ID]["SSHPORT"] = AP_SSH_port
+                self._net_info[AP_ID]["MPORT"] = AP_MinstrelRCD_port
 
-                # phy list is hard-coded -> ToDo: obtain list automatically
-                # using getPhyList function
-                self._accesspoints[APID]["phyList"] = ["phy0", "phy1"]
-
-        pass
-
-    def _enableMinstrelRCD(self, SSHClient: object) -> None:
-        """
-
-
-        Parameters
-        ----------
-        SSHClient : object
-            SSH client object for a given access point.
-
-        Returns
-        -------
-        None
-            DESCRIPTION.
-
-        """
-
-        cmd = "minstrel-rcd -h 0.0.0.0 &"
-        execute_command_SSH(SSHClient, cmd)
+                AP_handle = Accesspoint(AP_ID, AP_IP, AP_SSH_port, AP_MinstrelRCD_port)
+                self._ap_handles[AP_ID] = AP_handle
 
         pass
 
-    def start(self, duration: float, notify: bool = False, output_dir: str = "") -> None:
+    def start(
+        self, duration: float, notify: bool = False, output_dir: str = ""
+    ) -> None:
         """
         Start monitoring of TX Status (txs) and Rate Control Statistics
         (rc_stats). Send notification about the experiment from RateMan
@@ -145,17 +122,14 @@ class RateMan:
             )
 
             self._notify(text_start)
-
             time_start = datetime.now()
 
         self._loop.create_task(
-            setup_rateman_tasks(self._accesspoints, self._loop, duration, output_dir)
+            setup_ap_tasks(self._ap_handles, self._loop, duration, output_dir)
         )
-
         try:
             self._loop.run_forever()
         finally:
-            # Notify RateMan telegram bot to send text_end to chat_ids in keys.json
             if notify:
                 elapsed_time = datetime.now() - time_start
                 text_end = (
@@ -165,7 +139,6 @@ class RateMan:
                     + "\n"
                 )
 
-                # If RateMan stopped earlier than the specified duration
                 if elapsed_time.total_seconds() < duration:
                     text_end += (
                         "Error: RateMan stopped before the specified time duration of "
@@ -206,19 +179,17 @@ class RateMan:
 
         original_cwd = os.getcwd()
 
-        # Change working directory to rateman
         dirpath = os.path.dirname(__file__)
         os.chdir(dirpath)
 
-        with open('../docs/keys.json', 'r') as telegram_keys:
+        with open("../docs/keys.json", "r") as telegram_keys:
             keys = json.load(telegram_keys)
-            bot_token = keys['bot_token']
+            bot_token = keys["bot_token"]
             bot = telegram.Bot(token=bot_token)
 
-            # Marking end of notification for readability
             text += "\n--------------------------------------------"
-            
-            for chat_id in keys['chat_ids']:
+
+            for chat_id in keys["chat_ids"]:
                 bot.sendMessage(chat_id=chat_id, text=text)
-        
+
         os.chdir(original_cwd)
