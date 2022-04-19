@@ -12,28 +12,30 @@ This class provides ...
 """
 import asyncio
 import logging
+import manage_line
+from .station import Station
 
-__all__ = ["Accesspoint"]
+__all__ = ["AccessPoint"]
 
 
-class Accesspoint:
+class AccessPoint:
     def __init__(self, AP_ID, AP_IP, AP_SSH_port, AP_MinstrelRCD_port=21059) -> None:
 
         self._AP_ID = AP_ID
         self._AP_IP = AP_IP
         self._AP_SSH_port = AP_SSH_port
         self._AP_MinstrelRCD_port = AP_MinstrelRCD_port
-        self._supp_rates = ""
-        self._sta_list_all = []
-        self._sta_list_active = []
+        self._supp_rates = {}
         self._phy_list = ["phy0", "phy1"]
+        self._sta_list_all = {}.fromkeys(self._phy_list, {})
+        self._sta_list_active = {}.fromkeys(self._phy_list, {})
         self._connection = False
 
     @property
     def stations(self) -> dict:
         # list of clients for a given AP at a given radio
 
-        return 0
+        pass
 
     @property
     def accesspoints(self) -> dict:
@@ -43,7 +45,7 @@ class Accesspoint:
 
         return self._accesspoints
 
-    def add_station(self, sta_IP) -> None:
+    def add_station(self, sta_info) -> None:
         """
 
 
@@ -58,6 +60,16 @@ class Accesspoint:
             DESCRIPTION.
 
         """
+
+        for phy in self._phy_list:
+            if sta_info["radio"] == phy:
+                if sta_info["mac_addr"] not in list(self._sta_list_active[phy].keys()):
+                    self._sta_list_active[phy][sta_info["mac_addr"]] = Station(
+                        sta_info["radio"],
+                        sta_info["mac_addr"],
+                        sta_info["sup_rates"],
+                        sta_info["timestamp"],
+                    )
 
         pass
 
@@ -139,6 +151,20 @@ class Accesspoint:
             self._writer.write(cmd.encode("ascii") + b"\n")
 
     async def set_rate(ap_handles) -> None:
+        """
+
+
+        Parameters
+        ----------
+        ap_handles : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None
+            DESCRIPTION.
+
+        """
 
         try:
             print("in rate setter")
@@ -164,3 +190,23 @@ class Accesspoint:
         except KeyboardInterrupt:
             pass
         writer.close()
+
+    def add_sup_rates(self, group_idx, max_offset):
+        """
+
+
+        Parameters
+        ----------
+        group_idx : TYPE
+            DESCRIPTION.
+        max_offset : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        """
+        if group_idx not in self._supp_rates:
+            self.supp_rates.update({group_idx: max_offset})
+        pass

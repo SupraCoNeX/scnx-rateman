@@ -17,49 +17,42 @@ __all__ = ["Station"]
 
 
 class Station:
-    def __init__(self) -> None:
+    def __init__(self, radio, mac_addr, sup_rates, timestamp) -> None:
 
-        self._sta_ID = ""
-        self._sta_IP = ""
-        self._sup_rates = {}
-        self._cur_ts = ""
-        self._sta_cur_stats = {}  # {rate: {cur_atmp, cur_succ}}
+        self._radio = radio
+        self._mac_addr = mac_addr
+        self._sup_rates = sup_rates
+        self._latest_timestamp = timestamp
+        self._stats = {}  # {rate: {timestamp, cur_atmp, cur_succ}}
 
         self._loop = asyncio.get_event_loop()
 
-    @property
-    def stations(self) -> dict:
-        # list of clients for a given AP at a given radio
-
-        return 0
 
     @property
-    def accesspoints(self) -> dict:
-        # provides a list of access points in the network
-        # dict with APID keys, with each key having a dict with radios,
-        # which is also a dict with clients
+    def latest_timestamp(self) -> str:
 
-        return self._accesspoints
+        return self._latest_timestamp
 
-    def update_stats(self, sta_IP, new_stats) -> None:
+    def update_stats(self, new_stats: dict) -> None:
         """
-        Start monitoring of TX Status (txs) and Rate Control Statistics
-        (rc_stats). Send notification about the experiment from RateMan
-        Telegram Bot.
+
 
         Parameters
         ----------
 
-        duration: float
-            time duration for which the data from APs has to be collected
+        new_stats: dict
 
-        output_dir : str
-            directory to which parsed data is saved
 
         Returns
         -------
         None.
 
         """
+
+        for rate in new_stats.keys():
+            timestamp = new_stats[rate]["timestamp"]
+            self._stats[rate] = new_stats[rate]
+            if timestamp > self._latest_timestamp:
+                self._latest_timestamp = timestamp
 
         pass

@@ -16,6 +16,7 @@ import time
 import asyncio
 import os
 import logging
+import manage_line
 
 __all__ = [
     "setup_ap_tasks",
@@ -72,8 +73,8 @@ async def setup_ap_tasks(ap_handles, duration=10, output_dir=""):
     if _check_net_conn(ap_handles):
 
         timer = loop.create_task(meas_timer(duration))
-        setup_collect_tasks(ap_handles, loop, output_dir)
-        loop.retry_conn(ap_handles, loop)
+        setup_collect_tasks(ap_handles, output_dir)
+        retry_conn(ap_handles, loop)
         await timer
         await stop_rateman(ap_handles)
     else:
@@ -166,14 +167,15 @@ async def collect_data(ap_handle, reconn_time=600):
     while True:
         try:
             reader = ap_handle.reader
-            fileHandle = ap_handle.fileHandle
+            file_handle = ap_handle.file_handle
 
-            dataLine = await asyncio.wait_for(reader.readline(), reconn_time)
+            data_line = await asyncio.wait_for(reader.readline(), reconn_time)
 
-            if not len(dataLine):
+            if not len(data_line):
                 ap_handle.connection = False
             else:
-                fileHandle.write(dataLine.decode("utf-8"))
+                manage_line.process_line(ap_handle, data_line)
+                file_handle.write(data_line.decode("utf-8"))
 
         except KeyboardInterrupt:
             pass
@@ -211,9 +213,9 @@ async def remove_headers(ap_handle):
             reader = ap_handle.reader
             fileHandle = ap_handle.fileHandle
 
-            dataLine = await asyncio.wait_for(reader.readline(), timeout=1)
+            data_line = await asyncio.wait_for(reader.readline(), timeout=1)
 
-            if not len(dataLine):
+            if not len(data_line):
                 ap_handle.connection = False
                 logging.error("Disconnected from {}".format(ap_handle.AP_ID))
                 temp_ap_dict = {}
@@ -221,7 +223,7 @@ async def remove_headers(ap_handle):
                 await reconn_ap_list(temp_ap_dict)
                 break
             else:
-                line = dataLine.decode("utf-8")
+                line = data_line.decode("utf-8")
                 if line[0] != "*":
                     fileHandle.write(line)
                     break

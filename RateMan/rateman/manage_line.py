@@ -6,43 +6,53 @@ This module provides a collection of functions that categorize errors in
 data files and processes data files to produce cleaner data files that can be
 used for analysis.
 """
-import pandas as pd
-import numpy as np
-import linecache
 
 __all__ = [
+    "process_line",
     "check_line_txs",
+    "update_pckt_count_txs",
     "check_line_rcstats",
-    "check_timestamp",
-    "obtain_data_flags",
+    "update_pckt_count_rcs",
+    "check_line_rxs",
+    "check_line_sta_add",
+    "get_sta_info",
+    "check_line_sta_remove",
+    "check_line_group_idx",
+    "get_group_idx_info",
+    "check_line_probe",
 ]
 
 
 def process_line(ap_handle, data_line):
 
-    param_column = 22
+    if data_line.find("group"):
+        if check_line_group_idx(data_line):
+            group_idx, max_offset = get_group_idx_info(data_line)
+            ap_handle.add_supp_rates(group_idx, max_offset)
 
-    if data_line.find("txs") == param_column:
+    elif data_line.find("txs"):
         if check_line_txs(data_line):
             update_pckt_count_txs(data_line, ap_handle)
 
-    elif data_line.find("stats") == param_column:
+    elif data_line.find("stats"):
         if check_line_rcstats(data_line):
             update_pckt_count_rcs(data_line, ap_handle)
 
-    elif data_line.find("rxs") == param_column:
+    elif data_line.find("rxs"):
         if check_line_rxs(data_line):
             pass
 
-    elif data_line.find("sta;add;") == param_column:
+    elif data_line.find("sta;add;"):
         if check_line_sta_add(data_line):
-            update_ap_info(data_line, ap_handle)
+            sta_info = get_sta_info(data_line)
+            ap_handle.add_station(sta_info)
 
-    elif data_line.find("sta;remove;") == param_column:
+    elif data_line.find("sta;remove;"):
         if check_line_sta_remove(data_line):
-            update_ap_info(data_line, ap_handle)
+            ap_handle.remove_station(sta_info)
+        pass
 
-    elif data_line.find("probe;") == param_column:
+    elif data_line.find("probe;"):
         if check_line_probe(data_line):
             pass
 
@@ -83,9 +93,24 @@ def check_line_txs(line: str):
 
 
 def update_pckt_count_txs(data_line, ap_handle):
+    """
+
+
+    Parameters
+    ----------
+    data_line : TYPE
+        DESCRIPTION.
+    ap_handle : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
 
     fields = data_line.split(sep=";")
-    radio_txs = fields[0]
+    radio = fields[0]
     timestamp = fields[1]
     mac_addr = fields[3]
     num_frames = int(fields[4], 16)
@@ -106,31 +131,33 @@ def update_pckt_count_txs(data_line, ap_handle):
     atmpts3 = num_frames * count3
     atmpts4 = num_frames * count4
 
-    atmpts = np.array([atmpts1, atmpts2, atmpts3, atmpts4])
+    atmpts = [atmpts1, atmpts2, atmpts3, atmpts4]
 
-    succ = np.array([0, 0, 0, 0])
+    succ = [0, 0, 0, 0]
 
-    try:
-        suc_rate_ind = np.where(atmpts == 0)[0][0] - 1
-    except:
-        suc_rate_ind = 3
+    suc_rate_ind = 3
+    for atmpt_ind, atmpt in enumerate(atmpts):
+        if atmpt == 0:
+            suc_rate_ind = atmpt_ind - 1
+
     if suc_rate_ind < 0:
         suc_rate_ind = 0
 
     succ[suc_rate_ind] = num_ack
 
-    rates = np.array([rate_ind1, rate_ind2, rate_ind3, rate_ind4])
+    rates = [rate_ind1, rate_ind2, rate_ind3, rate_ind4]
 
     line_dict = {}
 
-    for rate in rates:
-        rateind = np.where(rates == rate)[0]
+    for rate_ind, rate in enumerate(rates):
         if rate != "ffff":
-            line_dict[rate] = {}
-            line_dict[rate]["attempts"] = np.sum(atmpts[rateind])
-            line_dict[rate]["success"] = np.sum(succ[rateind])
+            if rate not in list(line_dict.keys()):
+                line_dict[rate] = {}
+            line_dict[rate]["attempts"] += atmpts[rate_ind]
+            line_dict[rate]["success"] += succ[rate_ind]
+            line_dict[rate]["timestamp"] = timestamp
 
-    ap_handle.sta_list_active[mac_addr].update_stats(line_dict)
+    ap_handle.sta_list_active[radio][mac_addr].update_stats(line_dict)
 
 
 def check_line_rcstats(line: str):
@@ -163,3 +190,146 @@ def check_line_rcstats(line: str):
         valid_rcs = False
 
     return valid_rcs
+
+
+def update_pckt_count_rcs(data_line, ap_handle):
+    """
+
+
+    Parameters
+    ----------
+    line : TYPE
+        DESCRIPTION.
+    rcstats : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    line_dict : TYPE
+        DESCRIPTION.
+    rcstats : TYPE
+        DESCRIPTION.
+
+    """
+
+    fields = data_line.split(sep=";")
+    radio = fields[0]
+    timestamp = fields[1]
+    mac_addr = fields[3]
+    rate = fields[4]
+    cur_succ = fields[7]
+    cur_atmpts = fields[8]
+    hist_succ = fields[9]
+    hist_atmpts = fields[10]
+
+    line_dict = {
+        "timestamp": timestamp,
+        "cur_attempts": int(cur_atmpts, 16),
+        "cur_success": int(cur_succ, 16),
+        "hist_attempts": int(hist_atmpts, 16),
+        "hist_success": int(hist_succ, 16),
+    }
+
+    pass
+
+
+def check_line_rxs(data_line):
+    """
+
+
+    Parameters
+    ----------
+    data_line : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+    pass
+
+
+def check_line_sta_add(data_line):
+    """
+
+    Parameters
+    ----------
+    line : str
+        Single trace line. Expected to either contain 'txs' or 'rcs' trace
+        information. Check if the line contains 'txs' or 'rcs' should be
+        done prior to using this function.
+    Returns
+    -------
+    valid_sta_add : bool
+        True if number of fields in string line equals expected number of fields.
+        False otherwise.
+    """
+
+    valid_sta_add = True
+
+    return valid_sta_add
+
+
+def get_sta_info(data_line):
+    """
+
+
+    Parameters
+    ----------
+    data_line : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    sta_info : TYPE
+        DESCRIPTION.
+
+    """
+
+    sta_info = {}
+    fields = data_line.split(sep=";")
+    sta_info["radio"] = fields[0]
+    sta_info["timestamp"] = fields[1]
+    sta_info["mac_addr"] = fields[4]
+    sta_info["sup_rates"] = ""
+
+    return sta_info
+
+
+def check_line_sta_remove(data_line):
+    pass
+
+
+def check_line_group_idx(data_line):
+
+    if data_line.find(";group;"):
+        return True
+
+
+def get_group_idx_info(data_line):
+
+    fields = data_line.split(";")
+    group_idx = fields[3]
+    offset = fields[4]
+
+    max_offset = offset[:-1] + str(len(fields[9:]) - 1)
+
+    return group_idx, max_offset
+
+
+def check_line_probe(data_line):
+    """
+
+
+    Parameters
+    ----------
+    data_line : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+    pass
