@@ -26,6 +26,8 @@ __all__ = [
 def process_line(ap_handle, data_line):
 
     if data_line.find("group"):
+        print(check_line_group_idx(data_line))
+        print(data_line)
         if check_line_group_idx(data_line):
             group_idx, max_offset = get_group_idx_info(data_line)
             ap_handle.add_supp_rates(group_idx, max_offset)
@@ -298,18 +300,54 @@ def get_sta_info(data_line):
 
 
 def check_line_sta_remove(data_line):
-    pass
+
+    if data_line.find(";sta;remove"):
+        return True
+    else:
+        return False
 
 
 def check_line_group_idx(data_line):
+    """
+
+
+    Parameters
+    ----------
+    data_line : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    bool
+        DESCRIPTION.
+
+    """
 
     if data_line.find(";group;"):
         return True
+    return False
 
 
 def get_group_idx_info(data_line):
+    """
+
+
+    Parameters
+    ----------
+    data_line : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    group_idx : TYPE
+        DESCRIPTION.
+    max_offset : TYPE
+        DESCRIPTION.
+
+    """
 
     fields = data_line.split(";")
+    print(data_line)
     group_idx = fields[3]
     offset = fields[4]
 

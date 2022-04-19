@@ -27,11 +27,75 @@ class Station:
 
         self._loop = asyncio.get_event_loop()
 
-
     @property
     def latest_timestamp(self) -> str:
+        """
+
+
+        Returns
+        -------
+        str
+            DESCRIPTION.
+
+        """
 
         return self._latest_timestamp
+
+    @property
+    def radio(self) -> str:
+        """
+
+
+        Returns
+        -------
+        str
+            DESCRIPTION.
+
+        """
+
+        return self._radio
+
+    @property
+    def sup_rates(self) -> list:
+        """
+
+
+        Returns
+        -------
+        list
+            DESCRIPTION.
+
+        """
+
+        return self._sup_rates
+
+    @property
+    def mac_addr(self) -> str:
+        """
+
+
+        Returns
+        -------
+        str
+            DESCRIPTION.
+
+        """
+
+        return self._mac_addr
+
+    @property
+    def stats(self) -> dict:
+        """
+
+
+        Returns
+        -------
+        str
+            DESCRIPTION.
+
+        """
+
+        return self._stats
 
     def update_stats(self, new_stats: dict) -> None:
         """

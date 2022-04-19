@@ -12,7 +12,6 @@ This class provides ...
 """
 import asyncio
 import logging
-import manage_line
 from .station import Station
 
 __all__ = ["AccessPoint"]
@@ -27,9 +26,20 @@ class AccessPoint:
         self._AP_MinstrelRCD_port = AP_MinstrelRCD_port
         self._supp_rates = {}
         self._phy_list = ["phy0", "phy1"]
-        self._sta_list_all = {}.fromkeys(self._phy_list, {})
+        self._sta_list_inactive = {}.fromkeys(self._phy_list, {})
         self._sta_list_active = {}.fromkeys(self._phy_list, {})
         self._connection = False
+        self._data_dir = ""
+
+    @property
+    def AP_ID(self) -> str:
+
+        return self._AP_ID
+
+    @property
+    def AP_IP(self) -> str:
+
+        return self._AP_IP
 
     @property
     def stations(self) -> dict:
@@ -38,12 +48,49 @@ class AccessPoint:
         pass
 
     @property
-    def accesspoints(self) -> dict:
-        # provides a list of access points in the network
-        # dict with APID keys, with each key having a dict with radios,
-        # which is also a dict with clients
+    def connection(self) -> dict:
+        # list of clients for a given AP at a given radio
 
-        return self._accesspoints
+        return self._connection
+
+    @connection.setter
+    def connection(self, connection_status):
+        self._connection = connection_status
+
+    @property
+    def reader(self) -> object:
+        # list of clients for a given AP at a given radio
+
+        return self._reader
+
+    @property
+    def writer(self) -> object:
+        # list of clients for a given AP at a given radio
+
+        return self._writer
+
+    @property
+    def file_handle(self) -> object:
+
+        return self._file_handle
+
+    @property
+    def phy_list(self) -> dict:
+        # list of clients for a given AP at a given radio
+
+        return self._phy_list
+
+    @property
+    def sta_list_inactive(self) -> dict:
+        # list of clients for a given AP at a given radio
+
+        return self._sta_list_inactive
+
+    @property
+    def sta_list_active(self) -> dict:
+        # list of clients for a given AP at a given radio
+
+        return self._sta_list_active
 
     def add_station(self, sta_info) -> None:
         """
@@ -73,7 +120,34 @@ class AccessPoint:
 
         pass
 
-    async def connect_AP(self, output_dir):
+    def remove_station(self, sta_info) -> None:
+        """
+
+
+        Parameters
+        ----------
+        SSHClient : object
+            SSH client object for a given access point.
+
+        Returns
+        -------
+        None
+            DESCRIPTION.
+
+        """
+
+        if sta_info["mac_addr"] not in list(
+            self._sta_list_inactive[sta_info["radio"]].keys()
+        ):
+            self._sta_list_inactive[sta_info["radio"]][
+                sta_info["mac_addr"]
+            ] = self._sta_list_active[sta_info["radio"]][sta_info["mac_addr"]]
+
+        self._sta_list_active[sta_info["radio"]].pop([sta_info["mac_addr"]], None)
+
+        pass
+
+    async def connect_AP(self, output_dir=""):
         """
         This async function takes a dictionary containing information about
         an AP and connects with it.
@@ -94,13 +168,19 @@ class AccessPoint:
 
         self._data_dir = output_dir
 
-        self._fileHandle = open(output_dir + "/data_" + self._AP_ID + ".csv", "w")
+        self._file_handle = open(output_dir + "/data_" + self._AP_ID + ".csv", "w")
 
         self._conn_handle = asyncio.open_connection(self._AP_IP, self._AP_SSH_port)
 
         try:
             self._reader, self._writer = await asyncio.wait_for(
                 self._conn_handle, timeout=5
+            )
+
+            print(
+                "Connected to {} : {} {}".format(
+                    self._AP_ID, self._AP_IP, self._AP_SSH_port
+                )
             )
 
             logging.info(

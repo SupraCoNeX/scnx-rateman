@@ -16,7 +16,7 @@ import time
 import asyncio
 import os
 import logging
-import manage_line
+from . import manage_line
 
 __all__ = [
     "setup_ap_tasks",
@@ -73,8 +73,8 @@ async def setup_ap_tasks(ap_handles, duration=10, output_dir=""):
     if _check_net_conn(ap_handles):
 
         timer = loop.create_task(meas_timer(duration))
-        setup_collect_tasks(ap_handles, output_dir)
-        retry_conn(ap_handles, loop)
+        loop.create_task(retry_conn(ap_handles))
+        setup_collect_tasks(ap_handles)
         await timer
         await stop_rateman(ap_handles)
     else:
@@ -100,14 +100,14 @@ def setup_collect_tasks(ap_handles):
     loop = asyncio.get_running_loop()
     for APID in list(ap_handles.keys()):
         if ap_handles[APID].connection:
-            loop.create_task(collect_data(ap_handles[APID], loop))
+            loop.create_task(collect_data(ap_handles[APID]))
 
     pass
 
 
 async def retry_conn(ap_handles, retry_conn_duration=600):
 
-    asyncio.sleep(retry_conn_duration)
+    await asyncio.sleep(retry_conn_duration)
     await reconn_ap_list(ap_handles)
 
 
@@ -170,12 +170,13 @@ async def collect_data(ap_handle, reconn_time=600):
             file_handle = ap_handle.file_handle
 
             data_line = await asyncio.wait_for(reader.readline(), reconn_time)
-
+            data_line = data_line.decode("utf-8")
             if not len(data_line):
                 ap_handle.connection = False
             else:
-                manage_line.process_line(ap_handle, data_line)
-                file_handle.write(data_line.decode("utf-8"))
+                print(data_line)
+                # manage_line.process_line(ap_handle, data_line)
+                file_handle.write(data_line)
 
         except KeyboardInterrupt:
             pass
@@ -240,6 +241,20 @@ async def remove_headers(ap_handle):
 
 
 def setup_data_dir(output_dir):
+    """
+
+
+    Parameters
+    ----------
+    output_dir : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    output_dir : TYPE
+        DESCRIPTION.
+
+    """
 
     if len(output_dir) == 0:
         if not os.path.exists("data"):
@@ -313,20 +328,19 @@ async def stop_rateman(ap_handles):
 
     """
 
-    loop = asyncio.get_running_loop()
     cmd_footer = ";stop"
 
     for APID in list(ap_handles.keys()):
         if ap_handles[APID].connection:
             writer = ap_handles[APID].writer
-            for phy in ap_handles[APID].phyList:
+            for phy in ap_handles[APID].phy_list:
                 cmd = phy + cmd_footer
                 writer.write(cmd.encode("ascii") + b"\n")
 
     logging.info("Stopping rateman.....")
 
     await stop_tasks()
-    stop_loop(loop)
+    stop_loop()
 
 
 async def stop_tasks():

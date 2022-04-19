@@ -17,7 +17,7 @@ import asyncio
 import json
 import telegram
 import os
-from .accesspoint import Accesspoint
+from .accesspoint import AccessPoint
 from .manage_asyncio import *
 
 __all__ = ["RateMan"]
@@ -79,7 +79,7 @@ class RateMan:
                 self._net_info[AP_ID]["SSHPORT"] = AP_SSH_port
                 self._net_info[AP_ID]["MPORT"] = AP_MinstrelRCD_port
 
-                AP_handle = Accesspoint(AP_ID, AP_IP, AP_SSH_port, AP_MinstrelRCD_port)
+                AP_handle = AccessPoint(AP_ID, AP_IP, AP_SSH_port, AP_MinstrelRCD_port)
                 self._ap_handles[AP_ID] = AP_handle
 
         pass
@@ -124,9 +124,7 @@ class RateMan:
             self._notify(text_start)
             time_start = datetime.now()
 
-        self._loop.create_task(
-            setup_ap_tasks(self._ap_handles, self._loop, duration, output_dir)
-        )
+        self._loop.create_task(setup_ap_tasks(self._ap_handles, duration, output_dir))
         try:
             self._loop.run_forever()
         finally:
