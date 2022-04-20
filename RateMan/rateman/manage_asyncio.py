@@ -73,8 +73,8 @@ async def setup_ap_tasks(ap_handles, duration=10, output_dir=""):
     if _check_net_conn(ap_handles):
 
         timer = loop.create_task(meas_timer(duration))
-        loop.create_task(retry_conn(ap_handles))
         setup_collect_tasks(ap_handles)
+        loop.create_task(retry_conn(ap_handles))
         await timer
         await stop_rateman(ap_handles)
     else:
@@ -174,8 +174,7 @@ async def collect_data(ap_handle, reconn_time=600):
             if not len(data_line):
                 ap_handle.connection = False
             else:
-                print(data_line)
-                # manage_line.process_line(ap_handle, data_line)
+                manage_line.process_line(ap_handle, data_line)
                 file_handle.write(data_line)
 
         except KeyboardInterrupt:
@@ -212,7 +211,7 @@ async def remove_headers(ap_handle):
     while True:
         try:
             reader = ap_handle.reader
-            fileHandle = ap_handle.fileHandle
+            fileHandle = ap_handle.file_handle
 
             data_line = await asyncio.wait_for(reader.readline(), timeout=1)
 
@@ -229,9 +228,12 @@ async def remove_headers(ap_handle):
                     fileHandle.write(line)
                     break
 
-        except (OSError, ConnectionError, asyncio.TimeoutError):
+        except (OSError, ConnectionError, asyncio.TimeoutError) as error_type:
+
             ap_handle.connection = False
-            logging.error("Disconnected from {}".format(ap_handle.AP_ID))
+            logging.error(
+                "Disconnected from {} -> {}".format(ap_handle.AP_ID, error_type)
+            )
             temp_ap_dict = {}
             temp_ap_dict[ap_handle.AP_ID] = ap_handle
             await reconn_ap_list(temp_ap_dict)
@@ -282,10 +284,10 @@ def _check_net_conn(ap_handles: list):
     """
 
     for APID in list(ap_handles.keys()):
-        if ap_handles[APID].connection is True:
-            return True
+        if ap_handles[APID].connection is False:
+            return False
 
-    return False
+    return True
 
 
 async def meas_timer(duration):
@@ -336,6 +338,11 @@ async def stop_rateman(ap_handles):
             for phy in ap_handles[APID].phy_list:
                 cmd = phy + cmd_footer
                 writer.write(cmd.encode("ascii") + b"\n")
+                print("sta_list", list(ap_handles[APID].sta_list_active[phy].keys()))
+                for mac in list(ap_handles[APID].sta_list_active[phy].keys()):
+                    print(ap_handles[APID].sta_list_active[phy][mac].stats)
+
+            ap_handles[APID].file_handle.close()
 
     logging.info("Stopping rateman.....")
 

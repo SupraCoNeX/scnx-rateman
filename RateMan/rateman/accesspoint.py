@@ -42,6 +42,16 @@ class AccessPoint:
         return self._AP_IP
 
     @property
+    def AP_SSH_port(self) -> str:
+
+        return self._AP_SSH_port
+
+    @property
+    def supp_rates(self) -> str:
+
+        return self._supp_rates
+
+    @property
     def stations(self) -> dict:
         # list of clients for a given AP at a given radio
 
@@ -107,7 +117,7 @@ class AccessPoint:
             DESCRIPTION.
 
         """
-
+        print("adding station")
         for phy in self._phy_list:
             if sta_info["radio"] == phy:
                 if sta_info["mac_addr"] not in list(self._sta_list_active[phy].keys()):
@@ -170,17 +180,13 @@ class AccessPoint:
 
         self._file_handle = open(output_dir + "/data_" + self._AP_ID + ".csv", "w")
 
-        self._conn_handle = asyncio.open_connection(self._AP_IP, self._AP_SSH_port)
+        self._conn_handle = asyncio.open_connection(
+            self._AP_IP, self._AP_MinstrelRCD_port
+        )
 
         try:
             self._reader, self._writer = await asyncio.wait_for(
                 self._conn_handle, timeout=5
-            )
-
-            print(
-                "Connected to {} : {} {}".format(
-                    self._AP_ID, self._AP_IP, self._AP_SSH_port
-                )
             )
 
             logging.info(
@@ -271,7 +277,7 @@ class AccessPoint:
             pass
         writer.close()
 
-    def add_sup_rates(self, group_idx, max_offset):
+    def add_supp_rates(self, group_idx, max_offset):
         """
 
 
