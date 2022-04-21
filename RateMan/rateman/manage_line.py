@@ -25,36 +25,39 @@ __all__ = [
 
 def process_line(ap_handle, data_line):
 
-    if data_line.find("group"):
-
+    if data_line.find("group") > 0:
         if check_line_group_idx(data_line):
             group_idx, max_offset = get_group_idx_info(data_line)
             ap_handle.add_supp_rates(group_idx, max_offset)
 
-    elif data_line.find("txs"):
+    elif data_line.find("txs") > 0:
         if check_line_txs(data_line):
             update_pckt_count_txs(data_line, ap_handle)
 
-    elif data_line.find("stats"):
+    elif data_line.find("stats") > 0:
+
         if check_line_rcstats(data_line):
             update_pckt_count_rcs(data_line, ap_handle)
 
-    elif data_line.find("rxs"):
+    elif data_line.find("rxs") > 0:
+
         if check_line_rxs(data_line):
             pass
 
-    elif data_line.find("sta;add;"):
-        print("adding station")
+    elif data_line.find("sta;add;") > 0:
+
         if check_line_sta_add(data_line):
             sta_info = get_sta_info(data_line)
             ap_handle.add_station(sta_info)
 
-    elif data_line.find("sta;remove;"):
+    elif data_line.find("sta;remove;") > 0:
+
         if check_line_sta_remove(data_line):
             ap_handle.remove_station(sta_info)
         pass
 
-    elif data_line.find("probe;"):
+    elif data_line.find("probe;") > 0:
+
         if check_line_probe(data_line):
             pass
 
@@ -87,9 +90,7 @@ def check_line_txs(line: str):
         and line.find("txs") != -1
         and exp_num_fields == len(fields)
     ):
-        for ii in range(7, 11, 1):
-            if len(fields[ii].split(",")) == num_elem:
-                valid_txs = True
+        valid_txs = True
 
     return valid_txs
 
@@ -141,6 +142,7 @@ def update_pckt_count_txs(data_line, ap_handle):
     for atmpt_ind, atmpt in enumerate(atmpts):
         if atmpt == 0:
             suc_rate_ind = atmpt_ind - 1
+            break
 
     if suc_rate_ind < 0:
         suc_rate_ind = 0
@@ -155,6 +157,8 @@ def update_pckt_count_txs(data_line, ap_handle):
         if rate != "ffff":
             if rate not in list(line_dict.keys()):
                 line_dict[rate] = {}
+                line_dict[rate]["attempts"] = 0
+                line_dict[rate]["success"] = 0
             line_dict[rate]["attempts"] += atmpts[rate_ind]
             line_dict[rate]["success"] += succ[rate_ind]
             line_dict[rate]["timestamp"] = timestamp

@@ -284,10 +284,10 @@ def _check_net_conn(ap_handles: list):
     """
 
     for APID in list(ap_handles.keys()):
-        if ap_handles[APID].connection is False:
-            return False
+        if ap_handles[APID].connection is True:
+            return True
 
-    return True
+    return False
 
 
 async def meas_timer(duration):
@@ -335,10 +335,10 @@ async def stop_rateman(ap_handles):
     for APID in list(ap_handles.keys()):
         if ap_handles[APID].connection:
             writer = ap_handles[APID].writer
+            print(ap_handles[APID].sta_list_active)
             for phy in ap_handles[APID].phy_list:
                 cmd = phy + cmd_footer
                 writer.write(cmd.encode("ascii") + b"\n")
-                print("sta_list", list(ap_handles[APID].sta_list_active[phy].keys()))
                 for mac in list(ap_handles[APID].sta_list_active[phy].keys()):
                     print(ap_handles[APID].sta_list_active[phy][mac].stats)
 

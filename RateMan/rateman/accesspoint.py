@@ -26,10 +26,14 @@ class AccessPoint:
         self._AP_MinstrelRCD_port = AP_MinstrelRCD_port
         self._supp_rates = {}
         self._phy_list = ["phy0", "phy1"]
-        self._sta_list_inactive = {}.fromkeys(self._phy_list, {})
-        self._sta_list_active = {}.fromkeys(self._phy_list, {})
+        self._sta_list_active = {}
+        self._sta_list_inactive = {}
         self._connection = False
         self._data_dir = ""
+
+        for phy in self._phy_list:
+            self._sta_list_inactive[phy] = {}
+            self._sta_list_active[phy] = {}
 
     @property
     def AP_ID(self) -> str:
