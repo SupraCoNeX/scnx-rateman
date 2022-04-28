@@ -307,7 +307,7 @@ async def meas_timer(duration):
     await asyncio.sleep(duration)
     time_elapsed = time.time() - start_time
 
-    logging.info("Given duration has been exceeded! Time duration: %f", time_elapsed)
+    logging.info("Measurement Completed! Time duration: %f", time_elapsed)
 
 
 async def stop_rateman(ap_handles):

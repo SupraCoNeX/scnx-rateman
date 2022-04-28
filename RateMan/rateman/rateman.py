@@ -15,7 +15,6 @@ import csv
 from datetime import datetime
 import asyncio
 import json
-import telegram
 import os
 from .accesspoint import AccessPoint
 from .manage_asyncio import *
@@ -85,7 +84,7 @@ class RateMan:
         pass
 
     def start(
-        self, duration: float, notify: bool = False, output_dir: str = ""
+        self, duration: float, output_dir: str = ""
     ) -> None:
         """
         Start monitoring of TX Status (txs) and Rate Control Statistics
@@ -109,20 +108,8 @@ class RateMan:
 
         self._duration = duration
 
-        if notify:
-            text_start = (
-                os.getcwd()
-                + ":\n\nExperiment Started at "
-                + str(datetime.now())
-                + "\nTime duration: "
-                + str(duration)
-                + " seconds"
-                + "\nAP List: "
-                + self._ap_list_filename
-            )
-
-            self._notify(text_start)
-            time_start = datetime.now()
+        
+        time_start = datetime.now()
 
         self._loop.create_task(setup_ap_tasks(self._ap_handles, duration, output_dir))
         try:
@@ -153,41 +140,6 @@ class RateMan:
                         + str(duration)
                         + " seconds!"
                     )
-                self._notify(text_end)
 
             self._loop.close()
         pass
-
-    def _notify(self, text) -> None:
-        """
-        This function sends message (text) to all the chat_ids, listed in
-        keys.json, from the RateMan Telegram Bot
-
-        Parameters
-        ----------
-        text : str
-            the content of the message that is to be sent by the RateMan
-            Telegram Bot
-
-        Returns
-        -------
-        None.
-
-        """
-
-        original_cwd = os.getcwd()
-
-        dirpath = os.path.dirname(__file__)
-        os.chdir(dirpath)
-
-        with open("../docs/keys.json", "r") as telegram_keys:
-            keys = json.load(telegram_keys)
-            bot_token = keys["bot_token"]
-            bot = telegram.Bot(token=bot_token)
-
-            text += "\n--------------------------------------------"
-
-            for chat_id in keys["chat_ids"]:
-                bot.sendMessage(chat_id=chat_id, text=text)
-
-        os.chdir(original_cwd)

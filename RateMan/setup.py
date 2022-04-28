@@ -6,10 +6,7 @@
 # ToDo:- Test: python setup.py test
 
 from setuptools import setup
-from sphinx.setup_command import BuildDoc
 from os import path
-
-cmdclass = {"build_sphinx": BuildDoc}
 
 name = "rateman"
 author = "SupraCoNeX"
@@ -42,19 +39,5 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.6",
-    install_requires=[
-        "sphinx",
-        "sphinx_rtd_theme",
-        "matplotlib",
-        "tornado",
-        "numpy",
-        "scipy",
-        "six",
-        "pycodestyle",
-        "pandas",
-        "pint==0.9",
-        "dask",
-        "paramiko",
-        "dash",
-    ],
+    install_requires=[],
 )
