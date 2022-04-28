@@ -108,38 +108,9 @@ class RateMan:
 
         self._duration = duration
 
-        
-        time_start = datetime.now()
-
         self._loop.create_task(setup_ap_tasks(self._ap_handles, duration, output_dir))
         try:
             self._loop.run_forever()
         finally:
-            if notify:
-                elapsed_time = datetime.now() - time_start
-                text_end = (
-                    os.getcwd()
-                    + ":\n\nExperiment Finished at "
-                    + str(datetime.now())
-                    + "\n"
-                )
-
-                if elapsed_time.total_seconds() < duration:
-                    text_end += (
-                        "Error: RateMan stopped before the specified time duration of "
-                        + str(duration)
-                        + "!\n"
-                        + "RateMan was fetching data from "
-                        + str(self._ap_list_filename)
-                    )
-                else:
-                    text_end += (
-                        "Data for the AP List, "
-                        + str(self._ap_list_filename)
-                        + ", has been successfully collected for "
-                        + str(duration)
-                        + " seconds!"
-                    )
-
             self._loop.close()
         pass
