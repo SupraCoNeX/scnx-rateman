@@ -117,10 +117,10 @@ phyID;hex_timestamp_nanosec;txs;macaddr;num_frames;num_acked;probe;rate0;count0;
 |`num_frames`| Number of data packets in a given TX frame.|
 |`num_acked`| Number of data packets of a frame which were successfully transmitted for which an `ACK` has been received.|
 |`probe`| Binary index for type of frame. If `probe` = 1 for probing frame, 0 otherwise. |
-|`rate0,count0`| 1st MCS rate (`rate0`) chosen for probing or data frame with `count0` attempts/tries.|
-|`rate1,count1`| 2nd MCS rate (`rate1`) chosen for probing or data frame with `count1` attempts/tries.|
-|`rate2,count2`| 3rd MCS rate (`rate2`) chosen for probing or data frame with `count2` attempts/tries.|
-|`rate3,count3`| 4th MCS rate (`rate3`) chosen for probing or data frame with `count3` attempts/tries.|
+|`rate0;count0`| 1st MCS rate (`rate0`) chosen for probing or data frame with `count0` attempts/tries.|
+|`rate1;count1`| 2nd MCS rate (`rate1`) chosen for probing or data frame with `count1` attempts/tries.|
+|`rate2;count2`| 3rd MCS rate (`rate2`) chosen for probing or data frame with `count2` attempts/tries.|
+|`rate3;count3`| 4th MCS rate (`rate3`) chosen for probing or data frame with `count3` attempts/tries.|
 
 _Note: In the rate table containing upto four rates and corresponding counts, if a sequential rate-count is not used, the rate field is denoted by `ffff`.
 
