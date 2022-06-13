@@ -46,7 +46,7 @@ class RateMan:
 
         return self._accesspoints
 
-    def add_ap_list(self, ap_list_filename: dir) -> None:
+    def add_ap_list(self, ap_list_filename: dir, rate_control_info: dict = {}) -> None:
         """
         Function to add a list of access points available in a network.
         Each access point has given a unique ID and relevant information
@@ -79,13 +79,22 @@ class RateMan:
                 self._net_info[AP_ID]["MPORT"] = AP_MinstrelRCD_port
 
                 AP_handle = AccessPoint(AP_ID, AP_IP, AP_SSH_port, AP_MinstrelRCD_port)
+
+                if rate_control_info[AP_ID]["rc_type"] == "active":
+                    AP_handle.rate_control_type = "active"
+                    AP_handle.rate_control_alg = rate_control_info[AP_ID]["rc_alg"]
+                    AP_handle.rate_control_settings = rate_control_info[AP_ID][
+                        "param_settings"
+                    ]
+                else:
+                    AP_handle.rate_control_type = "passive"
+                    AP_handle.rate_control_alg = "kernel-minstrel-ht"
+
                 self._ap_handles[AP_ID] = AP_handle
 
         pass
 
-    def start(
-        self, duration: float, output_dir: str = ""
-    ) -> None:
+    def start(self, duration: float, output_dir: str = "") -> None:
         """
         Start monitoring of TX Status (txs) and Rate Control Statistics
         (rc_stats). Send notification about the experiment from RateMan

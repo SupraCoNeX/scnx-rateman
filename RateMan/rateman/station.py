@@ -120,3 +120,23 @@ class Station:
                 self._latest_timestamp = timestamp
 
         pass
+
+    def empty_stats(self) -> None:
+        """
+
+
+        Parameters
+        ----------
+
+        new_stats: dict
+
+
+        Returns
+        -------
+        None.
+
+        """
+
+        self._stats = {}
+
+        pass

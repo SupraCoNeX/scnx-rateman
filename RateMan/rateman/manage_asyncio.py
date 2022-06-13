@@ -5,7 +5,7 @@
 
 r"""
 Manage Asynchronous I/O Tasks
-----------------
+-----------------------------
 
 This is the main processing module that provides functions to asynchronously 
 monitor network status and set rates.
@@ -17,12 +17,14 @@ import asyncio
 import os
 import logging
 from . import manage_line
+import mexman
 
 __all__ = [
     "setup_ap_tasks",
     "setup_data_dir",
     "meas_timer",
     "setup_collect_tasks",
+    "setup_rate_control_tasks",
     "collect_data",
     "remove_headers",
     "stop_rateman",
@@ -74,6 +76,7 @@ async def setup_ap_tasks(ap_handles, duration=10, output_dir=""):
 
         timer = loop.create_task(meas_timer(duration))
         setup_collect_tasks(ap_handles)
+        setup_rate_control_tasks(ap_handles)
         loop.create_task(retry_conn(ap_handles))
         await timer
         await stop_rateman(ap_handles)
@@ -105,7 +108,107 @@ def setup_collect_tasks(ap_handles):
     pass
 
 
+def setup_rate_control_tasks(ap_handles):
+    """
+    This function, for each AP, calls the collect_data function.
+
+    Parameters
+    ----------
+    ap_handles : dictionary
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status with each AP as key
+
+    Returns
+    -------
+    None.
+
+    """
+
+    loop = asyncio.get_running_loop()
+    for APID in list(ap_handles.keys()):
+        if ap_handles[APID].connection:
+            if ap_handles[APID].rate_control_type == "active":
+                if ap_handles[APID].rate_control_alg == "py-minstrel-ht":
+                    pass
+                elif ap_handles[APID].rate_control_alg == "param-setting-exp":
+                    ap_handles[APID].rate_control_handle = mexman.MExRC(
+                        ap_handles[APID].rate_control_settings
+                    )
+                    if (
+                        "rate_control_interval"
+                        in ap_handles[APID].rate_control_settings
+                    ):
+                        loop.create_task(
+                            execute_rate_control(
+                                ap_handles[APID],
+                                ap_handles[APID].rate_control_settings[
+                                    "rate_control_interval"
+                                ],
+                            )
+                        )
+                    else:
+                        loop.create_task(execute_rate_control(ap_handles[APID]))
+    pass
+
+async def execute_rate_control(ap_handle, rate_control_interval=0.05):
+    """
+    This async function for an AP reads the TX and rc status and writes
+    it to the data_AP.csv file
+
+    Parameters
+    ----------
+    ap_info : dictionary
+        contains parameters such as ID, IP Address, Port, relevant file
+        streams and connection status of an AP
+    output_dir : str
+        the main directory where results of the experiment are stored
+    reconn_time : int
+        duration for readline timeout after which reconnection to a currently
+        inactive AP is attempted.
+
+    Returns
+    -------
+    None.
+
+    """
+    while True:
+
+        await asyncio.sleep(rate_control_interval)
+
+        try:
+            await ap_handle.execute_param_setting()
+            for phy in ap_handle.phy_list:
+                for station in ap_handle.sta_list_active[phy]:
+                    station.empty_stats()
+
+        except KeyboardInterrupt:
+            pass
+
+        except (OSError, ConnectionError, asyncio.TimeoutError):
+            ap_handle.connection = False
+            logging.error("Disconnected from {}".format(ap_handle.AP_ID))
+            temp_ap_dict = {}
+            temp_ap_dict[ap_handle.AP_ID] = ap_handle
+            await reconn_ap_list(temp_ap_dict)
+            continue
+
+
 async def retry_conn(ap_handles, retry_conn_duration=600):
+    '''
+    
+
+    Parameters
+    ----------
+    ap_handles : TYPE
+        DESCRIPTION.
+    retry_conn_duration : TYPE, optional
+        DESCRIPTION. The default is 600.
+
+    Returns
+    -------
+    None.
+
+    '''
 
     await asyncio.sleep(retry_conn_duration)
     await reconn_ap_list(ap_handles)

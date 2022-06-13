@@ -72,14 +72,39 @@ class AccessPoint:
         self._connection = connection_status
 
     @property
-    def reader(self) -> object:
+    def rate_control_type(self) -> dict:
         # list of clients for a given AP at a given radio
+        return self._rate_control_type
+
+    @rate_control_type.setter
+    def rate_control_type(self, rate_control_type):
+        self._rate_control_type = rate_control_type
+
+    @property
+    def rate_control_alg(self) -> dict:
+
+        return self._rate_control_alg
+
+    @rate_control_alg.setter
+    def rate_control_alg(self, rate_control_alg):
+        self._rate_control_alg = rate_control_alg
+
+    @property
+    def rate_control_settings(self) -> dict:
+
+        return self._rate_control_settings
+
+    @rate_control_settings.setter
+    def rate_control_settings(self, rate_control_settings):
+        self._rate_control_settings = rate_control_settings
+
+    @property
+    def reader(self) -> object:
 
         return self._reader
 
     @property
     def writer(self) -> object:
-        # list of clients for a given AP at a given radio
 
         return self._writer
 
@@ -90,19 +115,16 @@ class AccessPoint:
 
     @property
     def phy_list(self) -> dict:
-        # list of clients for a given AP at a given radio
 
         return self._phy_list
 
     @property
     def sta_list_inactive(self) -> dict:
-        # list of clients for a given AP at a given radio
 
         return self._sta_list_inactive
 
     @property
     def sta_list_active(self) -> dict:
-        # list of clients for a given AP at a given radio
 
         return self._sta_list_active
 
@@ -240,7 +262,7 @@ class AccessPoint:
             cmd = phy + cmd_footer
             self._writer.write(cmd.encode("ascii") + b"\n")
 
-    async def set_rate(ap_handles) -> None:
+    async def set_rate(self, macaddr, phy, rate_ind) -> None:
         """
 
 
@@ -259,27 +281,75 @@ class AccessPoint:
         try:
             print("in rate setter")
 
-            APID = "AP2"
-            phy = "phy1"
-            macaddr = ap_handles[APID]["staList"]["wlan1"][0]
-            writer = ap_handles[APID]["writer"]
+            def cmd(phy, macaddr, rate):
+                return phy + ";rates;" + macaddr + ";" + rate + ";1"
+
+            while True:
+
+                await asyncio.sleep(0.05)
+                self._writer.write((phy + ";manual").encode("ascii") + b"\n")
+                self._writer.write(cmd(phy, macaddr, rate_ind).encode("ascii") + b"\n")
+                self._writer.write((phy + ";auto").encode("ascii") + b"\n")
+
+        except KeyboardInterrupt:
+            pass
+
+        self._writer.close()
+
+    async def set_txp(self, macaddr, phy, rate_ind) -> None:
+        """
+
+
+        Parameters
+        ----------
+        ap_handles : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None
+            DESCRIPTION.
+
+        """
+
+        try:
+            print("in rate setter")
 
             def cmd(phy, macaddr, rate):
                 return phy + ";rates;" + macaddr + ";" + rate + ";1"
 
             while True:
-                await asyncio.sleep(0.05)
 
-                ap_handles = getStationList(ap_handles)
-                print("setting rate now")
-                writer.write((phy + ";manual").encode("ascii") + b"\n")
-                rate_ind = str(random.Random().randint(80, 87))
+                self._writer.write((phy + ";manual").encode("ascii") + b"\n")
+                self._writer.write(cmd(phy, macaddr, rate_ind).encode("ascii") + b"\n")
+                self._writer.write((phy + ";auto").encode("ascii") + b"\n")
 
-                writer.write(cmd(phy, macaddr, rate_ind).encode("ascii") + b"\n")
-                writer.write((phy + ";auto").encode("ascii") + b"\n")
         except KeyboardInterrupt:
             pass
-        writer.close()
+
+        self._writer.close()
+
+    async def execute_param_setting(self) -> None:
+        """
+
+
+        Returns
+        -------
+        None
+            DESCRIPTION.
+
+        """
+
+        param_setting = self._rate_control_handle.get_param_settings()
+        if ("rate" in param_setting) and ("txp" in param_setting):
+            await self.set_rate(param_setting["rate"])
+            await self.set_txp(param_setting["txp"])
+        elif "rate" in param_setting:
+            await self.set_rate(param_setting["rate"])
+        elif "txp" in param_setting:
+            await self.set_txp(param_setting["txp"])
+
+        pass
 
     def add_supp_rates(self, group_idx, max_offset):
         """
