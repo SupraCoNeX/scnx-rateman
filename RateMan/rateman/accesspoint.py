@@ -37,34 +37,26 @@ class AccessPoint:
 
     @property
     def AP_ID(self) -> str:
-
         return self._AP_ID
 
     @property
     def AP_IP(self) -> str:
-
         return self._AP_IP
 
     @property
     def AP_SSH_port(self) -> str:
-
         return self._AP_SSH_port
 
     @property
     def supp_rates(self) -> str:
-
         return self._supp_rates
 
     @property
     def stations(self) -> dict:
-        # list of clients for a given AP at a given radio
-
         pass
 
     @property
     def connection(self) -> dict:
-        # list of clients for a given AP at a given radio
-
         return self._connection
 
     @connection.setter
@@ -73,7 +65,6 @@ class AccessPoint:
 
     @property
     def rate_control_type(self) -> dict:
-        # list of clients for a given AP at a given radio
         return self._rate_control_type
 
     @rate_control_type.setter
@@ -82,12 +73,19 @@ class AccessPoint:
 
     @property
     def rate_control_alg(self) -> dict:
-
         return self._rate_control_alg
 
     @rate_control_alg.setter
     def rate_control_alg(self, rate_control_alg):
         self._rate_control_alg = rate_control_alg
+
+    @property
+    def rate_control_handle(self) -> dict:
+        return self._rate_control_handle
+
+    @rate_control_handle.setter
+    def rate_control_handle(self, rate_control_handle):
+        self._rate_control_handle = rate_control_handle
 
     @property
     def rate_control_settings(self) -> dict:
@@ -105,27 +103,22 @@ class AccessPoint:
 
     @property
     def writer(self) -> object:
-
         return self._writer
 
     @property
     def file_handle(self) -> object:
-
         return self._file_handle
 
     @property
     def phy_list(self) -> dict:
-
         return self._phy_list
 
     @property
     def sta_list_inactive(self) -> dict:
-
         return self._sta_list_inactive
 
     @property
     def sta_list_active(self) -> dict:
-
         return self._sta_list_active
 
     def add_station(self, sta_info) -> None:
@@ -284,17 +277,14 @@ class AccessPoint:
             def cmd(phy, macaddr, rate):
                 return phy + ";rates;" + macaddr + ";" + rate + ";1"
 
-            while True:
-
-                await asyncio.sleep(0.05)
-                self._writer.write((phy + ";manual").encode("ascii") + b"\n")
-                self._writer.write(cmd(phy, macaddr, rate_ind).encode("ascii") + b"\n")
-                self._writer.write((phy + ";auto").encode("ascii") + b"\n")
+            # self._writer.write((phy + ";manual").encode("ascii") + b"\n")
+            # self._writer.write(cmd(phy, macaddr, rate_ind).encode("ascii") + b"\n")
+            # self._writer.write((phy + ";auto").encode("ascii") + b"\n")
 
         except KeyboardInterrupt:
             pass
 
-        self._writer.close()
+        pass
 
     async def set_txp(self, macaddr, phy, rate_ind) -> None:
         """
@@ -316,18 +306,16 @@ class AccessPoint:
             print("in rate setter")
 
             def cmd(phy, macaddr, rate):
-                return phy + ";rates;" + macaddr + ";" + rate + ";1"
+                return phy + ";rxs;" + macaddr + ";" + rate + ";1"
 
-            while True:
-
-                self._writer.write((phy + ";manual").encode("ascii") + b"\n")
-                self._writer.write(cmd(phy, macaddr, rate_ind).encode("ascii") + b"\n")
-                self._writer.write((phy + ";auto").encode("ascii") + b"\n")
+            self._writer.write((phy + ";manual").encode("ascii") + b"\n")
+            self._writer.write(cmd(phy, macaddr, rate_ind).encode("ascii") + b"\n")
+            self._writer.write((phy + ";auto").encode("ascii") + b"\n")
 
         except KeyboardInterrupt:
             pass
 
-        self._writer.close()
+        pass
 
     async def execute_param_setting(self) -> None:
         """
@@ -341,11 +329,14 @@ class AccessPoint:
         """
 
         param_setting = self._rate_control_handle.get_param_settings()
+        macaddr = "mach"
+        phy = "phy1"
+
         if ("rate" in param_setting) and ("txp" in param_setting):
             await self.set_rate(param_setting["rate"])
             await self.set_txp(param_setting["txp"])
         elif "rate" in param_setting:
-            await self.set_rate(param_setting["rate"])
+            await self.set_rate(macaddr, phy, param_setting["rate"])
         elif "txp" in param_setting:
             await self.set_txp(param_setting["txp"])
 

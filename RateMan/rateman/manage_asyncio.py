@@ -150,6 +150,7 @@ def setup_rate_control_tasks(ap_handles):
                         loop.create_task(execute_rate_control(ap_handles[APID]))
     pass
 
+
 async def execute_rate_control(ap_handle, rate_control_interval=0.05):
     """
     This async function for an AP reads the TX and rc status and writes
@@ -173,13 +174,13 @@ async def execute_rate_control(ap_handle, rate_control_interval=0.05):
     """
     while True:
 
-        await asyncio.sleep(rate_control_interval)
-
         try:
+            await asyncio.sleep(rate_control_interval)
             await ap_handle.execute_param_setting()
+
             for phy in ap_handle.phy_list:
-                for station in ap_handle.sta_list_active[phy]:
-                    station.empty_stats()
+                for station in list(ap_handle.sta_list_active[phy].keys()):
+                    ap_handle.sta_list_active[phy][station].empty_stats()
 
         except KeyboardInterrupt:
             pass
@@ -194,8 +195,8 @@ async def execute_rate_control(ap_handle, rate_control_interval=0.05):
 
 
 async def retry_conn(ap_handles, retry_conn_duration=600):
-    '''
-    
+    """
+
 
     Parameters
     ----------
@@ -208,7 +209,7 @@ async def retry_conn(ap_handles, retry_conn_duration=600):
     -------
     None.
 
-    '''
+    """
 
     await asyncio.sleep(retry_conn_duration)
     await reconn_ap_list(ap_handles)

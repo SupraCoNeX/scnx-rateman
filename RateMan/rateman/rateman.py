@@ -80,10 +80,10 @@ class RateMan:
 
                 AP_handle = AccessPoint(AP_ID, AP_IP, AP_SSH_port, AP_MinstrelRCD_port)
 
-                if rate_control_info[AP_ID]["rc_type"] == "active":
+                if rate_control_info["rate_control_type"] == "active":
                     AP_handle.rate_control_type = "active"
-                    AP_handle.rate_control_alg = rate_control_info[AP_ID]["rc_alg"]
-                    AP_handle.rate_control_settings = rate_control_info[AP_ID][
+                    AP_handle.rate_control_alg = rate_control_info["rate_control_alg"]
+                    AP_handle.rate_control_settings = rate_control_info[
                         "param_settings"
                     ]
                 else:
