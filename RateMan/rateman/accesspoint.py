@@ -272,7 +272,7 @@ class AccessPoint:
         """
 
         try:
-            print("in rate setter")
+            # print("in rate setter")
 
             def cmd(phy, macaddr, rate):
                 return phy + ";rates;" + macaddr + ";" + rate + ";1"

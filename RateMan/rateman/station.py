@@ -119,6 +119,8 @@ class Station:
             if timestamp > self._latest_timestamp:
                 self._latest_timestamp = timestamp
 
+        print(self._stats)
+
         pass
 
     def empty_stats(self) -> None:

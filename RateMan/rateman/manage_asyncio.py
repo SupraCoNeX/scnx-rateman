@@ -22,18 +22,13 @@ import mexman
 __all__ = [
     "setup_ap_tasks",
     "setup_data_dir",
-    "meas_timer",
-    "setup_collect_tasks",
-    "setup_rate_control_tasks",
     "collect_data",
     "remove_headers",
-    "stop_rateman",
-    "stop_tasks",
-    "stop_loop",
+    "reconn_ap_list",
 ]
 
 
-async def setup_ap_tasks(ap_handles, duration=10, output_dir=""):
+async def setup_ap_tasks(ap_handles, output_dir=""):
     """
     This async function creates a main task that manages several
     subtasks with each AP having one subtask associated with it.
@@ -74,72 +69,21 @@ async def setup_ap_tasks(ap_handles, duration=10, output_dir=""):
 
     if _check_net_conn(ap_handles):
 
-        timer = loop.create_task(meas_timer(duration))
-        setup_collect_tasks(ap_handles)
-        setup_rate_control_tasks(ap_handles)
-        loop.create_task(retry_conn(ap_handles))
-        await timer
-        await stop_rateman(ap_handles)
-    else:
-        logging.error("Couldn't connect to any access points!")
-        await stop_rateman(ap_handles)
+        for APID in list(ap_handles.keys()):
+            if ap_handles[APID].connection:
+                loop.create_task(collect_data(ap_handles[APID]))
 
-
-def setup_collect_tasks(ap_handles):
-    """
-    This function, for each AP, calls the collect_data function.
-
-    Parameters
-    ----------
-    ap_handles : dictionary
-        contains parameters such as ID, IP Address, Port, relevant file
-        streams and connection status with each AP as key
-
-    Returns
-    -------
-    None.
-
-    """
-    loop = asyncio.get_running_loop()
-    for APID in list(ap_handles.keys()):
-        if ap_handles[APID].connection:
-            loop.create_task(collect_data(ap_handles[APID]))
-
-    pass
-
-
-def setup_rate_control_tasks(ap_handles):
-    """
-    This function, for each AP, calls the collect_data function.
-
-    Parameters
-    ----------
-    ap_handles : dictionary
-        contains parameters such as ID, IP Address, Port, relevant file
-        streams and connection status with each AP as key
-
-    Returns
-    -------
-    None.
-
-    """
-
-    loop = asyncio.get_running_loop()
-    for APID in list(ap_handles.keys()):
-        if ap_handles[APID].connection:
-            if ap_handles[APID].rate_control_type == "active":
-                if ap_handles[APID].rate_control_alg == "py-minstrel-ht":
+                if ap_handles[APID].rate_control_alg == "minstrel_ht_kernel_space":
+                    pass
+                elif ap_handles[APID].rate_control_alg == "minstrel_ht_user_space":
                     pass
                 elif ap_handles[APID].rate_control_alg == "param-setting-exp":
                     ap_handles[APID].rate_control_handle = mexman.MExRC(
                         ap_handles[APID].rate_control_settings
                     )
-                    if (
-                        "rate_control_interval"
-                        in ap_handles[APID].rate_control_settings
-                    ):
+                    if "rate_control_interval" in ap_handles[APID].rate_control_settings:
                         loop.create_task(
-                            execute_rate_control(
+                            ap_handles[APID].rate_control_handleexecute_rate_control(
                                 ap_handles[APID],
                                 ap_handles[APID].rate_control_settings[
                                     "rate_control_interval"
@@ -147,51 +91,14 @@ def setup_rate_control_tasks(ap_handles):
                             )
                         )
                     else:
-                        loop.create_task(execute_rate_control(ap_handles[APID]))
-    pass
-
-
-async def execute_rate_control(ap_handle, rate_control_interval=0.05):
-    """
-    This async function for an AP reads the TX and rc status and writes
-    it to the data_AP.csv file
-
-    Parameters
-    ----------
-    ap_info : dictionary
-        contains parameters such as ID, IP Address, Port, relevant file
-        streams and connection status of an AP
-    output_dir : str
-        the main directory where results of the experiment are stored
-    reconn_time : int
-        duration for readline timeout after which reconnection to a currently
-        inactive AP is attempted.
-
-    Returns
-    -------
-    None.
-
-    """
-    while True:
-
-        try:
-            await asyncio.sleep(rate_control_interval)
-            await ap_handle.execute_param_setting()
-
-            for phy in ap_handle.phy_list:
-                for station in list(ap_handle.sta_list_active[phy].keys()):
-                    ap_handle.sta_list_active[phy][station].empty_stats()
-
-        except KeyboardInterrupt:
-            pass
-
-        except (OSError, ConnectionError, asyncio.TimeoutError):
-            ap_handle.connection = False
-            logging.error("Disconnected from {}".format(ap_handle.AP_ID))
-            temp_ap_dict = {}
-            temp_ap_dict[ap_handle.AP_ID] = ap_handle
-            await reconn_ap_list(temp_ap_dict)
-            continue
+                        loop.create_task(
+                            ap_handles[APID].rate_control_handle.execute_rate_control(
+                                ap_handles[APID]
+                            )
+                        )
+        loop.create_task(retry_conn(ap_handles))
+    else:
+        logging.error("Couldn't connect to any access points!")
 
 
 async def retry_conn(ap_handles, retry_conn_duration=600):
@@ -211,8 +118,12 @@ async def retry_conn(ap_handles, retry_conn_duration=600):
 
     """
 
-    await asyncio.sleep(retry_conn_duration)
-    await reconn_ap_list(ap_handles)
+    while True:
+        try:
+            await asyncio.sleep(retry_conn_duration)
+            await reconn_ap_list(ap_handles)
+        except (ValueError, KeyboardInterrupt):
+            break
 
 
 async def reconn_ap_list(ap_handles):
@@ -278,11 +189,14 @@ async def collect_data(ap_handle, reconn_time=600):
             if not len(data_line):
                 ap_handle.connection = False
             else:
-                manage_line.process_line(ap_handle, data_line)
-                file_handle.write(data_line)
+                try:
+                    manage_line.process_line(ap_handle, data_line)
+                    file_handle.write(data_line)
+                except (ValueError, KeyboardInterrupt):
+                    pass
 
         except KeyboardInterrupt:
-            pass
+            break
 
         except (OSError, ConnectionError, asyncio.TimeoutError):
             ap_handle.connection = False
@@ -392,82 +306,3 @@ def _check_net_conn(ap_handles: list):
             return True
 
     return False
-
-
-async def meas_timer(duration):
-    """
-    This async function returns after the time duration 'duration' has elapsed.
-    Parameters
-    ----------
-    duration: float
-        duration after which rateman is to be terminated
-    Returns
-    -------
-    None.
-    """
-    start_time = time.time()
-    logging.info("Timer started!")
-
-    await asyncio.sleep(duration)
-    time_elapsed = time.time() - start_time
-
-    logging.info("Measurement Completed! Time duration: %f", time_elapsed)
-
-
-async def stop_rateman(ap_handles):
-    """
-    This async function executes stop command in the APs (if indicated i.e.
-    stop_cmd set to True). It also stops all the tasks and, finally, the
-    event loop.
-
-    Parameters
-    ----------
-    ap_handles : dictionary
-        contains parameters such as ID, IP Address, Port, relevant file
-        streams and connection status with each AP as key
-    loop : event_loop
-        DESCRIPTION.
-
-    Returns
-    -------
-    None.
-
-    """
-
-    cmd_footer = ";stop"
-
-    for APID in list(ap_handles.keys()):
-        if ap_handles[APID].connection:
-            writer = ap_handles[APID].writer
-            print(ap_handles[APID].sta_list_active)
-            for phy in ap_handles[APID].phy_list:
-                cmd = phy + cmd_footer
-                writer.write(cmd.encode("ascii") + b"\n")
-                for mac in list(ap_handles[APID].sta_list_active[phy].keys()):
-                    print(ap_handles[APID].sta_list_active[phy][mac].stats)
-
-            ap_handles[APID].file_handle.close()
-
-    logging.info("Stopping rateman.....")
-
-    await stop_tasks()
-    stop_loop()
-
-
-async def stop_tasks():
-
-    for task in asyncio.all_tasks():
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-
-
-def stop_loop():
-
-    loop = asyncio.get_running_loop()
-    for task in asyncio.all_tasks():
-        task.cancel()
-
-    loop.stop()
