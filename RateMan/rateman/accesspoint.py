@@ -121,7 +121,6 @@ class AccessPoint:
     def sta_list_active(self) -> dict:
         return self._sta_list_active
 
-
     def add_station(self, sta_info) -> None:
         """
 
@@ -278,7 +277,7 @@ class AccessPoint:
             print("Error: The number of rate and counts do not match!")
             return
 
-        mrr_rates = ['0' if mrr_rate == '00' else mrr_rate for mrr_rate in mrr_rates]
+        mrr_rates = ["0" if mrr_rate == "00" else mrr_rate for mrr_rate in mrr_rates]
 
         if len(mrr_rates) == 1:
             rate_field = mrr_rates[0]

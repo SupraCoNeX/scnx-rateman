@@ -29,6 +29,7 @@ import time
 import logging
 import asyncio
 
+
 def get_path_arg(parser):
     """
     Parses path argument provided in the exec command
@@ -63,11 +64,11 @@ def get_rc_alg_arg(parser):
     if args.ralg:
         rc_alg = args.ralg
     else:
-        rc_alg = 'minstrel_ht_kernel_space'
-    
+        rc_alg = "minstrel_ht_kernel_space"
+
     return rc_alg
 
-    
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Rateman")
     parser.add_argument("-p", help="Path to the access point list file.", type=str)
@@ -93,12 +94,12 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
 
     try:
-       loop.run_forever()
+        loop.run_forever()
     except (OSError, KeyboardInterrupt) as e:
-       time_elapsed = time.time() - start_time
-       logging.info("Measurement Completed! Time duration: %f", time_elapsed)
+        time_elapsed = time.time() - start_time
+        logging.info("Measurement Completed! Time duration: %f", time_elapsed)
     finally:
-       rateMan.stop()
-       rateMan.stop_loop()
-       loop.close()
-       print("Terminated Rateman!")
+        rateMan.stop()
+        rateMan.stop_loop()
+        loop.close()
+        print("Terminated Rateman!")

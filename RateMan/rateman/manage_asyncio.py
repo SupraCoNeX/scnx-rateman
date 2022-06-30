@@ -12,7 +12,6 @@ monitor network status and set rates.
 
 """
 
-import time
 import asyncio
 import os
 import logging
@@ -71,17 +70,27 @@ async def setup_ap_tasks(ap_handles, output_dir=""):
 
         for APID in list(ap_handles.keys()):
             if ap_handles[APID].connection:
-                loop.create_task(collect_data(ap_handles[APID]))
+                loop.create_task(
+                    collect_data(ap_handles[APID]), name="collect_data_" + APID
+                )
 
                 if ap_handles[APID].rate_control_alg == "minstrel_ht_kernel_space":
                     pass
-                elif ap_handles[APID].rate_control_alg and ap_handles[APID].rate_control_handle:
-                    loop.create_task(ap_handles[APID].rate_control_handle(ap_handles[APID]))
+                elif (
+                    ap_handles[APID].rate_control_alg
+                    and ap_handles[APID].rate_control_handle
+                ):
+                    loop.create_task(
+                        ap_handles[APID].rate_control_handle(ap_handles[APID])
+                    )
                 elif ap_handles[APID].rate_control_alg == "param-setting-exp":
                     ap_handles[APID].rate_control_handle = mexman.MExRC(
                         ap_handles[APID].rate_control_settings
                     )
-                    if "rate_control_interval" in ap_handles[APID].rate_control_settings:
+                    if (
+                        "rate_control_interval"
+                        in ap_handles[APID].rate_control_settings
+                    ):
                         loop.create_task(
                             ap_handles[APID].rate_control_handleexecute_rate_control(
                                 ap_handles[APID],
@@ -192,9 +201,8 @@ async def collect_data(ap_handle, reconn_time=600):
                 try:
                     manage_line.process_line(ap_handle, data_line)
                     file_handle.write(data_line)
-                except (ValueError, KeyboardInterrupt):
+                except:
                     pass
-
         except KeyboardInterrupt:
             break
 

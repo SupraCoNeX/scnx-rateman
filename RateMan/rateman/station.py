@@ -96,7 +96,7 @@ class Station:
         """
 
         return self._stats
-    
+
     def lowest_supp_rate(self):
         return self._supp_rates[0]
 

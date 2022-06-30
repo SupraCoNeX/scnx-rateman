@@ -11,6 +11,7 @@ This class provides an object for Rate Manager that utilizes functions defined
 in different modules. 
 
 """
+
 import csv
 from datetime import datetime
 import logging
@@ -26,9 +27,12 @@ __all__ = ["RateMan"]
 
 
 class RateMan:
-    def __init__(self, ap_list_dir: dir, 
-                 rate_control_alg: str = 'minstrel_ht_kernel_space',
-                 data_dir: dir = '') -> None:
+    def __init__(
+        self,
+        ap_list_dir: dir,
+        rate_control_alg: str = "minstrel_ht_kernel_space",
+        data_dir: dir = "",
+    ) -> None:
 
         self._net_info = {}
         self._accesspoints = {}
@@ -38,10 +42,10 @@ class RateMan:
             self._loop = asyncio.get_running_loop()
         except:
             self._loop = asyncio.get_event_loop()
-        
+
         self.add_ap_list(ap_list_dir, rate_control_alg)
         self.setup_tasks(data_dir)
-        
+
     @property
     def clients(self) -> dict:
         # list of clients for a given AP at a given radio
@@ -50,9 +54,17 @@ class RateMan:
 
     @property
     def accesspoints(self) -> dict:
-        # provides a list of access points in the network
-        # dict with APID keys, with each key having a dict with radios,
-        # which is also a dict with clients
+        """
+        Provides a list of access points in the network
+        dict with APID keys, with each key having a dict with radios,
+        which is also a dict with clients.
+
+        Returns
+        -------
+        dict
+
+
+        """
 
         return self._accesspoints
 
@@ -82,8 +94,8 @@ class RateMan:
 
                 AP_ID = cur_AP["APID"]
                 AP_IP = cur_AP["IPADD"]
-                AP_SSH_port = int(cur_AP["PORT"])
-                AP_MinstrelRCD_port = 21059
+                AP_SSH_port = int(cur_AP["SSHPORT"])
+                AP_MinstrelRCD_port = int(cur_AP["MinstrelRCD_Port"])
 
                 self._net_info[AP_ID] = AP_ID
                 self._net_info[AP_ID] = cur_AP
@@ -96,7 +108,6 @@ class RateMan:
 
                 self._accesspoints[AP_ID] = AP_handle
 
-        print("ap_list added")
         pass
 
     def setup_tasks(self, output_dir: str = "") -> None:
@@ -176,30 +187,31 @@ class RateMan:
         None.
 
         """
-
-        cmd_footer = ";stop"
+        cmds = lambda phy: [phy + ";stop", phy + ";auto"]
 
         for APID in list(self._accesspoints.keys()):
             if self._accesspoints[APID].connection:
                 writer = self._accesspoints[APID].writer
+
                 for phy in self._accesspoints[APID].phy_list:
-                    cmds = [phy + cmd_footer, phy + ";auto"]
-                    for cmd in cmds:
+                    for cmd in cmds(phy):
                         writer.write(cmd.encode("ascii") + b"\n")
 
+                writer.close()
+                self._loop.run_until_complete(writer.wait_closed())
                 self._accesspoints[APID].file_handle.close()
 
         logging.info("RateMan stopped.")
-    
+
     def get_rc_alg_entry(self, rate_control_alg):
 
-        if rate_control_alg == 'minstrel_ht_kernel_space':
+        if rate_control_alg == "minstrel_ht_kernel_space":
             entry_func = None
             print("Executing kernel Minstrel HT")
-        
+
         if rate_control_alg == "minstrel_ht_user_space":
             entry_func = start_minstrel
-        
+
         return entry_func
 
     def stop_loop(self):
@@ -208,6 +220,6 @@ class RateMan:
             task.cancel()
             try:
                 self._loop.run_until_complete(task)
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, KeyboardInterrupt, asyncio.TimeoutError):
                 pass
         self._loop.stop()

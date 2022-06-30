@@ -151,10 +151,10 @@ def update_pckt_count_txs(data_line, ap_handle):
 
     rates = [rate_ind1, rate_ind2, rate_ind3, rate_ind4]
 
-    rates = ['0' + rate if len(rate) == 1 else rate for rate in rates]
+    rates = ["0" + rate if len(rate) == 1 else rate for rate in rates]
 
     line_dict = {}
-    
+
     sta_obj = ap_handle.sta_list_active[radio][mac_addr]
 
     for rate_ind, rate in enumerate(rates):
