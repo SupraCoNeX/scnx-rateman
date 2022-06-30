@@ -110,7 +110,7 @@ class AccessPoint:
         return self._file_handle
 
     @property
-    def phy_list(self) -> dict:
+    def phy_list(self) -> list:
         return self._phy_list
 
     @property
@@ -143,7 +143,7 @@ class AccessPoint:
                     self._sta_list_active[phy][sta_info["mac_addr"]] = Station(
                         sta_info["radio"],
                         sta_info["mac_addr"],
-                        sta_info["sup_rates"],
+                        sta_info["supp_rates"],
                         sta_info["timestamp"],
                     )
 
@@ -255,7 +255,7 @@ class AccessPoint:
             cmd = phy + cmd_footer
             self._writer.write(cmd.encode("ascii") + b"\n")
 
-    async def set_rate(self, macaddr, phy, rate_ind) -> None:
+    def set_rate(self, phy, MACID, mrr_rates, mrr_counts) -> None:
         """
 
 
@@ -271,20 +271,24 @@ class AccessPoint:
 
         """
 
-        try:
-            print("in rate setter")
+        writer = self._writer
 
-            def cmd(phy, macaddr, rate):
-                return phy + ";rates;" + macaddr + ";" + rate + ";1"
+        if len(mrr_rates) != len(mrr_counts):
+            print("Error: The number of rate and counts do not match!")
+            return
 
-            # self._writer.write((phy + ";manual").encode("ascii") + b"\n")
-            # self._writer.write(cmd(phy, macaddr, rate_ind).encode("ascii") + b"\n")
-            # self._writer.write((phy + ";auto").encode("ascii") + b"\n")
+        mrr_rates = ["0" if mrr_rate == "00" else mrr_rate for mrr_rate in mrr_rates]
 
-        except KeyboardInterrupt:
-            pass
+        if len(mrr_rates) == 1:
+            rate_field = mrr_rates[0]
+            counts_field = mrr_counts[0]
+        else:
+            rate_field = ",".join(mrr_rates)
+            counts_field = ",".join(mrr_counts)
 
-        pass
+        cmd = phy + ";rates;" + MACID + ";" + rate_field + ";" + counts_field
+        # print("Setting Rate:", cmd)
+        writer.write(cmd.encode("ascii") + b"\n")
 
     async def set_txp(self, macaddr, phy, rate_ind) -> None:
         """

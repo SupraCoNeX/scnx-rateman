@@ -21,7 +21,7 @@ class Station:
 
         self._radio = radio
         self._mac_addr = mac_addr
-        self._sup_rates = sup_rates
+        self._supp_rates = sup_rates
         self._latest_timestamp = timestamp
         self._stats = {}  # {rate: {timestamp, cur_atmp, cur_succ}}
 
@@ -56,7 +56,7 @@ class Station:
         return self._radio
 
     @property
-    def sup_rates(self) -> list:
+    def supp_rates(self) -> list:
         """
 
 
@@ -67,7 +67,7 @@ class Station:
 
         """
 
-        return self._sup_rates
+        return self._supp_rates
 
     @property
     def mac_addr(self) -> str:
@@ -97,6 +97,9 @@ class Station:
 
         return self._stats
 
+    def lowest_supp_rate(self):
+        return self._supp_rates[0]
+
     def update_stats(self, new_stats: dict) -> None:
         """
 
@@ -119,7 +122,22 @@ class Station:
             if timestamp > self._latest_timestamp:
                 self._latest_timestamp = timestamp
 
+        # print(self._stats)
+
         pass
+
+    def check_rate_entry(self, rate):
+        try:
+            _ = self._stats[rate]
+            return True
+        except KeyError:
+            return False
+
+    def get_attempts(self, rate):
+        return self._stats[rate]["attempts"]
+
+    def get_successes(self, rate):
+        return self._stats[rate]["success"]
 
     def empty_stats(self) -> None:
         """

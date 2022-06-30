@@ -23,35 +23,83 @@ RateMan is stopped within the terminal, observe the print statements.
 """
 
 import rateman
-import time
-import paramiko
-import argparse
 import sys
+import argparse
+import time
+import logging
+import asyncio
 
-if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="Rateman")
-    parser.add_argument("-p", help="Path to the access point list file.", type=str)
-    parser.add_argument("-t", help="Measurement time duration in seconds.", type=float)
-    parser.add_argument(
-        "--notify", help="Enable telegram notification", action="store_true"
-    )
+def get_path_arg(parser):
+    """
+    Parses path argument provided in the exec command
+    """
 
     args = parser.parse_args()
 
-    if args.p is None or args.t is None:
+    if args.p:
+        try:
+            fileHandle = open(args.p)
+            fileHandle.close()
+        except IOError as errorDef:
+            print(errorDef)
+        else:
+            path = args.p
+
+            return path
+    else:
         print(
-            "\nThis rateman script needs both time and path arguments to run. Please see the help below!\n"
+            "Please specify a path, with -p, to the data file for minstrel-py to run!"
+        )
+        sys.exit(1)
+
+
+def get_rc_alg_arg(parser):
+    """
+    Parses duration argument provided in the exec command
+    """
+
+    args = parser.parse_args()
+
+    if args.ralg:
+        rc_alg = args.ralg
+    else:
+        rc_alg = "minstrel_ht_kernel_space"
+
+    return rc_alg
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Rateman")
+    parser.add_argument("-p", help="Path to the access point list file.", type=str)
+    parser.add_argument("-ralg", help="Rate Control Algorithm", type=str)
+
+    args = parser.parse_args()
+
+    if args.p is None:
+        print(
+            "\nThis rateman script needs path argument to run. Please see the help below!\n"
         )
         parser.print_help()
         sys.exit(1)
 
-    path = rateman.get_path_arg(parser)
+    ap_list_path = get_path_arg(parser)
+    rate_control_alg = get_rc_alg_arg(parser)
+    data_path = "/Users/prashiddhadhojthapa/Desktop/SupraCoNeX/scnx-rateman/demo/data"
 
-    duration = rateman.get_duration_arg(parser)
+    rateMan = rateman.RateMan(ap_list_path, rate_control_alg, data_path)
 
-    rateMan = rateman.RateMan()
+    start_time = time.time()
 
-    rateMan.addaccesspoints(path)
+    loop = asyncio.get_event_loop()
 
-    rateMan.start(duration, notify=args.notify)
+    try:
+        loop.run_forever()
+    except (OSError, KeyboardInterrupt) as e:
+        time_elapsed = time.time() - start_time
+        logging.info("Measurement Completed! Time duration: %f", time_elapsed)
+    finally:
+        rateMan.stop()
+        rateMan.stop_loop()
+        loop.close()
+        print("Terminated Rateman!")
