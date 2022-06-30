@@ -47,7 +47,7 @@ def process_line(ap_handle, data_line):
     elif data_line.find("sta;add;") > 0:
 
         if check_line_sta_add(data_line):
-            sta_info = get_sta_info(data_line)
+            sta_info = get_sta_info(data_line, ap_handle)
             ap_handle.add_station(sta_info)
 
     elif data_line.find("sta;remove;") > 0:
@@ -151,14 +151,23 @@ def update_pckt_count_txs(data_line, ap_handle):
 
     rates = [rate_ind1, rate_ind2, rate_ind3, rate_ind4]
 
+    rates = ['0' + rate if len(rate) == 1 else rate for rate in rates]
+
     line_dict = {}
+    
+    sta_obj = ap_handle.sta_list_active[radio][mac_addr]
 
     for rate_ind, rate in enumerate(rates):
         if rate != "ffff":
             if rate not in list(line_dict.keys()):
                 line_dict[rate] = {}
-                line_dict[rate]["attempts"] = 0
-                line_dict[rate]["success"] = 0
+                if sta_obj.check_rate_entry(rate):
+                    line_dict[rate]["attempts"] = sta_obj.get_attempts(rate)
+                    line_dict[rate]["success"] = sta_obj.get_successes(rate)
+                else:
+                    line_dict[rate]["attempts"] = 0
+                    line_dict[rate]["success"] = 0
+
             line_dict[rate]["attempts"] += atmpts[rate_ind]
             line_dict[rate]["success"] += succ[rate_ind]
             line_dict[rate]["timestamp"] = timestamp
@@ -277,7 +286,7 @@ def check_line_sta_add(data_line):
     return valid_sta_add
 
 
-def get_sta_info(data_line):
+def get_sta_info(data_line, ap_handle):
     """
 
 
@@ -298,7 +307,24 @@ def get_sta_info(data_line):
     sta_info["radio"] = fields[0]
     sta_info["timestamp"] = fields[1]
     sta_info["mac_addr"] = fields[4]
-    sta_info["sup_rates"] = ""
+
+    rates_flag = fields[7:]
+    sta_info["supp_rates"] = []
+
+    for i, (groupIdx, max_offset) in enumerate(ap_handle.supp_rates.items()):
+        # Only works for all masks with ff at the end, eg. 1ff, 3ff, ff
+        if "ff" in rates_flag[i]:
+            dec_mask = int(rates_flag[i], base=16)
+            bin_mask = str(bin(dec_mask))[2:]
+            no_supp_rates = bin_mask.count("1")
+            offset = groupIdx + "0"
+            no_rates = int(max_offset[-1]) + 1
+
+            # Making sure no of 1s in bit mask isn't greater than rates in that group index
+            if no_supp_rates <= no_rates:
+                sta_info["supp_rates"] += [
+                    offset[:-1] + str(i) for i in range(no_supp_rates)
+                ]
 
     return sta_info
 
@@ -352,6 +378,7 @@ def get_group_idx_info(data_line):
     """
 
     fields = data_line.split(";")
+    fields = list(filter(None, fields))
     group_idx = fields[3]
     offset = fields[4]
 

@@ -20,6 +20,7 @@ import os
 from .accesspoint import AccessPoint
 from .manage_asyncio import *
 import time
+from minstrel import start_minstrel
 
 __all__ = ["RateMan"]
 
@@ -91,6 +92,7 @@ class RateMan:
 
                 AP_handle = AccessPoint(AP_ID, AP_IP, AP_SSH_port, AP_MinstrelRCD_port)
                 AP_handle.rate_control_alg = rate_control_alg
+                AP_handle.rate_control_handle = self.get_rc_alg_entry(rate_control_alg)
 
                 self._accesspoints[AP_ID] = AP_handle
 
@@ -181,19 +183,31 @@ class RateMan:
             if self._accesspoints[APID].connection:
                 writer = self._accesspoints[APID].writer
                 for phy in self._accesspoints[APID].phy_list:
-                    cmd = phy + cmd_footer
-                    writer.write(cmd.encode("ascii") + b"\n")
+                    cmds = [phy + cmd_footer, phy + ";auto"]
+                    for cmd in cmds:
+                        writer.write(cmd.encode("ascii") + b"\n")
 
                 self._accesspoints[APID].file_handle.close()
 
         logging.info("RateMan stopped.")
+    
+    def get_rc_alg_entry(self, rate_control_alg):
+
+        if rate_control_alg == 'minstrel_ht_kernel_space':
+            entry_func = None
+            print("Executing kernel Minstrel HT")
+        
+        if rate_control_alg == "minstrel_ht_user_space":
+            entry_func = start_minstrel
+        
+        return entry_func
 
     def stop_loop(self):
 
         for task in asyncio.all_tasks(self._loop):
             task.cancel()
             try:
-                loop.run_until_complete(task)
+                self._loop.run_until_complete(task)
             except asyncio.CancelledError:
                 pass
         self._loop.stop()

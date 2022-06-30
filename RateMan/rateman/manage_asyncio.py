@@ -75,8 +75,8 @@ async def setup_ap_tasks(ap_handles, output_dir=""):
 
                 if ap_handles[APID].rate_control_alg == "minstrel_ht_kernel_space":
                     pass
-                elif ap_handles[APID].rate_control_alg == "minstrel_ht_user_space":
-                    pass
+                elif ap_handles[APID].rate_control_alg and ap_handles[APID].rate_control_handle:
+                    loop.create_task(ap_handles[APID].rate_control_handle(ap_handles[APID]))
                 elif ap_handles[APID].rate_control_alg == "param-setting-exp":
                     ap_handles[APID].rate_control_handle = mexman.MExRC(
                         ap_handles[APID].rate_control_settings
