@@ -64,6 +64,14 @@ class AccessPoint:
         self._connection = connection_status
 
     @property
+    def terminate(self) -> bool:
+        return self._terminate
+
+    @terminate.setter
+    def terminate(self, termination_status):
+        self._terminate = termination_status
+
+    @property
     def rate_control_type(self) -> dict:
         return self._rate_control_type
 
@@ -225,6 +233,8 @@ class AccessPoint:
             )
 
             self._connection = False
+
+        self._terminate = False
 
         pass
 

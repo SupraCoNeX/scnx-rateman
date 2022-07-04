@@ -53,6 +53,10 @@ def process_line(ap_handle, data_line):
     elif data_line.find("sta;remove;") > 0:
 
         if check_line_sta_remove(data_line):
+            fields = data_line.split(";")
+            sta_info = {}
+            sta_info["radio"] = fields[0]
+            sta_info["mac_addr"] = fields[4]
             ap_handle.remove_station(sta_info)
         pass
 

@@ -44,13 +44,7 @@ class RateMan:
             self._loop = asyncio.get_event_loop()
 
         self.add_ap_list(ap_list_dir, rate_control_alg)
-        self.setup_tasks(data_dir)
-
-    @property
-    def clients(self) -> dict:
-        # list of clients for a given AP at a given radio
-
-        return 0
+        self._setup_task = self.setup_tasks(data_dir)
 
     @property
     def accesspoints(self) -> dict:
@@ -131,7 +125,9 @@ class RateMan:
 
         """
 
-        self._loop.create_task(setup_ap_tasks(self._accesspoints, output_dir))
+        self._loop.create_task(
+            setup_ap_tasks(self._accesspoints, output_dir), name="setup_task"
+        )
 
         pass
 
@@ -200,6 +196,7 @@ class RateMan:
                 writer.close()
                 self._loop.run_until_complete(writer.wait_closed())
                 self._accesspoints[APID].file_handle.close()
+                self._accesspoints[APID].terminate = True
 
         logging.info("RateMan stopped.")
 
@@ -213,13 +210,3 @@ class RateMan:
             entry_func = start_minstrel
 
         return entry_func
-
-    def stop_loop(self):
-
-        for task in asyncio.all_tasks(self._loop):
-            task.cancel()
-            try:
-                self._loop.run_until_complete(task)
-            except (asyncio.CancelledError, KeyboardInterrupt, asyncio.TimeoutError):
-                pass
-        self._loop.stop()

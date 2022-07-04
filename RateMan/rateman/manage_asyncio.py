@@ -16,14 +16,14 @@ import asyncio
 import os
 import logging
 from . import manage_line
-import mexman
 
 __all__ = [
     "setup_ap_tasks",
     "setup_data_dir",
     "collect_data",
     "remove_headers",
-    "reconn_ap_list",
+    "retry_conn",
+    "reconn_ap",
 ]
 
 
@@ -76,41 +76,13 @@ async def setup_ap_tasks(ap_handles, output_dir=""):
 
                 if ap_handles[APID].rate_control_alg == "minstrel_ht_kernel_space":
                     pass
-                elif (
-                    ap_handles[APID].rate_control_alg
-                    and ap_handles[APID].rate_control_handle
-                ):
-                    loop.create_task(
-                        ap_handles[APID].rate_control_handle(ap_handles[APID])
-                    )
-                elif ap_handles[APID].rate_control_alg == "param-setting-exp":
-                    ap_handles[APID].rate_control_handle = mexman.MExRC(
-                        ap_handles[APID].rate_control_settings
-                    )
-                    if (
-                        "rate_control_interval"
-                        in ap_handles[APID].rate_control_settings
-                    ):
-                        loop.create_task(
-                            ap_handles[APID].rate_control_handleexecute_rate_control(
-                                ap_handles[APID],
-                                ap_handles[APID].rate_control_settings[
-                                    "rate_control_interval"
-                                ],
-                            )
-                        )
-                    else:
-                        loop.create_task(
-                            ap_handles[APID].rate_control_handle.execute_rate_control(
-                                ap_handles[APID]
-                            )
-                        )
-        loop.create_task(retry_conn(ap_handles))
+
+                loop.create_task(retry_conn(ap_handle), name="reconn_" + APID)
     else:
         logging.error("Couldn't connect to any access points!")
 
 
-async def retry_conn(ap_handles, retry_conn_duration=600):
+async def retry_conn(ap_handle, retry_conn_duration=600):
     """
 
 
@@ -128,14 +100,17 @@ async def retry_conn(ap_handles, retry_conn_duration=600):
     """
 
     while True:
+        if ap_handle.terminate:
+            break
         try:
             await asyncio.sleep(retry_conn_duration)
-            await reconn_ap_list(ap_handles)
-        except (ValueError, KeyboardInterrupt):
+            await reconn_ap(ap_handle)
+        except (ValueError, KeyboardInterrupt, asyncio.CancelledError):
+            await asyncio.sleep(0)
             break
 
 
-async def reconn_ap_list(ap_handles):
+async def reconn_ap(ap_handle):
     """
 
 
@@ -152,17 +127,15 @@ async def reconn_ap_list(ap_handles):
 
     """
     loop = asyncio.get_running_loop()
-    for APID in list(ap_handles.keys()):
-        ap_handle = ap_handles[APID]
-        if not ap_handle.connection:
-            await ap_handle.connect_AP()
-            if ap_handle.connection:
-                ap_handle.start_radios()
-                if not ap_handle.once_connected:
-                    ap_handle.once_connected = True
-                    loop.create_task(collect_data(ap_handle))
-                else:
-                    await remove_headers(ap_handle)
+    if not ap_handle.connection:
+        await ap_handle.connect_AP()
+        if ap_handle.connection:
+            ap_handle.start_radios()
+            if not ap_handle.once_connected:
+                ap_handle.once_connected = True
+                loop.create_task(collect_data(ap_handle))
+            else:
+                await remove_headers(ap_handle)
 
     pass
 
@@ -189,30 +162,38 @@ async def collect_data(ap_handle, reconn_time=600):
 
     """
     while True:
+        if ap_handle.terminate:
+            # print("Terminating data collection task for ", ap_handle.AP_ID)
+            break
         try:
-            reader = ap_handle.reader
-            file_handle = ap_handle.file_handle
-
-            data_line = await asyncio.wait_for(reader.readline(), reconn_time)
+            data_line = await asyncio.wait_for(ap_handle.reader.readline(), reconn_time)
             data_line = data_line.decode("utf-8")
             if not len(data_line):
                 ap_handle.connection = False
             else:
                 try:
                     manage_line.process_line(ap_handle, data_line)
-                    file_handle.write(data_line)
+                    ap_handle.file_handle.write(data_line)
                 except:
                     pass
-        except KeyboardInterrupt:
+
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            await asyncio.sleep(0)
             break
 
         except (OSError, ConnectionError, asyncio.TimeoutError):
-            ap_handle.connection = False
             logging.error("Disconnected from {}".format(ap_handle.AP_ID))
-            temp_ap_dict = {}
-            temp_ap_dict[ap_handle.AP_ID] = ap_handle
-            await reconn_ap_list(temp_ap_dict)
+
+            try:
+                await reconn_ap(ap_handle)
+            except (KeyboardInterrupt, asyncio.CancelledError):
+                await asyncio.sleep(0)
+                break
+
+            await asyncio.sleep(reconn_time)
             continue
+
+    pass
 
 
 async def remove_headers(ap_handle):
@@ -244,15 +225,15 @@ async def remove_headers(ap_handle):
             if not len(data_line):
                 ap_handle.connection = False
                 logging.error("Disconnected from {}".format(ap_handle.AP_ID))
-                temp_ap_dict = {}
-                temp_ap_dict[ap_handle.AP_ID] = ap_handle
-                await reconn_ap_list(temp_ap_dict)
+                await reconn_ap(ap_handle)
                 break
             else:
                 line = data_line.decode("utf-8")
                 if line[0] != "*":
                     fileHandle.write(line)
                     break
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            break
 
         except (OSError, ConnectionError, asyncio.TimeoutError) as error_type:
 
@@ -260,9 +241,7 @@ async def remove_headers(ap_handle):
             logging.error(
                 "Disconnected from {} -> {}".format(ap_handle.AP_ID, error_type)
             )
-            temp_ap_dict = {}
-            temp_ap_dict[ap_handle.AP_ID] = ap_handle
-            await reconn_ap_list(temp_ap_dict)
+            await reconn_ap(ap_handle)
             break
 
     pass
@@ -314,3 +293,14 @@ def _check_net_conn(ap_handles: list):
             return True
 
     return False
+
+
+def stop_loop(loop):
+
+    for task in asyncio.all_tasks(loop):
+        task.cancel()
+        try:
+            loop.run_until_complete(task)
+        except (asyncio.CancelledError, KeyboardInterrupt, asyncio.TimeoutError):
+            pass
+    loop.stop()
