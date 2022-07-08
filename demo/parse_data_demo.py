@@ -28,6 +28,7 @@ import argparse
 import time
 import logging
 import asyncio
+import os
 
 
 def get_path_arg(parser):
@@ -68,6 +69,13 @@ def get_rc_alg_arg(parser):
 
     return rc_alg
 
+def setup_data_dir(base_path):
+    data_path = os.path.join(base_path, "data")
+
+    if not os.path.exists(data_path):
+        os.mkdir(data_path)
+    
+    return data_path
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Rateman")
@@ -85,7 +93,9 @@ if __name__ == "__main__":
 
     ap_list_path = get_path_arg(parser)
     rate_control_alg = get_rc_alg_arg(parser)
-    data_path = "/Users/prashiddhadhojthapa/Desktop/SupraCoNeX/scnx-rateman/demo/data"
+    base_path = os.path.dirname(os.path.abspath(__file__))
+
+    data_path = setup_data_dir(base_path)
 
     rateMan = rateman.RateMan(ap_list_path, rate_control_alg, data_path)
 
