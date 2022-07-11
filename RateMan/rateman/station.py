@@ -158,3 +158,6 @@ class Station:
         self._stats = {}
 
         pass
+
+    def __str__(self):
+        return f"STA[{self._mac_addr}]"

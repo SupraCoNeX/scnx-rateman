@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # -*- coding: UTF8 -*-
 # Copyright SupraCoNeX
 #     https://www.supraconex.org
@@ -12,214 +13,219 @@ in different modules.
 
 """
 
-import csv
+import argparse
+import sys
 from datetime import datetime
 import logging
 import asyncio
 import json
 import os
-from .accesspoint import AccessPoint
-from .manage_asyncio import *
+from accesspoint import *
+import tasks
 import time
-from minstrel import start_minstrel
 
 __all__ = ["RateMan"]
 
 
 class RateMan:
-    def __init__(
-        self,
-        ap_list_dir: dir,
-        rate_control_alg: str = "minstrel_ht_kernel_space",
-        data_dir: dir = "",
-    ) -> None:
+    def __init__(self, aps, rate_control_alg: str = "minstrel_ht_kernel_space", loop = None):
+        if not loop:
+            logging.info("Creating new event loop")
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            self._new_loop_created = True
+        else:
+            self._new_loop_created = False
 
-        self._net_info = {}
+        self._loop = loop
         self._accesspoints = {}
-        self._meas_info = ""
+        self._tasks = []
+        self._data_callbacks = []
 
-        try:
-            self._loop = asyncio.get_running_loop()
-        except:
-            self._loop = asyncio.get_event_loop()
-
-        self.add_ap_list(ap_list_dir, rate_control_alg)
-        self.setup_tasks(data_dir)
-
-    @property
-    def clients(self) -> dict:
-        # list of clients for a given AP at a given radio
-
-        return 0
+        for ap in aps:
+            ap.rate_control_alg = rate_control_alg
+            ap.rate_control = self.load_rc(rate_control_alg)
+            self._accesspoints[ap.id] = ap
+            self.add_task(tasks.connect_ap(self, ap, 5), name=f"connect_{ap.id}")
 
     @property
     def accesspoints(self) -> dict:
-        """
-        Provides a list of access points in the network
-        dict with APID keys, with each key having a dict with radios,
-        which is also a dict with clients.
-
-        Returns
-        -------
-        dict
-
-
-        """
-
         return self._accesspoints
 
-    def add_ap_list(
-        self, ap_list_dir: dir, rate_control_alg: str = "minstrel_ht_kernel_space"
-    ) -> None:
+    # TODO: differentiate by line type
+    def add_data_callback(self, cb):
         """
-        Function to add a list of access points available in a network.
-        Each access point has given a unique ID and relevant information
-        is organized as a dict in the Rate Manager object as the
-        the 'accesspoints' variable.
-
-        Parameters
-        ----------
-        filename : dir
-
-        Returns
-        -------
-        None
-
+        Register a callback to be called on incoming data.
         """
+        if cb not in self._data_callbacks:
+            self._data_callbacks.append(cb)
 
-        self._ap_list_dir = ap_list_dir
-        with open(ap_list_dir, newline="") as csvfile:
-            reader = csv.DictReader(csvfile)
-            for cur_AP in reader:
+    def remove_data_callback(self, cb):
+        """
+        Unregister a data callback.
+        """
+        if cb in self._data_callbacks:
+            self._data_callbacks.remove(cb)
 
-                AP_ID = cur_AP["APID"]
-                AP_IP = cur_AP["IPADD"]
-                AP_SSH_port = int(cur_AP["SSHPORT"])
-                AP_MinstrelRCD_port = int(cur_AP["MinstrelRCD_Port"])
+    def process_line(self, ap, line):
+        logging.debug(f"{ap.id}> '{line}'")
 
-                self._net_info[AP_ID] = AP_ID
-                self._net_info[AP_ID] = cur_AP
-                self._net_info[AP_ID]["SSHPORT"] = AP_SSH_port
-                self._net_info[AP_ID]["MPORT"] = AP_MinstrelRCD_port
+        for cb in self._data_callbacks:
+            cb(ap, line)
 
-                AP_handle = AccessPoint(AP_ID, AP_IP, AP_SSH_port, AP_MinstrelRCD_port)
-                AP_handle.rate_control_alg = rate_control_alg
-                AP_handle.rate_control_handle = self.get_rc_alg_entry(rate_control_alg)
+    def add_task(self, coro, name=""):
+        if coro in self._tasks:
+            return
 
-                self._accesspoints[AP_ID] = AP_handle
+        task = self._loop.create_task(coro, name=name)
+        task.add_done_callback(self._tasks.remove)
+        self._tasks.append(task)
 
+    # async def initialize(self):
+    #     for id, ap in self._accesspoints.items():
+    #         await ap.connect()
+
+    #         if ap.connected:
+    #             ap.once_connected = True
+    #             self.add_task(tasks.collect_data(self, ap), name=f"collector_{id}")
+
+    #         if ap.rate_control_alg == "minstrel_ht_kernel_space":
+    #             pass
+    #         elif ap.rate_control_alg and ap.rate_control:
+    #             self.add_task(ap.rate_control(ap), name=f"rc_{id}")
+    #         # elif ap.rate_control_alg == "param-setting-exp":
+    #         #     ap.rate_control = mexman.MExRC(ap.rate_control_settings)
+    #         #     if "rate_control_interval" in ap.rate_control_settings:
+    #         #         loop.create_task(
+    #         #             ap.rate_control.execute_rate_control(
+    #         #                 ap,
+    #         #                 ap.rate_control_settings["rate_control_interval"],
+    #         #             )
+    #         #         )
+    #         #     else:
+    #         #         loop.create_task(ap.rate_control.execute_rate_control(ap))
+    #     else:
+    #         logging.error(f"Couldn't establish initial connection to {id}")
+    #         self.add_task(tasks.reconnect_ap(self, ap, 5), name=f"reconnect_{id}")
+
+
+    def start_measurement(self, output_dir: str = "") -> None:
+        # TODO
+        # start_time = time.time()
+        # try:
+        #     self._loop.run_forever()
+        # except (OSError, KeyboardInterrupt):
+
+        #     time_elapsed = time.time() - start_time
+        #     logging.info("Measurement Completed! Time duration: %f", time_elapsed)
+        # finally:
+        #     self.stop()
+        #     self._loop.close()
         pass
 
-    def setup_tasks(self, output_dir: str = "") -> None:
-        """
-        Start monitoring of TX Status (txs) and Rate Control Statistics
-        (rc_stats). Send notification about the experiment from RateMan
-        Telegram Bot.
+    async def stop(self):
+        for _,ap in self._accesspoints.items():
+            if not ap.connected:
+                continue
+            
+            for phy in ap.phy_list:
+                ap.writer.write(f"{phy};stop\n".encode("ascii"))
+                ap.writer.write(f"{phy};auto\n".encode("ascii"))
+                ap.writer.close()
 
-        Parameters
-        ----------
+        for task in self._tasks:
+            print(f"Cancelling {task.get_name()}")
+            task.cancel()
 
-        duration: float
-            time duration for which the data from APs has to be collected
+        if len(self._tasks) > 0:
+            await asyncio.wait(self._tasks)
 
-        output_dir : str
-            directory to which parsed data is saved
-
-        Returns
-        -------
-        None.
-
-        """
-
-        self._loop.create_task(setup_ap_tasks(self._accesspoints, output_dir))
-
-        pass
-
-    def start(self, output_dir: str = "") -> None:
-        """
-        Start monitoring of TX Status (txs) and Rate Control Statistics
-        (rc_stats). Send notification about the experiment from RateMan
-        Telegram Bot.
-
-        Parameters
-        ----------
-
-        duration: float
-            time duration for which the data from APs has to be collected
-
-        output_dir : str
-            directory to which parsed data is saved
-
-        Returns
-        -------
-        None.
-
-        """
-
-        start_time = time.time()
-        try:
-            self._loop.run_forever()
-        except (OSError, KeyboardInterrupt):
-
-            time_elapsed = time.time() - start_time
-            logging.info("Measurement Completed! Time duration: %f", time_elapsed)
-        finally:
-            self.stop()
+        if self._new_loop_created:
             self._loop.close()
-        pass
 
-    def stop(self):
-        """
-        This async function executes stop command in the APs (if indicated i.e.
-        stop_cmd set to True). It also stops all the tasks and, finally, the
-        event loop.
+        logging.info("RateMan stopped")
 
-        Parameters
-        ----------
-        ap_handles : dictionary
-            contains parameters such as ID, IP Address, Port, relevant file
-            streams and connection status with each AP as key
-        loop : event_loop
-            DESCRIPTION.
+    def load_rc(self, rate_control_algorithm):
+        entry_func = None
 
-        Returns
-        -------
-        None.
-
-        """
-        cmds = lambda phy: [phy + ";stop", phy + ";auto"]
-
-        for APID in list(self._accesspoints.keys()):
-            if self._accesspoints[APID].connection:
-                writer = self._accesspoints[APID].writer
-
-                for phy in self._accesspoints[APID].phy_list:
-                    for cmd in cmds(phy):
-                        writer.write(cmd.encode("ascii") + b"\n")
-
-                writer.close()
-                self._loop.run_until_complete(writer.wait_closed())
-                self._accesspoints[APID].file_handle.close()
-
-        logging.info("RateMan stopped.")
-
-    def get_rc_alg_entry(self, rate_control_alg):
-
-        if rate_control_alg == "minstrel_ht_kernel_space":
-            entry_func = None
-            print("Executing kernel Minstrel HT")
-
-        if rate_control_alg == "minstrel_ht_user_space":
-            entry_func = start_minstrel
+        if rate_control_algorithm == "minstrel_ht_user_space":
+            try:
+                from minstrel import start_minstrel
+                entry_func = start_minstrel
+            except ImportError:
+                logging.error(f"Unable to execute user space minstrel: Import minstrel failed")
 
         return entry_func
 
-    def stop_loop(self):
+    async def run(self):
+        try:
+            self._loop.run_forever()
+        finally:
+            await self.stop()
 
-        for task in asyncio.all_tasks(self._loop):
-            task.cancel()
+if __name__ == '__main__':
+
+    def parse_aps(apstrs):
+        aps = []
+
+        for apstr in apstrs:
+            fields = apstr.split(":")
+            if len(fields) < 2:
+                print(f"Invalid access point: '{apstr}'", file=sys.stderr)
+                continue
+
+            id = fields[0]
+            addr = fields[1]
+
             try:
-                self._loop.run_until_complete(task)
-            except (asyncio.CancelledError, KeyboardInterrupt, asyncio.TimeoutError):
-                pass
-        self._loop.stop()
+                rcd_port = int(fields[2])
+            except (IndexError, ValueError):
+                rcd_port = 21059
+
+            aps.append(AccessPoint(id, addr, rcd_port))
+
+        return aps
+
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument(
+            "algorithm", type=str,
+            choices=["minstrel_ht_kernel_space", "minstrel_ht_user_space"],
+            default="minstrel_ht_kernel_space", 
+            help="Rate control algorithm to run."
+    )
+    arg_parser.add_argument(
+            "-A", "--ap-file", metavar="AP_FILE", type=str,
+            help="Path to a csv file where each line contains information about an access point " +
+            "in the format: ID,ADDR,RCDPORT."
+    )
+    arg_parser.add_argument(
+            "accesspoints", metavar="AP", nargs="+", type=str,
+            help="Accesspoint to connecto to. Format: 'ID:ADDR:RCDPORT'. " +
+            "RCDPORT is optional and defaults to 21059."
+    )
+    args = arg_parser.parse_args()
+    aps = parse_aps(args.accesspoints)
+
+    if args.ap_file:
+        aps += accesspoint.from_file(args.ap_file)
+
+    if len(aps) == 0:
+        print("ERROR: No accesspoints given", file=sys.stderr)
+        sys.exit(1)
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    print("Running rateman...")
+    rateman = RateMan(aps, rate_control_alg=args.algorithm, loop=loop)
+
+    # add a simple print callback to see the incoming data
+    rateman.add_data_callback(lambda ap,line: print(f"{ap.id}> '{line}'"))
+
+    try:
+        loop.run_forever()
+    except (OSError, KeyboardInterrupt):
+        print("Stopping...")
+    finally:
+        loop.run_until_complete(rateman.stop())
+        print("DONE")
