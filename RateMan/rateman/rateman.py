@@ -22,6 +22,7 @@ import json
 import os
 from accesspoint import *
 import tasks
+import parsing
 import time
 
 __all__ = ["RateMan"]
@@ -40,7 +41,7 @@ class RateMan:
         self._loop = loop
         self._accesspoints = {}
         self._tasks = []
-        self._data_callbacks = []
+        self._data_callbacks = [parsing.process_line]
 
         for ap in aps:
             ap.rate_control_alg = rate_control_alg
@@ -74,10 +75,11 @@ class RateMan:
             cb(ap, line)
 
     def add_task(self, coro, name=""):
-        if coro in self._tasks:
-            return
+        for task in self._tasks:
+            if task.get_name() == name:
+                return
 
-        task = self._loop.create_task(coro, name=name)
+        task = self._loop.create_task(coro, name=name)        
         task.add_done_callback(self._tasks.remove)
         self._tasks.append(task)
 
@@ -128,7 +130,7 @@ class RateMan:
             if not ap.connected:
                 continue
             
-            for phy in ap.phy_list:
+            for phy in ap.phys:
                 ap.writer.write(f"{phy};stop\n".encode("ascii"))
                 ap.writer.write(f"{phy};auto\n".encode("ascii"))
                 ap.writer.close()

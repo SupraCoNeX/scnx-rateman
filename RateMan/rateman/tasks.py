@@ -51,8 +51,8 @@ async def connect_ap(rateman, ap, timeout, reconnect=False, skip_api_header=Fals
         await ap.connect()
         await asyncio.sleep(timeout)
 
-    ap.enable_rc_api()
     if skip_api_header:
+        ap.enable_rc_api()
         await skip_api_header(rateman, ap)
         if not ap.connected:
             rateman.add_task(
@@ -90,7 +90,7 @@ async def collect_data(rateman, ap, reconnect_timeout=10):
             rateman.process_line(ap, line.decode("utf-8").rstrip("\n"))
         except (KeyboardInterrupt, asyncio.CancelledError):
             break
-        except asyncio.TimeoutError:
+        except (asyncio.TimeoutError, UnicodeError):
             await asyncio.sleep(0.01)
         except ConnectionError:
             ap.connected = False

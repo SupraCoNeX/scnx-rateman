@@ -1,18 +1,14 @@
 # -*- coding: utf-8 -*-
-r"""
-Errors Module
--------------------
-This module provides a collection of functions that categorize errors in
-data files and processes data files to produce cleaner data files that can be
-used for analysis.
-"""
+
+import logging
+import station
 
 __all__ = [
     "process_line",
     "update_pckt_count_txs",
     "update_pckt_count_rcs",
     "check_line_sta_add",
-    "get_sta_info",
+    "parse_sta",
     "get_group_idx_info",
 ]
 
@@ -57,16 +53,21 @@ def process_line(ap, line):
         # TODO
         pass
     elif fields[2] == "sta" and len(fields) == 49:
-        sta_info = get_sta_info(ap, fields)
-        if fields[3] == "add":
-            ap.add_station(sta_info)
-        elif fields[3] == "remove":
-            ap.remove_station(sta_info)
+        if fields[3] in ["add", "dump"]:
+            ap.add_station(parse_sta(ap, fields))
+    elif fields[2] == "sta" and fields[3] == "remove" and len(fields) == 8:
+        ap.remove_station(fields[4], fields[0])
 
 def update_pckt_count_txs(ap, fields):
     radio = fields[0]
-    timestamp = fields[1]
     mac_addr = fields[3]
+
+    try:
+        sta = ap.stations()[mac_addr]
+    except KeyError:
+        return
+
+    timestamp = fields[1]
     num_frames = int(fields[4], 16)
     num_ack = int(fields[5], 16)
     probe_flag = int(fields[6], 16)
@@ -100,55 +101,51 @@ def update_pckt_count_txs(ap, fields):
 
     succ[suc_rate_ind] = num_ack
     rates = [rate_ind1, rate_ind2, rate_ind3, rate_ind4]
-    rates = ["0" + rate if len(rate) == 1 else rate for rate in rates]
-    line_dict = {}
-    sta_obj = ap.sta_list_active[radio][mac_addr]
+    rates = [f"0{rate}" if len(rate) == 1 else rate for rate in rates]
+    info = {}
 
     for rate_ind, rate in enumerate(rates):
         if rate != "ffff":
-            if rate not in list(line_dict.keys()):
-                line_dict[rate] = {}
-                if sta_obj.check_rate_entry(rate):
-                    line_dict[rate]["attempts"] = sta_obj.get_attempts(rate)
-                    line_dict[rate]["success"] = sta_obj.get_successes(rate)
+            if rate not in info:
+                info[rate] = {}
+                if sta.check_rate_entry(rate):
+                    info[rate]["attempts"] = sta.get_attempts(rate)
+                    info[rate]["success"] = sta.get_successes(rate)
                 else:
-                    line_dict[rate]["attempts"] = 0
-                    line_dict[rate]["success"] = 0
+                    info[rate]["attempts"] = 0
+                    info[rate]["success"] = 0
 
-            line_dict[rate]["attempts"] += atmpts[rate_ind]
-            line_dict[rate]["success"] += succ[rate_ind]
-            line_dict[rate]["timestamp"] = timestamp
+            info[rate]["attempts"] += atmpts[rate_ind]
+            info[rate]["success"] += succ[rate_ind]
 
-    ap.sta_list_active[radio][mac_addr].update_stats(line_dict)
+    sta.update_stats(timestamp, info)
 
 def update_pckt_count_rcs(ap, fields):
-    radio = fields[0]
-    timestamp = fields[1]
-    mac_addr = fields[3]
-    rate = fields[4]
-    cur_succ = fields[7]
-    cur_atmpts = fields[8]
-    hist_succ = fields[9]
-    hist_atmpts = fields[10]
+    # TODO: what about this?
+    pass
+    # radio = fields[0]
+    # timestamp = fields[1]
+    # mac_addr = fields[3]
 
-    line_dict = {
-        "timestamp": timestamp,
-        "cur_attempts": int(cur_atmpts, 16),
-        "cur_success": int(cur_succ, 16),
-        "hist_attempts": int(hist_atmpts, 16),
-        "hist_success": int(hist_succ, 16),
-    }
+    # sta = ap.get_sta(mac_addr, radio)
+    # if not sta:
+    #     logging.warn(f"Unexpected rc stats for unknown MAC {mac_addr}")
+    #     return
+    
+    # sta.update_stats(
+    #     timestamp,
+    #     {
+    #         fields[4]: {
+    #             "cur_attempts": int(fields[8], 16),
+    #             "cur_success": int(fields[7], 16),
+    #             "hist_attempts": int(fields[10], 16),
+    #             "hist_success": int(fields[9], 16),
+    #         }
+    #     }
+    # )
 
-    # TODO
-
-def get_sta_info(ap, fields):
-    sta_info = {
-        "radio": fields[0],
-        "timestamp" : fields[1],
-        "mac_addr" : fields[4],
-        "supp_rates": []
-    }
-
+def parse_sta(ap, fields):
+    supp_rates = []
     rates_flag = fields[7:]
 
     for i, (groupIdx, max_offset) in enumerate(ap.supp_rates.items()):
@@ -162,11 +159,11 @@ def get_sta_info(ap, fields):
 
             # Making sure no of 1s in bit mask isn't greater than rates in that group index
             if no_supp_rates <= no_rates:
-                sta_info["supp_rates"] += [
-                    offset[:-1] + str(i) for i in range(no_supp_rates)
-                ]
+                supp_rates += [f"{offset[:-1]}{i}" for i in range(no_supp_rates)]
 
-    return sta_info
+    sta = station.Station(fields[0], fields[4], supp_rates, fields[1])
+
+    return sta
 
 def get_group_idx_info(data_line):
     """
