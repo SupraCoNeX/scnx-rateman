@@ -16,13 +16,15 @@ import asyncio
 import os
 import logging
 import parsing
+
 # import mexman
 
 __all__ = [
     "connect_ap",
     "collect_data",
-    "skip_api_header",
+    "skip_header_lines",
 ]
+
 
 async def connect_ap(rateman, ap, timeout, reconnect=False, skip_api_header=False):
     """
@@ -53,18 +55,20 @@ async def connect_ap(rateman, ap, timeout, reconnect=False, skip_api_header=Fals
 
     if skip_api_header:
         ap.enable_rc_api()
-        await skip_api_header(rateman, ap)
+        await skip_header_lines(rateman, ap)
         if not ap.connected:
             rateman.add_task(
-                connect_ap(rateman, ap, timeout, reconnect=True, skip_api_header=True), 
-                name=f"reconnect_{ap.id}"
+                connect_ap(rateman, ap, timeout, reconnect=True, skip_api_header=True),
+                name=f"reconnect_{ap.id}",
             )
             return
 
     rateman.add_task(
-        collect_data(rateman, ap, reconnect_timeout=timeout),
-         name=f"collector_{ap.id}"
+        collect_data(rateman, ap, reconnect_timeout=timeout), name=f"collector_{ap.id}"
     )
+
+    rateman.add_task(ap.rate_control(ap), name=f"rc_{ap.id}")
+
 
 async def collect_data(rateman, ap, reconnect_timeout=10):
     """
@@ -87,6 +91,11 @@ async def collect_data(rateman, ap, reconnect_timeout=10):
     while True:
         try:
             line = await asyncio.wait_for(ap.reader.readline(), 0.01)
+
+            if not len(line):
+                print("Raising Connection Error")
+                raise ConnectionError
+
             rateman.process_line(ap, line.decode("utf-8").rstrip("\n"))
         except (KeyboardInterrupt, asyncio.CancelledError):
             break
@@ -99,13 +108,15 @@ async def collect_data(rateman, ap, reconnect_timeout=10):
             # FIXME: we might be setting skip to True prematurely here. Maybe we need a flag
             #        indicating whether the API header has been received completely for an AP.
             rateman.add_task(
-                connect_ap(rateman, ap, reconnect_timeout, reconnect=True, skip_api_header=True),
-                name=f"reconnect_{ap.id}"
+                connect_ap(
+                    rateman, ap, reconnect_timeout, reconnect=True, skip_api_header=True
+                ),
+                name=f"reconnect_{ap.id}",
             )
             break
 
 
-async def skip_api_header(rateman, ap):
+async def skip_header_lines(rateman, ap):
     """
     Receive data from an instance of minstrel-rcd without notifying rateman of
     minstrel-rcd API header lines. Once a non-API line is received, rateman

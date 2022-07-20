@@ -44,7 +44,7 @@ class Station:
         return self._supp_rates[0]
 
     def update_stats(self, timestamp, info: dict) -> None:
-        for rate,stats in info.items():
+        for rate, stats in info.items():
             if timestamp > self._latest_timestamp:
                 self._latest_timestamp = timestamp
                 self._stats[rate] = stats

@@ -4,13 +4,14 @@ import logging
 import station
 
 __all__ = [
+    "process_api",
+    "parse_group",
     "process_line",
     "update_pckt_count_txs",
     "update_pckt_count_rcs",
-    "check_line_sta_add",
     "parse_sta",
-    "get_group_idx_info",
 ]
+
 
 def process_api(ap, fields):
     if len(fields) < 4:
@@ -19,14 +20,19 @@ def process_api(ap, fields):
     line_type = fields[2]
 
     if line_type == "group":
-        # process_rate_group(ap, fields) TODO
-        pass
+        idx, max_offset = parse_group(fields)
+        ap.add_supp_rates(idx, max_offset)
+
 
 def parse_group(fields):
+    fields = list(filter(None, fields))
     group_idx = fields[3]
+    offset = fields[4]
+
     max_offset = offset[:-1] + str(len(fields[9:]) - 1)
 
     return group_idx, max_offset
+
 
 def process_line(ap, line):
     fields = line.rstrip("\n").split(";")
@@ -42,10 +48,7 @@ def process_line(ap, line):
         ap.add_phy(fields[0])
         return
 
-    if fields[2] == "group" and len(fields) == 19:
-        idx, max_offset = parse_group(fields)
-        ap.add_supp_rates(idx, max_offset)
-    elif fields[2] == "txs" and len(fields) == 15:
+    if fields[2] == "txs" and len(fields) == 15:
         update_pckt_count_txs(ap, fields)
     elif fields[2] == "stats" and len(fields) == 11:
         update_pckt_count_rcs(ap, fields)
@@ -57,6 +60,7 @@ def process_line(ap, line):
             ap.add_station(parse_sta(ap, fields))
     elif fields[2] == "sta" and fields[3] == "remove" and len(fields) == 8:
         ap.remove_station(fields[4], fields[0])
+
 
 def update_pckt_count_txs(ap, fields):
     radio = fields[0]
@@ -117,8 +121,10 @@ def update_pckt_count_txs(ap, fields):
 
             info[rate]["attempts"] += atmpts[rate_ind]
             info[rate]["success"] += succ[rate_ind]
+            info[rate]["timestamp"] = timestamp
 
     sta.update_stats(timestamp, info)
+
 
 def update_pckt_count_rcs(ap, fields):
     # TODO: what about this?
@@ -131,7 +137,7 @@ def update_pckt_count_rcs(ap, fields):
     # if not sta:
     #     logging.warn(f"Unexpected rc stats for unknown MAC {mac_addr}")
     #     return
-    
+
     # sta.update_stats(
     #     timestamp,
     #     {
@@ -143,6 +149,7 @@ def update_pckt_count_rcs(ap, fields):
     #         }
     #     }
     # )
+
 
 def parse_sta(ap, fields):
     supp_rates = []
@@ -164,30 +171,3 @@ def parse_sta(ap, fields):
     sta = station.Station(fields[0], fields[4], supp_rates, fields[1])
 
     return sta
-
-def get_group_idx_info(data_line):
-    """
-
-
-    Parameters
-    ----------
-    data_line : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    group_idx : TYPE
-        DESCRIPTION.
-    max_offset : TYPE
-        DESCRIPTION.
-
-    """
-
-    fields = data_line.split(";")
-    fields = list(filter(None, fields))
-    group_idx = fields[3]
-    offset = fields[4]
-
-    max_offset = offset[:-1] + str(len(fields[9:]) - 1)
-
-    return group_idx, max_offset

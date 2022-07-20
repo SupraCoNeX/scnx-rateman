@@ -15,10 +15,7 @@ import logging
 import csv
 from station import Station
 
-__all__ = [
-    "AccessPoint",
-    "from_file"
-]
+__all__ = ["AccessPoint", "from_file"]
 
 
 class AccessPoint:
@@ -106,7 +103,7 @@ class AccessPoint:
 
         stas = {}
         for phy in self._phys:
-            for mac,sta in self._phys[phy][which].items():
+            for mac, sta in self._phys[phy][which].items():
                 stas[mac] = sta
 
         return stas
@@ -117,7 +114,7 @@ class AccessPoint:
         except KeyError:
             return None
 
-    def get_sta(self, mac: str, phy : str = None, state="active"):
+    def get_sta(self, mac: str, phy: str = None, state="active"):
         if not phy:
             for phy in self._phys:
                 sta = self.get_sta(mac, phy, state=state)
@@ -156,15 +153,16 @@ class AccessPoint:
     async def connect(self):
         try:
             self._reader, self._writer = await asyncio.wait_for(
-                asyncio.open_connection(self._addr, self._rcd_port),
-                timeout=0.5
+                asyncio.open_connection(self._addr, self._rcd_port), timeout=0.5
             )
-            
+
             logging.info(f"Connected to {self._id} at {self._addr}:{self._rcd_port}")
-            
+
             self._connected = True
         except (OSError, asyncio.TimeoutError, ConnectionError) as e:
-            logging.error(f"Failed to connect to {self._id} at {self._addr}:{self._rcd_port}: {e}")
+            logging.error(
+                f"Failed to connect to {self._id} at {self._addr}:{self._rcd_port}: {e}"
+            )
             self._connected = False
 
     def enable_rc_api(self, phy=None):
@@ -195,6 +193,7 @@ class AccessPoint:
         if group_idx not in self._supp_rates:
             self.supp_rates.update({group_idx: max_offset})
 
+
 def from_file(file):
     def parse_ap(ap):
         id = ap["APID"]
@@ -206,13 +205,8 @@ def from_file(file):
             rcd_port = 21059
 
         ap = AccessPoint(id, addr, rcd_port=rcd_port)
-        ap.rate_control_alg = rate_control_alg
-        ap.rate_control_handle = self.get_rc_alg_entry(rate_control_alg)
 
         return ap
 
     with open(file, newline="") as csvfile:
         return [parse_ap(ap) for ap in csv.DictReader(csvfile)]
-            
-
-    
