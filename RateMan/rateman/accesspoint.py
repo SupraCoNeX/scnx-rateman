@@ -13,7 +13,6 @@ TODO
 import asyncio
 import logging
 import csv
-import sys
 from .station import Station
 
 __all__ = ["AccessPoint", "from_file", "from_str"]
