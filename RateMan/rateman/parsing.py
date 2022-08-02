@@ -80,7 +80,7 @@ def update_pckt_count_txs(ap, fields):
     mac_addr = fields[3]
 
     try:
-        sta = ap.get_stations()[mac_addr]
+        sta = ap.stations()[mac_addr]
     except KeyError:
         return
 

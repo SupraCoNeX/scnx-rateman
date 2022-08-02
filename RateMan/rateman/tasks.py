@@ -198,4 +198,3 @@ class TaskMan:
                 ap.connected = False
                 break
 
-  

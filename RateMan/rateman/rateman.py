@@ -4,15 +4,6 @@
 #     https://www.supraconex.org
 #
 
-r"""
-Rate Manager Object
--------------------
-
-This class provides an object for Rate Manager that utilizes functions defined
-in different modules. 
-
-"""
-
 import argparse
 import sys
 import logging
@@ -20,6 +11,7 @@ import asyncio
 from .accesspoint import AccessPoint
 from .tasks import TaskMan
 from .parsing import *
+
 
 
 __all__ = ["RateMan"]
@@ -62,8 +54,7 @@ class RateMan:
             for phy in ap.phys:
                 ap.writer.write(f"{phy};stop\n".encode("ascii"))
                 ap.writer.write(f"{phy};auto\n".encode("ascii"))
-
-            ap.writer.close()
+                ap.writer.close()
 
         for task in self._taskman.tasks:
             print(f"Cancelling {task.get_name()}")
@@ -166,3 +157,4 @@ if __name__ == "__main__":
     finally:
         loop.run_until_complete(rateman.stop())
         print("DONE")
+
