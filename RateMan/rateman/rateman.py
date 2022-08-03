@@ -20,9 +20,9 @@ import logging
 import asyncio
 import json
 import os
-import accesspoint
-import tasks
-import parsing
+from .accesspoint import AccessPoint
+from .tasks import *
+from .parsing import *
 import time
 
 __all__ = ["RateMan"]
@@ -43,88 +43,17 @@ class RateMan:
         self._loop = loop
         self._accesspoints = {}
         self._tasks = []
-        self._data_callbacks = [parsing.process_line]
+        self._data_callbacks = [process_line]
 
         for ap in aps:
             ap.rate_control_alg = rate_control_alg
             ap.rate_control = self.load_rc(rate_control_alg)
-            self._accesspoints[ap.id] = ap
-            self.add_task(tasks.connect_ap(self, ap, 5), name=f"connect_{ap.id}")
+            self._accesspoints[ap.ap_id] = ap
+            self.add_task(connect_ap(self, ap, 5), name=f"connect_{ap.ap_id}")
 
     @property
     def accesspoints(self) -> dict:
         return self._accesspoints
-
-    # TODO: differentiate by line type
-    def add_data_callback(self, cb):
-        """
-        Register a callback to be called on incoming data.
-        """
-        if cb not in self._data_callbacks:
-            self._data_callbacks.append(cb)
-
-    def remove_data_callback(self, cb):
-        """
-        Unregister a data callback.
-        """
-        if cb in self._data_callbacks:
-            self._data_callbacks.remove(cb)
-
-    def process_line(self, ap, line):
-        logging.debug(f"{ap.id}> '{line}'")
-
-        for cb in self._data_callbacks:
-            cb(ap, line)
-
-    def add_task(self, coro, name=""):
-        for task in self._tasks:
-            if task.get_name() == name:
-                return
-
-        task = self._loop.create_task(coro, name=name)
-        task.add_done_callback(self._tasks.remove)
-        self._tasks.append(task)
-
-    # async def initialize(self):
-    #     for id, ap in self._accesspoints.items():
-    #         await ap.connect()
-
-    #         if ap.connected:
-    #             ap.once_connected = True
-    #             self.add_task(tasks.collect_data(self, ap), name=f"collector_{id}")
-
-    #         if ap.rate_control_alg == "minstrel_ht_kernel_space":
-    #             pass
-    #         elif ap.rate_control_alg and ap.rate_control:
-    #             self.add_task(ap.rate_control(ap), name=f"rc_{id}")
-    #         # elif ap.rate_control_alg == "param-setting-exp":
-    #         #     ap.rate_control = mexman.MExRC(ap.rate_control_settings)
-    #         #     if "rate_control_interval" in ap.rate_control_settings:
-    #         #         loop.create_task(
-    #         #             ap.rate_control.execute_rate_control(
-    #         #                 ap,
-    #         #                 ap.rate_control_settings["rate_control_interval"],
-    #         #             )
-    #         #         )
-    #         #     else:
-    #         #         loop.create_task(ap.rate_control.execute_rate_control(ap))
-    #     else:
-    #         logging.error(f"Couldn't establish initial connection to {id}")
-    #         self.add_task(tasks.reconnect_ap(self, ap, 5), name=f"reconnect_{id}")
-
-    def start_measurement(self, output_dir: str = "") -> None:
-        # TODO
-        # start_time = time.time()
-        # try:
-        #     self._loop.run_forever()
-        # except (OSError, KeyboardInterrupt):
-
-        #     time_elapsed = time.time() - start_time
-        #     logging.info("Measurement Completed! Time duration: %f", time_elapsed)
-        # finally:
-        #     self.stop()
-        #     self._loop.close()
-        pass
 
     async def stop(self):
         for _, ap in self._accesspoints.items():
@@ -163,12 +92,36 @@ class RateMan:
 
         return entry_func
 
-    async def run(self):
-        try:
-            self._loop.run_forever()
-        finally:
-            await self.stop()
+    # TODO: differentiate by line type
+    def add_data_callback(self, cb):
+        """
+        Register a callback to be called on incoming data.
+        """
+        if cb not in self._data_callbacks:
+            self._data_callbacks.append(cb)
 
+    def remove_data_callback(self, cb):
+        """
+        Unregister a data callback.
+        """
+        if cb in self._data_callbacks:
+            self._data_callbacks.remove(cb)
+
+    def execute_callbacks(self, ap, line):
+        logging.debug(f"{ap.ap_id}> '{line}'")
+
+        for cb in self._data_callbacks:
+            cb(ap, line)    
+
+
+    def add_task(self, coro, name=""):
+        for task in self._tasks:
+            if task.get_name() == name:
+                return
+
+        task = self._loop.create_task(coro, name=name)
+        task.add_done_callback(self._tasks.remove)
+        self._tasks.append(task)
 
 if __name__ == "__main__":
 
@@ -181,7 +134,7 @@ if __name__ == "__main__":
                 print(f"Invalid access point: '{apstr}'", file=sys.stderr)
                 continue
 
-            id = fields[0]
+            ap_id = fields[0]
             addr = fields[1]
 
             try:
@@ -189,7 +142,7 @@ if __name__ == "__main__":
             except (IndexError, ValueError):
                 rcd_port = 21059
 
-            aps.append(accesspoint.AccessPoint(id, addr, rcd_port))
+            aps.append(AccessPoint(ap_id, addr, rcd_port))
 
         return aps
 

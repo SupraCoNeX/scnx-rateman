@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import station
+from .station import Station
 
 __all__ = [
     "process_api",
@@ -67,7 +67,7 @@ def update_pckt_count_txs(ap, fields):
     mac_addr = fields[3]
 
     try:
-        sta = ap.stations()[mac_addr]
+        sta = ap.get_stations()[mac_addr]
     except KeyError:
         return
 
@@ -168,6 +168,5 @@ def parse_sta(ap, fields):
             if no_supp_rates <= no_rates:
                 supp_rates += [f"{offset[:-1]}{i}" for i in range(no_supp_rates)]
 
-    sta = station.Station(fields[0], fields[4], supp_rates, fields[1])
-
+    sta = Station(fields[0], fields[4], supp_rates, fields[1])
     return sta

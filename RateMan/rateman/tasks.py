@@ -15,11 +15,12 @@ monitor network status and set rates.
 import asyncio
 import os
 import logging
-import parsing
+from .parsing import *
+
 
 # import mexman
 
-__all__ = [
+__all__ = [  
     "connect_ap",
     "collect_data",
     "skip_header_lines",
@@ -57,17 +58,18 @@ async def connect_ap(rateman, ap, timeout, reconnect=False, skip_api_header=Fals
         ap.enable_rc_api()
         await skip_header_lines(rateman, ap)
         if not ap.connected:
-            rateman.add_task(
+            rateman.rateman.add_task(
                 connect_ap(rateman, ap, timeout, reconnect=True, skip_api_header=True),
-                name=f"reconnect_{ap.id}",
+                name=f"reconnect_{ap.ap_id}",
             )
             return
 
     rateman.add_task(
-        collect_data(rateman, ap, reconnect_timeout=timeout), name=f"collector_{ap.id}"
+        collect_data(rateman, ap, reconnect_timeout=timeout), name=f"collector_{ap.ap_id}"
     )
-
-    rateman.add_task(ap.rate_control(ap), name=f"rc_{ap.id}")
+    
+    if ap.rate_control_alg != "minstrel_ht_kernel_space":
+        rateman.add_task(ap.rate_control(ap), name=f"rc_{ap.ap_id}")
 
 
 async def collect_data(rateman, ap, reconnect_timeout=10):
@@ -96,14 +98,14 @@ async def collect_data(rateman, ap, reconnect_timeout=10):
                 print("Raising Connection Error")
                 raise ConnectionError
 
-            rateman.process_line(ap, line.decode("utf-8").rstrip("\n"))
+            rateman.execute_callbacks(ap, line.decode("utf-8").rstrip("\n"))
         except (KeyboardInterrupt, asyncio.CancelledError):
             break
         except (asyncio.TimeoutError, UnicodeError):
             await asyncio.sleep(0.01)
         except ConnectionError:
             ap.connected = False
-            logging.error(f"Disconnected from {ap.id}")
+            logging.error(f"Disconnected from {ap.ap_id}")
 
             # FIXME: we might be setting skip to True prematurely here. Maybe we need a flag
             #        indicating whether the API header has been received completely for an AP.
@@ -111,7 +113,7 @@ async def collect_data(rateman, ap, reconnect_timeout=10):
                 connect_ap(
                     rateman, ap, reconnect_timeout, reconnect=True, skip_api_header=True
                 ),
-                name=f"reconnect_{ap.id}",
+                name=f"reconnect_{ap.ap_id}",
             )
             break
 
@@ -140,15 +142,15 @@ async def skip_header_lines(rateman, ap):
 
             if not len(data_line):
                 ap.connected = False
-                logging.error(f"Disconnected from {ap.id}")
+                logging.error(f"Disconnected from {ap.ap_id}")
                 break
 
             line = data_line.decode("utf-8").rstrip("\n")
 
             if line[0] != "*":
-                rateman.process_line(ap, line)
+                process_line(ap, line)
                 break
         except (OSError, ConnectionError, asyncio.TimeoutError) as error:
-            logging.error(f"Disconnected from {ap.id}: {error}")
+            logging.error(f"Disconnected from {ap.ap_id}: {error}")
             ap.connected = False
             break
