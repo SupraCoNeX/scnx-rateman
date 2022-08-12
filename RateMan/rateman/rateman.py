@@ -6,7 +6,7 @@
 
 r"""
 Rate Manager Object
-----------------
+-------------------
 
 This class provides an object for Rate Manager that utilizes functions defined
 in different modules. 
@@ -40,17 +40,20 @@ class RateMan:
         else:
             self._new_loop_created = False
 
-        self._loop = loop
-        self._accesspoints = {}
-        self._tasks = []
-        self._data_callbacks = [process_line]
-
+        # self._loop = loop
+        self._accesspoints = {}        
+        self._taskman = TaskMan(loop)
+        
         for ap in aps:
             ap.rate_control_alg = rate_control_alg
             ap.rate_control = self.load_rc(rate_control_alg)
             self._accesspoints[ap.ap_id] = ap
-            self.add_task(connect_ap(self, ap, 5), name=f"connect_{ap.ap_id}")
+            self._taskman.add_task(self._taskman.connect_ap(ap, 5), name=f"connect_{ap.ap_id}")
 
+    @property
+    def taskman(self) -> dict:
+        return self._taskman
+    
     @property
     def accesspoints(self) -> dict:
         return self._accesspoints
@@ -63,17 +66,18 @@ class RateMan:
             for phy in ap.phys:
                 ap.writer.write(f"{phy};stop\n".encode("ascii"))
                 ap.writer.write(f"{phy};auto\n".encode("ascii"))
-                ap.writer.close()
 
-        for task in self._tasks:
+            ap.writer.close()
+
+        for task in self._taskman.tasks:
             print(f"Cancelling {task.get_name()}")
             task.cancel()
 
-        if len(self._tasks) > 0:
-            await asyncio.wait(self._tasks)
+        if len(self._taskman.tasks) > 0:
+            await asyncio.wait(self._taskman.tasks)
 
         if self._new_loop_created:
-            self._loop.close()
+            self._taskman.cur_loop.close()
 
         logging.info("RateMan stopped")
 
@@ -91,37 +95,6 @@ class RateMan:
                 )
 
         return entry_func
-
-    # TODO: differentiate by line type
-    def add_data_callback(self, cb):
-        """
-        Register a callback to be called on incoming data.
-        """
-        if cb not in self._data_callbacks:
-            self._data_callbacks.append(cb)
-
-    def remove_data_callback(self, cb):
-        """
-        Unregister a data callback.
-        """
-        if cb in self._data_callbacks:
-            self._data_callbacks.remove(cb)
-
-    def execute_callbacks(self, ap, line):
-        logging.debug(f"{ap.ap_id}> '{line}'")
-
-        for cb in self._data_callbacks:
-            cb(ap, line)    
-
-
-    def add_task(self, coro, name=""):
-        for task in self._tasks:
-            if task.get_name() == name:
-                return
-
-        task = self._loop.create_task(coro, name=name)
-        task.add_done_callback(self._tasks.remove)
-        self._tasks.append(task)
 
 if __name__ == "__main__":
 

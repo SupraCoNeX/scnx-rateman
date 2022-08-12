@@ -1,4 +1,17 @@
-# -*- coding: utf-8 -*-
+# -*- coding: UTF8 -*-
+# Copyright SupraCoNeX
+#     https://www.supraconex.org
+#
+
+r"""
+Parsing Rate Control API Output Lines
+-------------------------------------
+
+This is the main processing module that provides functions to asynchronously 
+monitor network status and set rates.
+
+"""
+
 
 import logging
 from .station import Station

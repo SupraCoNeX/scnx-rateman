@@ -5,7 +5,7 @@
 
 r"""
 Accesspoint Object
-----------------
+------------------
 
 This class provides ... 
 
@@ -183,6 +183,8 @@ class AccessPoint:
         else:
             rate = ",".join(mrr_rates)
             count = ",".join(mrr_counts)
+            
+        print("Setting %s for %s" %(rate, count))
 
         self._writer.write(f"{phy};rates;{mac};{rate};{count}\n".encode("ascii"))
 

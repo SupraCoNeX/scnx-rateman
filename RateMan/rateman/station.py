@@ -2,7 +2,14 @@
 # Copyright SupraCoNeX
 #     https://www.supraconex.org
 #
-import asyncio
+
+r"""
+Station Class
+-------------
+
+A Station object is created at instance a station connects to a given AP. 
+
+"""
 
 
 __all__ = ["Station"]
@@ -44,21 +51,88 @@ class Station:
         return self._supp_rates[0]
 
     def update_stats(self, timestamp, info: dict) -> None:
+        '''
+        
+
+        Parameters
+        ----------
+        timestamp : TYPE
+            DESCRIPTION.
+        info : dict
+            DESCRIPTION.
+
+        Returns
+        -------
+        None
+            DESCRIPTION.
+
+        '''
         for rate, stats in info.items():
             if timestamp > self._latest_timestamp:
                 self._latest_timestamp = timestamp
                 self._stats[rate] = stats
 
     def check_rate_entry(self, rate):
+        '''
+        
+
+        Parameters
+        ----------
+        rate : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
+        '''
         return rate in self._stats
 
     def get_attempts(self, rate):
+        '''
+        
+
+        Parameters
+        ----------
+        rate : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
+        '''
         return self._stats[rate]["attempts"]
 
     def get_successes(self, rate):
+        '''
+        
+
+        Parameters
+        ----------
+        rate : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
+        '''
         return self._stats[rate]["success"]
 
     def reset_stats(self) -> None:
+        '''
+        
+
+        Returns
+        -------
+        None
+            DESCRIPTION.
+
+        '''
         self._stats = {}
 
     def __str__(self):

@@ -71,7 +71,7 @@ print("Running rateman...")
 rateman = rateman.RateMan(aps, rate_control_alg=args.algorithm, loop=loop)
 
 # add a simple print callback to see the incoming data
-rateman.add_data_callback(lambda ap, line: print(f"{ap.ap_id}> '{line}'"))
+rateman.taskman.add_data_callback(lambda ap, line: print(f"{ap.ap_id}> '{line}'"))
 
 try:
     loop.run_forever()
