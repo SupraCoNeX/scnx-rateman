@@ -35,8 +35,8 @@ class RateMan:
         for ap in aps:
             ap.rate_control_alg = rate_control_alg
             ap.rate_control = self.load_rc(rate_control_alg)
-            self._accesspoints[ap.ap_id] = ap
-            self._taskman.add_task(self._taskman.connect_ap(ap, 5), name=f"connect_{ap.ap_id}")
+            self._accesspoints[ap.id] = ap
+            self._taskman.add_task(self._taskman.connect_ap(ap, 5), name=f"connect_{ap.id}")
 
     @property
     def taskman(self) -> dict:
@@ -57,7 +57,7 @@ class RateMan:
                 ap.writer.close()
 
         for task in self._taskman.tasks:
-            print(f"Cancelling {task.get_name()}")
+            logging.info(f"Cancelling {task.get_name()}")
             task.cancel()
 
         if len(self._taskman.tasks) > 0:

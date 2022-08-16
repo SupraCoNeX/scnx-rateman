@@ -52,8 +52,6 @@ class Station:
 
     def update_stats(self, timestamp, info: dict) -> None:
         '''
-        
-
         Parameters
         ----------
         timestamp : TYPE
