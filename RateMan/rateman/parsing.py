@@ -23,7 +23,17 @@ __all__ = [
     "update_pckt_count_txs",
     "update_pckt_count_rcs",
     "parse_sta",
+    "parse_s16",
+    "parse_s32"
 ]
+
+# utility function to parse signed integers from hex strings in two's complement format
+def twos_complement(hexstr, bits):
+    val = int(hexstr, 16)
+    return val - (1 << bits) if val & (1 << (bits-1)) else val
+
+parse_s16 = lambda s: twos_complement(s, 16)
+parse_s32 = lambda s: twos_complement(s, 32)
 
 
 def process_api(ap, fields):
