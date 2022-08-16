@@ -7,7 +7,7 @@ r"""
 Accesspoint Object
 ------------------
 
-This class provides ... 
+TODO
 
 """
 import asyncio
@@ -45,7 +45,6 @@ class AccessPoint:
         """
         self._ap_id = ap_id
         self._addr = addr
-        self._ssh_port = ssh_port
         self._rcd_port = rcd_port
         self._supp_rates = {}
         self._phys = {}
@@ -54,6 +53,7 @@ class AccessPoint:
         self._output_dir = None
         self._ap_data_dir = None
         self._data_file = None
+        self._latest_timestamp = 0
 
     @property
     def ap_id(self) -> str:
@@ -97,7 +97,7 @@ class AccessPoint:
 
     @property
     def data_file(self) -> object:
-        return self._data_file
+        return self._data_file()
 
     @property
     def rate_control_alg(self) -> dict:
@@ -135,7 +135,7 @@ class AccessPoint:
     def phys(self) -> list:
         return self._phys
 
-    def get_stations(self, which="active"):
+    def stations(self, which="active"):
         if which == "all":
             return self.stations(which="active") + self.stations(which="inactive")
 
@@ -169,14 +169,14 @@ class AccessPoint:
 
     def add_phy(self, phy: str) -> None:
         if phy not in self._phys:
-            logging.debug(f"{self.ap_id}: adding PHY {phy}")
+            logging.debug(f"{self.id}: adding PHY {phy}")
             self._phys[phy] = {"active": {}, "inactive": {}}
             self._writer.write(f"{phy};dump\n".encode("ascii"))
             self._writer.write(f"{phy};start;txs;rxs;stats\n".encode("ascii"))
 
     def add_station(self, sta: Station) -> None:
         if sta.mac_addr not in self._phys[sta.radio]["active"]:
-            logging.info(f"adding active {sta} on {sta.radio}")
+            logging.info(f"adding active {sta}")
             self._phys[sta.radio]["active"][sta.mac_addr] = sta
 
     def remove_station(self, mac: str, phy: str) -> None:
@@ -184,9 +184,25 @@ class AccessPoint:
             sta = self._phys[phy]["active"].pop(mac)
             sta.radio = None
             self._phys[phy]["inactive"][mac] = sta
-            logging.info(f"removing {sta} from {phy}")
+            logging.info(f"removing {sta}")
         except KeyError as e:
             pass
+
+    def update_timestamp(self, timestamp_str):
+        timestamp = int(timestamp_str, 16)
+
+        if self._latest_timestamp == 0:
+            self._latest_timestamp = timestamp
+            return True
+
+        if (
+            timestamp > self._latest_timestamp
+            and len(timestamp_str) - len(f"{self._latest_timestamp:x}") <= 1
+        ):
+            self._latest_timestamp = timestamp
+            return True
+
+        return False
 
     async def connect(self):
         try:
@@ -194,7 +210,7 @@ class AccessPoint:
                 asyncio.open_connection(self._addr, self._rcd_port), timeout=0.5
             )
 
-            logging.info(f"Connected to {self._ap_id} at {self._addr}:{self._rcd_port}")
+            logging.info(f"Connected to {self._id} at {self._addr}:{self._rcd_port}")
 
             self._connected = True
 
@@ -203,7 +219,7 @@ class AccessPoint:
 
         except (OSError, asyncio.TimeoutError, ConnectionError) as e:
             logging.error(
-                f"Failed to connect to {self._ap_id} at {self._addr}:{self._rcd_port}: {e}"
+                f"Failed to connect to {self._id} at {self._addr}:{self._rcd_port}: {e}"
             )
             self._connected = False
 
@@ -229,8 +245,6 @@ class AccessPoint:
         else:
             rate = ",".join(mrr_rates)
             count = ",".join(mrr_counts)
-
-        print("Setting %s for %s" % (rate, count))
 
         self._writer.write(f"{phy};rates;{mac};{rate};{count}\n".encode("ascii"))
 
@@ -261,8 +275,7 @@ def get_aps_from_file(file: dir):
         except (KeyError, ValueError):
             rcd_port = 21059
 
-        ap = AccessPoint(ap_id, addr, ssh_port, rcd_port)
-
+        ap = AccessPoint(ap_id, addr, ssh_port, rcd_port=rcd_port)
         return ap
 
     with open(file, newline="") as csvfile:
@@ -278,14 +291,15 @@ def parse_ap_strs(ap_strs):
             print(f"Invalid access point: '{apstr}'", file=sys.stderr)
             continue
 
-        id = fields[0]
+        ap_id = fields[0]
         addr = fields[1]
+        ssh_port = fields[2]
 
         try:
-            rcd_port = int(fields[2])
+            rcd_port = int(fields[3])
         except (IndexError, ValueError):
             rcd_port = 21059
 
-        aps.append(AccessPoint(id, addr, rcd_port))
+        aps.append(AccessPoint(ap_id, addr, ssh_port, rcd_port))
 
     return aps

@@ -13,8 +13,9 @@ and asyncio tasks. Includes basic methods to collect data from Rate Control API.
 """
 
 import asyncio
+import sys
 import logging
-from .parsing import *
+from .parsing import process_line
 
 __all__ = ["TaskMan"]
 
@@ -31,14 +32,15 @@ class TaskMan:
         """
         self._loop = loop
         self._tasks = []
-        self._data_callbacks = [process_line]
+        self._raw_data_callbacks = []
+        self._data_callbacks = {"any": [], "txs": [], "stats": [], "rxs": []}
 
     @property
     def tasks(self) -> list:
         return self._tasks
 
     @property
-    def cur_loop(self) -> asyncio.BaseEventLoop():
+    def cur_loop(self) -> asyncio.BaseEventLoop:
         return self._loop
 
     def add_task(self, coro, name=""):
@@ -50,25 +52,50 @@ class TaskMan:
         task.add_done_callback(self._tasks.remove)
         self._tasks.append(task)
 
-    # TODO: differentiate by line type
-    def add_data_callback(self, cb):
+    def add_raw_data_callback(self, cb):
+        """
+        Register a callback to be called on unvalidated incoming data
+        """
+        if cb not in self._raw_data_callbacks:
+            self._raw_data_callbacks.append(cb)
+
+    def add_data_callback(self, cb, type="any"):
         """
         Register a callback to be called on incoming data.
         """
-        if cb not in self._data_callbacks:
-            self._data_callbacks.append(cb)
+        if type not in ["any", "txs", "rxs", "stats", "sta"]:
+            raise ValueError(type)
+
+        if cb not in self._data_callbacks[type]:
+            self._data_callbacks[type].append(cb)
 
     def remove_data_callback(self, cb):
         """
         Unregister a data callback.
         """
-        if cb in self._data_callbacks:
-            self._data_callbacks.remove(cb)
+        if cb in self._raw_data_callbacks:
+            self._raw_data_callbacks.remove(cb)
+            return
 
-    def execute_callbacks(self, ap, line):
+        for _, cbs in self._data_callbacks.items():
+            if cb in cbs:
+                cbs.remove(cb)
 
-        for cb in self._data_callbacks:
-            cb(ap, line)
+    def execute_callbacks(self, ap, fields):
+        logging.debug(f"{ap.id} > {';'.join(fields)}")
+
+        for cb in self._data_callbacks["any"]:
+            cb(ap, fields)
+
+        for cb in self._data_callbacks[fields[2]]:
+            try:
+                cb(ap, *fields)
+            except TypeError:
+                print(
+                    "Incorrect callback signature. Argument count must "
+                    + "match the number of fields separated by ';' in the line",
+                    file=sys.stderr,
+                )
 
     async def connect_ap(self, ap, timeout, reconnect=False, skip_api_header=False):
         """
@@ -103,7 +130,7 @@ class TaskMan:
             if not ap.connected:
                 self.add_task(
                     self.connect_ap(ap, timeout, reconnect=True, skip_api_header=True),
-                    name=f"reconnect_{ap.ap_id}",
+                    name=f"reconnect_{ap.id}",
                 )
                 return
 
@@ -140,13 +167,26 @@ class TaskMan:
                 line = await asyncio.wait_for(ap.reader.readline(), 0.01)
 
                 if not len(line):
-                    print("Raising Connection Error")
                     raise ConnectionError
 
                 self.execute_callbacks(ap, line.decode("utf-8").rstrip("\n"))
 
                 if ap.save_data:
                     ap.data_file.write(line.decode("utf-8"))
+
+                line = line.decode("utf-8").rstrip("\n")
+
+                # do internal housekeeping first
+                fields = process_line(ap, line)
+
+                # execute raw data callbacks on unvalidated line
+                for cb in self._raw_data_callbacks:
+                    cb(ap, line)
+
+                if not fields:
+                    continue
+
+                self.execute_callbacks(ap, fields)
 
             except (KeyboardInterrupt, asyncio.CancelledError):
                 break
@@ -162,7 +202,7 @@ class TaskMan:
                     self.connect_ap(
                         ap, reconnect_timeout, reconnect=True, skip_api_header=True
                     ),
-                    name=f"reconnect_{ap.ap_id}",
+                    name=f"reconnect_{ap.id}",
                 )
                 break
 
@@ -191,7 +231,7 @@ class TaskMan:
 
                 if not len(data_line):
                     ap.connected = False
-                    logging.error(f"Disconnected from {ap.ap_id}")
+                    logging.error(f"Disconnected from {ap.id}")
                     break
 
                 line = data_line.decode("utf-8").rstrip("\n")
@@ -200,6 +240,6 @@ class TaskMan:
                     process_line(ap, line)
                     break
             except (OSError, ConnectionError, asyncio.TimeoutError) as error:
-                logging.error(f"Disconnected from {ap.ap_id}: {error}")
+                logging.error(f"Disconnected from {ap.id}: {error}")
                 ap.connected = False
                 break
