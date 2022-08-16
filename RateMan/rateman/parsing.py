@@ -12,8 +12,6 @@ monitor network status and set rates.
 
 """
 
-
-import logging
 from .station import Station
 
 __all__ = [
@@ -38,6 +36,24 @@ def process_api(ap, fields):
 
 
 def parse_group(fields):
+    """
+    Obtain maximum offset for a given MCS rate group available for an AP.
+
+    Parameters
+    ----------
+    fields : list
+        Fields obtained by spliting a data line received from the AP
+        over the Rate Control API.
+
+    Returns
+    -------
+    group_idx : str
+        Index of MCS rate group.
+    max_offset : str
+        Maximum allowable offset - determines which rates are available
+        in the group for the AP.
+
+    """
     fields = list(filter(None, fields))
     group_idx = fields[3]
     offset = fields[4]
@@ -48,6 +64,18 @@ def parse_group(fields):
 
 
 def process_line(ap, line):
+    """
+
+    Execute respective functions based on the trace line received from the AP.
+
+    Parameters
+    ----------
+    ap : AccessPoint object
+
+    line : str
+        Trace line.
+
+    """
     fields = line.rstrip("\n").split(";")
 
     if len(fields) < 3:
@@ -76,6 +104,18 @@ def process_line(ap, line):
 
 
 def update_pckt_count_txs(ap, fields):
+    """
+    Update packet transmission attempt and success counts for a given station.
+
+    Parameters
+    ----------
+    ap : AccessPoint object
+
+    fields : list
+        Fields obtained by spliting a data line received from the AP
+        over the Rate Control API .
+
+    """
     radio = fields[0]
     mac_addr = fields[3]
 

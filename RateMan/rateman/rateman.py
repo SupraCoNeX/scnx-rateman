@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 # -*- coding: UTF8 -*-
 # Copyright SupraCoNeX
 #     https://www.supraconex.org
@@ -27,8 +26,33 @@ __all__ = ["RateMan"]
 
 class RateMan:
     def __init__(
-        self, aps, rate_control_alg: str = "minstrel_ht_kernel_space", 
-        loop=None, output_dir=None):
+        self,
+        aps,
+        rate_control_alg: str = "minstrel_ht_kernel_space",
+        loop=None,
+        save_data=False,
+        output_dir=None,
+    ):
+        """
+        Parameters
+        ----------
+        aps : list
+            List of AccessPoint objects for a give list of APs provided
+            via CLI or a .csv file.
+        rate_control_alg : str, optional
+            Rate control algorithm to be executed.
+            The default is "minstrel_ht_kernel_space".
+        loop : asyncio.BaseEventLoop, optional
+            Externally existing event loop passed to RateMan meant to be
+            utilized gathering and executing asyncio tasks.
+            The default is None.
+        save_data : bool, optional
+            Flag to denote if trace data is to be collected over the
+            SupraCoNeX Rate Control API. The default is False.
+        output_dir : dir, optional
+            File path where AP trace data is to be saved. The default is None.
+        """
+
         if not loop:
             logging.info("Creating new event loop")
             loop = asyncio.new_event_loop()
@@ -37,24 +61,37 @@ class RateMan:
         else:
             self._new_loop_created = False
 
-        self._accesspoints = {}        
+        self._accesspoints = {}
         self._taskman = TaskMan(loop)
-        
+
         for ap in aps:
             ap.rate_control_alg = rate_control_alg
             ap.rate_control = self.load_rc(rate_control_alg)
+            if save_data:
+                ap.save_data = save_data
+                ap.output_dir = output_dir
             self._accesspoints[ap.ap_id] = ap
-            self._taskman.add_task(self._taskman.connect_ap(ap, 5), name=f"connect_{ap.ap_id}")
+            self._taskman.add_task(
+                self._taskman.connect_ap(ap, 5), name=f"connect_{ap.ap_id}"
+            )
 
     @property
     def taskman(self) -> dict:
         return self._taskman
-    
+
     @property
     def accesspoints(self) -> dict:
         return self._accesspoints
 
     async def stop(self):
+        """
+
+
+        Returns
+        -------
+        None.
+
+        """
         for _, ap in self._accesspoints.items():
             if not ap.connected:
                 continue
@@ -78,6 +115,20 @@ class RateMan:
         logging.info("RateMan stopped")
 
     def load_rc(self, rate_control_algorithm):
+        """
+
+
+        Parameters
+        ----------
+        rate_control_algorithm : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        entry_func : TYPE
+            DESCRIPTION.
+
+        """
         entry_func = None
 
         if rate_control_algorithm == "minstrel_ht_user_space":
@@ -91,6 +142,7 @@ class RateMan:
                 )
 
         return entry_func
+
 
 if __name__ == "__main__":
 

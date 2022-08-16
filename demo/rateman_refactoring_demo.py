@@ -9,6 +9,7 @@ import sys
 import argparse
 import asyncio
 
+
 # Exec: python rateman.py minstrel_ht_user_space AP1:192.168.23.4 AP2:192.46.34.23 -A ../../demo/sample_ap_lists/local_test.csv
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument(
@@ -47,7 +48,9 @@ loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 
 print("Running rateman...")
-rateman = rateman.RateMan(aps, rate_control_alg=args.algorithm, loop=loop)
+rateman = rateman.RateMan(
+    aps, rate_control_alg=args.algorithm, loop=loop, save_data=True
+)
 
 # add a simple print callback to see the incoming data
 rateman.taskman.add_data_callback(lambda ap, line: print(f"{ap.ap_id}> '{line}'"))

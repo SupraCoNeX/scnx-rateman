@@ -17,6 +17,19 @@ __all__ = ["Station"]
 
 class Station:
     def __init__(self, radio, mac_addr, supp_rates, timestamp) -> None:
+        """
+        Parameters
+        ----------
+        radio : str
+            Name of physical radio of the AP to which station is connected.
+        mac_addr : str
+            MAC address of the station.
+        supp_rates : list
+            List of MCS rates supported by the station.
+        timestamp : str
+            Timestamp in hex at which the station connected to the AP.
+        """
+
         self._radio = radio
         self._mac_addr = mac_addr
         self._supp_rates = supp_rates
@@ -51,30 +64,25 @@ class Station:
         return self._supp_rates[0]
 
     def update_stats(self, timestamp, info: dict) -> None:
-        '''
-        
+        """
+        Update packet transmission attempts and success statistics.
 
         Parameters
         ----------
-        timestamp : TYPE
-            DESCRIPTION.
+        timestamp : str
+            Timestamp in hex at stats are updated.
         info : dict
-            DESCRIPTION.
+            Key-value pairs with rates and their corresponding stats.
 
-        Returns
-        -------
-        None
-            DESCRIPTION.
-
-        '''
+        """
         for rate, stats in info.items():
             if timestamp > self._latest_timestamp:
                 self._latest_timestamp = timestamp
                 self._stats[rate] = stats
 
     def check_rate_entry(self, rate):
-        '''
-        
+        """
+
 
         Parameters
         ----------
@@ -86,53 +94,49 @@ class Station:
         TYPE
             DESCRIPTION.
 
-        '''
+        """
         return rate in self._stats
 
     def get_attempts(self, rate):
-        '''
-        
+        """
+        Get count of packet transmission attempts for the a give rate.
 
         Parameters
         ----------
-        rate : TYPE
-            DESCRIPTION.
+        rate : str
+            MCS rate index.
 
         Returns
         -------
-        TYPE
-            DESCRIPTION.
+        int
+            Latest count of packet transmission attempts for a given rate.
 
-        '''
+        """
         return self._stats[rate]["attempts"]
 
     def get_successes(self, rate):
-        '''
-        
+        """
+        Get count of packet transmission successes for the a give rate.
 
         Parameters
         ----------
-        rate : TYPE
-            DESCRIPTION.
+        rate : str
+            MCS rate index.
 
         Returns
         -------
-        TYPE
-            DESCRIPTION.
+        int
+            Latest count of packet transmission successes for a given rate.
 
-        '''
+        """
         return self._stats[rate]["success"]
 
     def reset_stats(self) -> None:
-        '''
-        
+        """
+        Reset packet transmission attempts and success statistics over all
+        rates.
 
-        Returns
-        -------
-        None
-            DESCRIPTION.
-
-        '''
+        """
         self._stats = {}
 
     def __str__(self):

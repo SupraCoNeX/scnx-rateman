@@ -14,6 +14,7 @@ import asyncio
 import logging
 import csv
 import sys
+import os
 from .station import Station
 
 __all__ = ["AccessPoint", "get_aps_from_file", "parse_ap_strs"]
@@ -21,7 +22,27 @@ __all__ = ["AccessPoint", "get_aps_from_file", "parse_ap_strs"]
 
 class AccessPoint:
     def __init__(self, ap_id, addr, ssh_port, rcd_port=21059):
+        """
+        Parameters
+        ----------
+        ap_id : str
+            ID given to the AP.
+        addr : int
+            IP address of the AP.
+        ssh_port : int
+            SSH Port of the AP.
+        rcd_port : int, optional
+            Port over which the Rate Control API is accessed.
+            The default is 21059.
+        save_data : bool, optional
+            Flag denoting if trace data is to be saved for the AP.
+            The default is False.
+        output_dir : dir, optional
+            File path of the directory where data is collected by RateMan
+            instance.
+            The default is None.
 
+        """
         self._ap_id = ap_id
         self._addr = addr
         self._ssh_port = ssh_port
@@ -29,7 +50,10 @@ class AccessPoint:
         self._supp_rates = {}
         self._phys = {}
         self._connected = False
-        self._collector = None
+        self._save_data = False
+        self._output_dir = None
+        self._ap_data_dir = None
+        self._data_file = None
 
     @property
     def ap_id(self) -> str:
@@ -46,11 +70,11 @@ class AccessPoint:
     @property
     def stations(self) -> dict:
         return {}
-    
+
     @property
     def active_stations(self) -> dict:
         return self.get_stations()
-    
+
     @property
     def connected(self) -> dict:
         return self._connected
@@ -58,6 +82,22 @@ class AccessPoint:
     @connected.setter
     def connected(self, connection_status):
         self._connected = connection_status
+
+    @property
+    def save_data(self) -> bool:
+        return self._save_data
+
+    @save_data.setter
+    def save_data(self, save_data: bool):
+        self._save_data = save_data
+
+    @property
+    def ap_data_dir(self) -> str:
+        return self._ap_data_dir
+
+    @property
+    def data_file(self) -> object:
+        return self._data_file
 
     @property
     def rate_control_alg(self) -> dict:
@@ -157,6 +197,10 @@ class AccessPoint:
             logging.info(f"Connected to {self._ap_id} at {self._addr}:{self._rcd_port}")
 
             self._connected = True
+
+            if self.save_data:
+                self.open_data_file()
+
         except (OSError, asyncio.TimeoutError, ConnectionError) as e:
             logging.error(
                 f"Failed to connect to {self._ap_id} at {self._addr}:{self._rcd_port}: {e}"
@@ -169,6 +213,7 @@ class AccessPoint:
                 self.enable_rc_api(phy=phy)
 
         self._writer.write(f"{phy};stop\n".encode("ascii"))
+        self._writer.write(f"{phy};manual\n".encode("ascii"))
         self._writer.write(f"{phy};start;stats;txs;rxs\n".encode("ascii"))
 
     def set_rate(self, phy, mac, mrr_rates, mrr_counts) -> None:
@@ -184,14 +229,25 @@ class AccessPoint:
         else:
             rate = ",".join(mrr_rates)
             count = ",".join(mrr_counts)
-            
-        print("Setting %s for %s" %(rate, count))
+
+        print("Setting %s for %s" % (rate, count))
 
         self._writer.write(f"{phy};rates;{mac};{rate};{count}\n".encode("ascii"))
 
     def add_supp_rates(self, group_idx, max_offset):
         if group_idx not in self._supp_rates:
             self.supp_rates.update({group_idx: max_offset})
+
+    def open_data_file(self):
+        if bool(self._output_dir):
+            self._ap_data_dir = os.path.join(self._output_dir, self._ap_id)
+        else:
+            self._ap_data_dir = os.path.join(os.getcwd(), self._ap_id)
+
+        if not os.path.exists(self._ap_data_dir):
+            os.mkdir(self._ap_data_dir)
+
+        self._data_file = open(self._ap_data_dir + ".csv", "w")
 
 
 def get_aps_from_file(file: dir):
@@ -211,6 +267,7 @@ def get_aps_from_file(file: dir):
 
     with open(file, newline="") as csvfile:
         return [parse_ap(ap) for ap in csv.DictReader(csvfile)]
+
 
 def parse_ap_strs(ap_strs):
     aps = []
