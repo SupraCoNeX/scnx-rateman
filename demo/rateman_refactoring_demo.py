@@ -9,27 +9,6 @@ import sys
 import argparse
 import asyncio
 
-def parse_aps(apstrs):
-    aps = []
-
-    for apstr in apstrs:
-        fields = apstr.split(":")
-        if len(fields) < 2:
-            print(f"Invalid access point: '{apstr}'", file=sys.stderr)
-            continue
-
-        id = fields[0]
-        addr = fields[1]
-
-        try:
-            rcd_port = int(fields[2])
-        except (IndexError, ValueError):
-            rcd_port = 21059
-
-        aps.append(rateman.AccessPoint(id, addr, rcd_port))
-
-    return aps
-
 # Exec: python rateman.py minstrel_ht_user_space AP1:192.168.23.4 AP2:192.46.34.23 -A ../../demo/sample_ap_lists/local_test.csv
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument(
@@ -56,7 +35,7 @@ arg_parser.add_argument(
     + "RCDPORT is optional and defaults to 21059.",
 )
 args = arg_parser.parse_args()
-aps = parse_aps(args.accesspoints)
+aps = rateman.parse_ap_strs(args.accesspoints)
 if args.ap_file:
     aps += rateman.get_aps_from_file(args.ap_file)
 

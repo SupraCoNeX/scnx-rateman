@@ -13,9 +13,10 @@ This class provides ...
 import asyncio
 import logging
 import csv
+import sys
 from .station import Station
 
-__all__ = ["AccessPoint", "get_aps_from_file"]
+__all__ = ["AccessPoint", "get_aps_from_file", "parse_ap_strs"]
 
 
 class AccessPoint:
@@ -210,3 +211,24 @@ def get_aps_from_file(file: dir):
 
     with open(file, newline="") as csvfile:
         return [parse_ap(ap) for ap in csv.DictReader(csvfile)]
+
+def parse_ap_strs(ap_strs):
+    aps = []
+
+    for apstr in ap_strs:
+        fields = apstr.split(":")
+        if len(fields) < 2:
+            print(f"Invalid access point: '{apstr}'", file=sys.stderr)
+            continue
+
+        id = fields[0]
+        addr = fields[1]
+
+        try:
+            rcd_port = int(fields[2])
+        except (IndexError, ValueError):
+            rcd_port = 21059
+
+        aps.append(AccessPoint(id, addr, rcd_port))
+
+    return aps

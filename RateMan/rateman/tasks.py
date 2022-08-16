@@ -108,7 +108,8 @@ class TaskMan:
         )
         
         if ap.rate_control_alg != "minstrel_ht_kernel_space":
-            self.add_task(ap.rate_control(ap), name=f"rc_{ap.ap_id}")
+            print("adding rate control task")
+            self.add_task(ap.rate_control(ap, self._loop), name=f"rc_{ap.ap_id}")
     
     
     async def collect_data(self, ap, reconnect_timeout=10):

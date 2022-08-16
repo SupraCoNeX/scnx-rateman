@@ -15,23 +15,20 @@ in different modules.
 
 import argparse
 import sys
-from datetime import datetime
 import logging
 import asyncio
-import json
-import os
 from .accesspoint import AccessPoint
-from .tasks import *
+from .tasks import TaskMan
 from .parsing import *
-import time
+
 
 __all__ = ["RateMan"]
 
 
 class RateMan:
     def __init__(
-        self, aps, rate_control_alg: str = "minstrel_ht_kernel_space", loop=None
-    ):
+        self, aps, rate_control_alg: str = "minstrel_ht_kernel_space", 
+        loop=None, output_dir=None):
         if not loop:
             logging.info("Creating new event loop")
             loop = asyncio.new_event_loop()
@@ -40,7 +37,6 @@ class RateMan:
         else:
             self._new_loop_created = False
 
-        # self._loop = loop
         self._accesspoints = {}        
         self._taskman = TaskMan(loop)
         
@@ -91,7 +87,7 @@ class RateMan:
                 entry_func = start_minstrel
             except ImportError:
                 logging.error(
-                    f"Unable to execute user space minstrel: Import minstrel failed"
+                    f"Unable to execute user space minstrel: Import {rate_control_algorithm} failed"
                 )
 
         return entry_func
