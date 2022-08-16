@@ -58,31 +58,91 @@ def parse_group(fields):
 
 
 def process_line(ap, line):
-    fields = line.rstrip("\n").split(";")
+    fields = validate_line(ap, line)
 
-    if len(fields) < 3:
-        return
+    if not fields:
+        return None
 
-    if line[0] == "*":
+    if fields[0] == "*":
         process_api(ap, fields)
-        return
+        return fields
 
     if fields[1] == "0" and len(fields) == 3 and fields[2] == "add":
         ap.add_phy(fields[0])
-        return
+        return fields
 
-    if fields[2] == "txs" and len(fields) == 15:
+    line_type = fields[2]
+
+    if line_type == "txs":
         update_pckt_count_txs(ap, fields)
-    elif fields[2] == "stats" and len(fields) == 11:
+    elif line_type == "stats":
         update_pckt_count_rcs(ap, fields)
-    elif fields[2] == "rxs" and len(fields) == 9:
-        # TODO
-        pass
-    elif fields[2] == "sta" and len(fields) == 49:
-        if fields[3] in ["add", "dump"]:
-            ap.add_station(parse_sta(ap, fields))
-    elif fields[2] == "sta" and fields[3] == "remove" and len(fields) == 8:
+    elif line_type == "rxs":
+        sta = ap.get_sta(fields[3], phy=fields[0])
+        if sta:
+            sta.update_rssi(
+                int(fields[1], 16),
+                parse_s32(fields[4]),
+                [parse_s32(r) for r in fields[5:]]
+            )
+    elif line_type == "sta" and fields[3] in ["add", "dump"]:
+        ap.add_station(parse_sta(ap, fields))
+    elif line_type == "sta" and fields[3] == "remove":
         ap.remove_station(fields[4], fields[0])
+
+    return fields
+
+def validate_txs(ap, fields):
+    if len(fields) != 15:
+        return None
+
+    # TODO: more validation of rate indeces?
+    return fields
+
+def validate_rxs(ap, fields):
+    if len(fields) != 9:
+        return None
+
+    # TODO: more validation?
+    return fields
+
+def validate_stats(ap, fields):
+    if len(fields) != 11:
+        return None
+
+    # TODO: more validation?
+    return fields
+
+def validate_sta(ap, fields):
+    if not (len(fields) == 8 and fields[3] == "remove") or not (len(fields) == 49 and fields[3] in ["add", "dump"]):
+        return None
+
+    # TODO: more validation?
+    return fields
+
+
+VALIDATORS = {
+    "txs": validate_txs,
+    "stats": validate_stats,
+    "rxs": validate_rxs,
+    "sta": validate_sta
+}
+
+
+def validate_line(ap, line):
+    fields = line.split(";")
+
+    if len(fields) < 3:
+        return None
+
+    # ensure monotonic timestamps
+    if not ap.update_timestamp(fields[1]):
+        return None
+
+    try:
+        return VALIDATORS[fields[2]](ap, fields)
+    except KeyError:
+        return None
 
 
 def update_pckt_count_txs(ap, fields):

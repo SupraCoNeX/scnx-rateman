@@ -28,6 +28,7 @@ class AccessPoint:
         self._phys = {}
         self._connected = False
         self._collector = None
+        self._latest_timestamp = 0
 
     @property
     def id(self) -> str:
@@ -149,6 +150,19 @@ class AccessPoint:
             logging.info(f"removing {sta}")
         except KeyError as e:
             pass
+
+    def update_timestamp(self, timestamp_str):
+        timestamp = int(timestamp_str, 16)
+
+        if self._latest_timestamp == 0:
+            self._latest_timestamp = timestamp
+            return True
+
+        if timestamp > self._latest_timestamp and len(timestamp_str) - len(f"{self._latest_timestamp:x}") <= 1:
+            self._latest_timestamp = timestamp
+            return True
+
+        return False
 
     async def connect(self):
         try:
