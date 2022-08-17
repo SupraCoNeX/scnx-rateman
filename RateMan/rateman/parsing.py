@@ -87,18 +87,22 @@ def process_line(ap, line):
         Trace line.
 
     """
+
+    fields = line.split(";")
+
+    if fields[0] == "*":
+        process_api(ap, fields)
+        return None
+
+    if fields[1] == "0" and len(fields) == 3 and fields[2] == "add":
+        if "phy" in fields[0]:
+            ap.add_phy(fields[0])
+            return None
+
     fields = validate_line(ap, line)
 
     if not fields:
         return None
-
-    if fields[0] == "*":
-        process_api(ap, fields)
-        return fields
-
-    if fields[1] == "0" and len(fields) == 3 and fields[2] == "add":
-        ap.add_phy(fields[0])
-        return fields
 
     line_type = fields[2]
 
@@ -122,7 +126,7 @@ def process_line(ap, line):
     return fields
 
 
-def validate_txs(ap, fields):
+def validate_txs(fields):
     if len(fields) != 15:
         return None
 
@@ -130,7 +134,7 @@ def validate_txs(ap, fields):
     return fields
 
 
-def validate_rxs(ap, fields):
+def validate_rxs(fields):
     if len(fields) != 9:
         return None
 
@@ -138,7 +142,7 @@ def validate_rxs(ap, fields):
     return fields
 
 
-def validate_rc_stats(ap, fields):
+def validate_rc_stats(fields):
     if len(fields) != 11:
         return None
 
@@ -146,8 +150,8 @@ def validate_rc_stats(ap, fields):
     return fields
 
 
-def validate_sta(ap, fields):
-    if not (len(fields) == 8 and fields[3] == "remove") or not (
+def validate_sta(fields):
+    if not (len(fields) == 8 and fields[3] == "remove") and not (
         len(fields) == 49 and fields[3] in ["add", "dump"]
     ):
         return None
@@ -175,7 +179,7 @@ def validate_line(ap, line):
         return None
 
     try:
-        return VALIDATORS[fields[2]](ap, fields)
+        return VALIDATORS[fields[2]](fields)
     except KeyError:
         return None
 
@@ -197,7 +201,7 @@ def update_pckt_count_txs(ap, fields):
     mac_addr = fields[3]
 
     try:
-        sta = ap.stations()[mac_addr]
+        sta = ap.get_stations()[mac_addr]
     except KeyError:
         return
 
@@ -299,4 +303,5 @@ def parse_sta(ap, fields):
                 supp_rates += [f"{offset[:-1]}{i}" for i in range(no_supp_rates)]
 
     sta = Station(fields[0], fields[4], supp_rates, fields[1])
+    print("Station added ")
     return sta

@@ -94,11 +94,8 @@ class RateMan:
 
     async def stop(self):
         """
-
-
-        Returns
-        -------
-        None.
+        Gracefully stop all asyncio tasks created and executed by RateMan and close all
+        file objects.
 
         """
         for _, ap in self._accesspoints.items():
@@ -108,10 +105,13 @@ class RateMan:
             for phy in ap.phys:
                 ap.writer.write(f"{phy};stop\n".encode("ascii"))
                 ap.writer.write(f"{phy};auto\n".encode("ascii"))
-                ap.writer.close()
+
+            ap.writer.close()
+            ap.data_file.close()
 
         for task in self._taskman.tasks:
             logging.info(f"Cancelling {task.get_name()}")
+            print(f"Cancelling {task.get_name()}")
             task.cancel()
 
         if len(self._taskman.tasks) > 0:
@@ -128,13 +128,13 @@ class RateMan:
 
         Parameters
         ----------
-        rate_control_algorithm : TYPE
-            DESCRIPTION.
+        rate_control_algorithm : str
+            Name of user space rate conttrol algorithm to be used.
 
         Returns
         -------
-        entry_func : TYPE
-            DESCRIPTION.
+        entry_func : function
+            Function to be called for initiating user space rate control.
 
         """
         entry_func = None

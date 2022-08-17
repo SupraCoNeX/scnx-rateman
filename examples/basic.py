@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 
 import asyncio
-
-from rateman import RateMan
+import sys
+import rateman
 
 from common import parse_aps, setup_argparser
 
@@ -12,7 +12,7 @@ if __name__ == "__main__":
     aps = parse_aps(args.accesspoints)
 
     if args.ap_file:
-        aps += accesspoint.from_file(args.ap_file)
+        aps += rateman.get_aps_from_file(args.ap_file)
 
     if len(aps) == 0:
         print("ERROR: No accesspoints given", file=sys.stderr)
@@ -22,10 +22,10 @@ if __name__ == "__main__":
     asyncio.set_event_loop(loop)
 
     print("Running rateman...")
-    rateman = RateMan(aps, rate_control_alg=args.algorithm, loop=loop)
+    rateman_obj = rateman.RateMan(aps, rate_control_alg=args.algorithm, loop=loop)
 
     # add a simple print callback to see the raw incoming data
-    rateman.add_raw_data_callback(lambda ap, line: print(f"{ap.id} > '{line}'"))
+    rateman_obj.add_raw_data_callback(lambda ap, line: print(f"{ap.id} > '{line}'"))
 
     try:
         loop.run_forever()

@@ -53,7 +53,9 @@ rateman = rateman.RateMan(
 )
 
 # add a simple print callback to see the incoming data
-rateman.taskman.add_data_callback(lambda ap, line: print(f"{ap.ap_id}> '{line}'"))
+rateman.taskman.add_raw_data_callback(
+    lambda ap, fields: print(f"{ap.ap_id}> '{fields}'")
+)
 
 try:
     loop.run_forever()

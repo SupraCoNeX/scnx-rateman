@@ -33,7 +33,7 @@ class TaskMan:
         self._loop = loop
         self._tasks = []
         self._raw_data_callbacks = []
-        self._data_callbacks = {"any": [], "txs": [], "stats": [], "rxs": []}
+        self._data_callbacks = {"any": [], "txs": [], "stats": [], "rxs": [], "sta": []}
 
     @property
     def tasks(self) -> list:
@@ -82,7 +82,7 @@ class TaskMan:
                 cbs.remove(cb)
 
     def execute_callbacks(self, ap, fields):
-        logging.debug(f"{ap.id} > {';'.join(fields)}")
+        logging.debug(f"{ap.ap_id} > {';'.join(fields)}")
 
         for cb in self._data_callbacks["any"]:
             cb(ap, fields)
@@ -130,7 +130,7 @@ class TaskMan:
             if not ap.connected:
                 self.add_task(
                     self.connect_ap(ap, timeout, reconnect=True, skip_api_header=True),
-                    name=f"reconnect_{ap.id}",
+                    name=f"reconnect_{ap.ap_id}",
                 )
                 return
 
@@ -169,19 +169,15 @@ class TaskMan:
                 if not len(line):
                     raise ConnectionError
 
-                self.execute_callbacks(ap, line.decode("utf-8").rstrip("\n"))
-
-                if ap.save_data:
-                    ap.data_file.write(line.decode("utf-8"))
-
-                line = line.decode("utf-8").rstrip("\n")
-
                 # do internal housekeeping first
-                fields = process_line(ap, line)
+                fields = process_line(ap, line.decode("utf-8").rstrip("\n"))
 
                 # execute raw data callbacks on unvalidated line
                 for cb in self._raw_data_callbacks:
-                    cb(ap, line)
+                    cb(ap, line.decode("utf-8").rstrip("\n"))
+
+                if ap.save_data:
+                    ap.data_file.write(line.decode("utf-8"))
 
                 if not fields:
                     continue
@@ -202,7 +198,7 @@ class TaskMan:
                     self.connect_ap(
                         ap, reconnect_timeout, reconnect=True, skip_api_header=True
                     ),
-                    name=f"reconnect_{ap.id}",
+                    name=f"reconnect_{ap.ap_id}",
                 )
                 break
 
@@ -231,7 +227,7 @@ class TaskMan:
 
                 if not len(data_line):
                     ap.connected = False
-                    logging.error(f"Disconnected from {ap.id}")
+                    logging.error(f"Disconnected from {ap.ap_id}")
                     break
 
                 line = data_line.decode("utf-8").rstrip("\n")
@@ -240,6 +236,6 @@ class TaskMan:
                     process_line(ap, line)
                     break
             except (OSError, ConnectionError, asyncio.TimeoutError) as error:
-                logging.error(f"Disconnected from {ap.id}: {error}")
+                logging.error(f"Disconnected from {ap.ap_id}: {error}")
                 ap.connected = False
                 break

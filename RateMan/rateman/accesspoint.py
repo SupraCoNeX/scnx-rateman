@@ -68,10 +68,6 @@ class AccessPoint:
         return self._supp_rates
 
     @property
-    def stations(self) -> dict:
-        return {}
-
-    @property
     def active_stations(self) -> dict:
         return self.get_stations()
 
@@ -97,7 +93,7 @@ class AccessPoint:
 
     @property
     def data_file(self) -> object:
-        return self._data_file()
+        return self._data_file
 
     @property
     def rate_control_alg(self) -> dict:
@@ -135,9 +131,11 @@ class AccessPoint:
     def phys(self) -> list:
         return self._phys
 
-    def stations(self, which="active"):
+    def get_stations(self, which="active") -> dict:
         if which == "all":
-            return self.stations(which="active") + self.stations(which="inactive")
+            return self.get_stations(which="active") + self.get_stations(
+                which="inactive"
+            )
 
         stas = {}
         for phy in self._phys:
@@ -169,7 +167,7 @@ class AccessPoint:
 
     def add_phy(self, phy: str) -> None:
         if phy not in self._phys:
-            logging.debug(f"{self.id}: adding PHY {phy}")
+            logging.debug(f"{self.ap_id}: adding PHY {phy}")
             self._phys[phy] = {"active": {}, "inactive": {}}
             self._writer.write(f"{phy};dump\n".encode("ascii"))
             self._writer.write(f"{phy};start;txs;rxs;stats\n".encode("ascii"))
@@ -210,7 +208,7 @@ class AccessPoint:
                 asyncio.open_connection(self._addr, self._rcd_port), timeout=0.5
             )
 
-            logging.info(f"Connected to {self._id} at {self._addr}:{self._rcd_port}")
+            logging.info(f"Connected to {self.ap_id} at {self._addr}:{self._rcd_port}")
 
             self._connected = True
 
@@ -219,7 +217,7 @@ class AccessPoint:
 
         except (OSError, asyncio.TimeoutError, ConnectionError) as e:
             logging.error(
-                f"Failed to connect to {self._id} at {self._addr}:{self._rcd_port}: {e}"
+                f"Failed to connect to {self.ap_id} at {self._addr}:{self._rcd_port}: {e}"
             )
             self._connected = False
 
@@ -228,8 +226,9 @@ class AccessPoint:
             for phy in self._phys:
                 self.enable_rc_api(phy=phy)
 
+        print(f"Enabling API for {phy}")
+
         self._writer.write(f"{phy};stop\n".encode("ascii"))
-        self._writer.write(f"{phy};manual\n".encode("ascii"))
         self._writer.write(f"{phy};start;stats;txs;rxs\n".encode("ascii"))
 
     def set_rate(self, phy, mac, mrr_rates, mrr_counts) -> None:
