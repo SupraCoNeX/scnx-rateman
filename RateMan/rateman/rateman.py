@@ -1,35 +1,49 @@
-#!/usr/bin/python3
 # -*- coding: UTF8 -*-
 # Copyright SupraCoNeX
 #     https://www.supraconex.org
 #
 
-r"""
-Rate Manager Object
-----------------
-
-This class provides an object for Rate Manager that utilizes functions defined
-in different modules. 
-
-"""
-
 import argparse
 import sys
-from datetime import datetime
 import logging
 import asyncio
-import json
-import os
-from accesspoint import *
-import tasks
-import parsing
-import time
+from .accesspoint import AccessPoint
+from .tasks import TaskMan
+from .parsing import *
+
 
 __all__ = ["RateMan"]
 
 
 class RateMan:
-    def __init__(self, aps, rate_control_alg: str = "minstrel_ht_kernel_space", loop = None):
+    def __init__(
+        self,
+        aps,
+        rate_control_alg: str = "minstrel_ht_kernel_space",
+        loop=None,
+        save_data=False,
+        output_dir=None,
+    ):
+        """
+        Parameters
+        ----------
+        aps : list
+            List of AccessPoint objects for a give list of APs provided
+            via CLI or a .csv file.
+        rate_control_alg : str, optional
+            Rate control algorithm to be executed.
+            The default is "minstrel_ht_kernel_space".
+        loop : asyncio.BaseEventLoop, optional
+            Externally existing event loop passed to RateMan meant to be
+            utilized gathering and executing asyncio tasks.
+            The default is None.
+        save_data : bool, optional
+            Flag to denote if trace data is to be collected over the
+            SupraCoNeX Rate Control API. The default is False.
+        output_dir : dir, optional
+            File path where AP trace data is to be saved. The default is None.
+        """
+
         if not loop:
             logging.info("Creating new event loop")
             loop = asyncio.new_event_loop()
@@ -38,134 +52,107 @@ class RateMan:
         else:
             self._new_loop_created = False
 
-        self._loop = loop
         self._accesspoints = {}
-        self._tasks = []
-        self._data_callbacks = [parsing.process_line]
+        self._taskman = TaskMan(loop)
 
         for ap in aps:
             ap.rate_control_alg = rate_control_alg
             ap.rate_control = self.load_rc(rate_control_alg)
-            self._accesspoints[ap.id] = ap
-            self.add_task(tasks.connect_ap(self, ap, 5), name=f"connect_{ap.id}")
+            if save_data:
+                ap.save_data = save_data
+                ap.output_dir = output_dir
+            self._accesspoints[ap.ap_id] = ap
+            self._taskman.add_task(
+                self._taskman.connect_ap(ap, 5), name=f"connect_{ap.ap_id}"
+            )
+
+    @property
+    def taskman(self) -> dict:
+        return self._taskman
 
     @property
     def accesspoints(self) -> dict:
         return self._accesspoints
 
-    # TODO: differentiate by line type
-    def add_data_callback(self, cb):
+    def add_raw_data_callback(self, cb):
         """
-        Register a callback to be called on incoming data.
+        Register a callback to be called on unvalidated incoming data
         """
-        if cb not in self._data_callbacks:
-            self._data_callbacks.append(cb)
+        self._taskman.add_raw_data_callback(cb)
+
+    def add_data_callback(self, cb, type="any"):
+        """
+        Register a callback to be called on validated incoming data.
+        """
+        self._taskman.add_data_callback(cb, type)
 
     def remove_data_callback(self, cb):
         """
-        Unregister a data callback.
+        Unregister a data callback
         """
-        if cb in self._data_callbacks:
-            self._data_callbacks.remove(cb)
-
-    def process_line(self, ap, line):
-        logging.debug(f"{ap.id}> '{line}'")
-
-        for cb in self._data_callbacks:
-            cb(ap, line)
-
-    def add_task(self, coro, name=""):
-        for task in self._tasks:
-            if task.get_name() == name:
-                return
-
-        task = self._loop.create_task(coro, name=name)        
-        task.add_done_callback(self._tasks.remove)
-        self._tasks.append(task)
-
-    # async def initialize(self):
-    #     for id, ap in self._accesspoints.items():
-    #         await ap.connect()
-
-    #         if ap.connected:
-    #             ap.once_connected = True
-    #             self.add_task(tasks.collect_data(self, ap), name=f"collector_{id}")
-
-    #         if ap.rate_control_alg == "minstrel_ht_kernel_space":
-    #             pass
-    #         elif ap.rate_control_alg and ap.rate_control:
-    #             self.add_task(ap.rate_control(ap), name=f"rc_{id}")
-    #         # elif ap.rate_control_alg == "param-setting-exp":
-    #         #     ap.rate_control = mexman.MExRC(ap.rate_control_settings)
-    #         #     if "rate_control_interval" in ap.rate_control_settings:
-    #         #         loop.create_task(
-    #         #             ap.rate_control.execute_rate_control(
-    #         #                 ap,
-    #         #                 ap.rate_control_settings["rate_control_interval"],
-    #         #             )
-    #         #         )
-    #         #     else:
-    #         #         loop.create_task(ap.rate_control.execute_rate_control(ap))
-    #     else:
-    #         logging.error(f"Couldn't establish initial connection to {id}")
-    #         self.add_task(tasks.reconnect_ap(self, ap, 5), name=f"reconnect_{id}")
-
-
-    def start_measurement(self, output_dir: str = "") -> None:
-        # TODO
-        # start_time = time.time()
-        # try:
-        #     self._loop.run_forever()
-        # except (OSError, KeyboardInterrupt):
-
-        #     time_elapsed = time.time() - start_time
-        #     logging.info("Measurement Completed! Time duration: %f", time_elapsed)
-        # finally:
-        #     self.stop()
-        #     self._loop.close()
-        pass
+        self._taskman.remove_data_callback(cb)
 
     async def stop(self):
-        for _,ap in self._accesspoints.items():
+        """
+        Gracefully stop all asyncio tasks created and executed by RateMan and close all
+        file objects.
+
+        """
+        for _, ap in self._accesspoints.items():
             if not ap.connected:
                 continue
-            
+
             for phy in ap.phys:
                 ap.writer.write(f"{phy};stop\n".encode("ascii"))
                 ap.writer.write(f"{phy};auto\n".encode("ascii"))
-                ap.writer.close()
 
-        for task in self._tasks:
+            ap.writer.close()
+            ap.data_file.close()
+
+        for task in self._taskman.tasks:
+            logging.info(f"Cancelling {task.get_name()}")
             print(f"Cancelling {task.get_name()}")
             task.cancel()
 
-        if len(self._tasks) > 0:
-            await asyncio.wait(self._tasks)
+        if len(self._taskman.tasks) > 0:
+            await asyncio.wait(self._taskman.tasks)
 
         if self._new_loop_created:
-            self._loop.close()
+            self._taskman.cur_loop.close()
 
         logging.info("RateMan stopped")
 
     def load_rc(self, rate_control_algorithm):
+        """
+
+
+        Parameters
+        ----------
+        rate_control_algorithm : str
+            Name of user space rate conttrol algorithm to be used.
+
+        Returns
+        -------
+        entry_func : function
+            Function to be called for initiating user space rate control.
+
+        """
         entry_func = None
 
         if rate_control_algorithm == "minstrel_ht_user_space":
             try:
                 from minstrel import start_minstrel
+
                 entry_func = start_minstrel
             except ImportError:
-                logging.error(f"Unable to execute user space minstrel: Import minstrel failed")
+                logging.error(
+                    f"Unable to execute user space minstrel: Import {rate_control_algorithm} failed"
+                )
 
         return entry_func
 
-    async def run(self):
-        try:
-            self._loop.run_forever()
-        finally:
-            await self.stop()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     def parse_aps(apstrs):
         aps = []
@@ -176,7 +163,7 @@ if __name__ == '__main__':
                 print(f"Invalid access point: '{apstr}'", file=sys.stderr)
                 continue
 
-            id = fields[0]
+            ap_id = fields[0]
             addr = fields[1]
 
             try:
@@ -184,26 +171,34 @@ if __name__ == '__main__':
             except (IndexError, ValueError):
                 rcd_port = 21059
 
-            aps.append(AccessPoint(id, addr, rcd_port))
+            aps.append(AccessPoint(ap_id, addr, rcd_port))
 
         return aps
 
+    # Exec: python rateman.py minstrel_ht_user_space AP1:192.168.23.4 AP2:192.46.34.23 -A ../../demo/sample_ap_lists/local_test.csv
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument(
-            "algorithm", type=str,
-            choices=["minstrel_ht_kernel_space", "minstrel_ht_user_space"],
-            default="minstrel_ht_kernel_space", 
-            help="Rate control algorithm to run."
+        "algorithm",
+        type=str,
+        choices=["minstrel_ht_kernel_space", "minstrel_ht_user_space"],
+        default="minstrel_ht_kernel_space",
+        help="Rate control algorithm to run.",
     )
     arg_parser.add_argument(
-            "-A", "--ap-file", metavar="AP_FILE", type=str,
-            help="Path to a csv file where each line contains information about an access point " +
-            "in the format: ID,ADDR,RCDPORT."
+        "-A",
+        "--ap-file",
+        metavar="AP_FILE",
+        type=str,
+        help="Path to a csv file where each line contains information about an access point "
+        + "in the format: ID,ADDR,RCDPORT.",
     )
     arg_parser.add_argument(
-            "accesspoints", metavar="AP", nargs="+", type=str,
-            help="Accesspoint to connecto to. Format: 'ID:ADDR:RCDPORT'. " +
-            "RCDPORT is optional and defaults to 21059."
+        "accesspoints",
+        metavar="AP",
+        nargs="*",
+        type=str,
+        help="Accesspoint to connecto to. Format: 'ID:ADDR:RCDPORT'. "
+        + "RCDPORT is optional and defaults to 21059.",
     )
     args = arg_parser.parse_args()
     aps = parse_aps(args.accesspoints)
@@ -222,7 +217,7 @@ if __name__ == '__main__':
     rateman = RateMan(aps, rate_control_alg=args.algorithm, loop=loop)
 
     # add a simple print callback to see the incoming data
-    rateman.add_data_callback(lambda ap,line: print(f"{ap.id}> '{line}'"))
+    rateman.add_data_callback(lambda ap, line: print(f"{ap.id}> '{line}'"))
 
     try:
         loop.run_forever()

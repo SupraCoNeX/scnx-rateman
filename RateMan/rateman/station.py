@@ -2,7 +2,14 @@
 # Copyright SupraCoNeX
 #     https://www.supraconex.org
 #
-import asyncio
+
+r"""
+Station Class
+-------------
+
+A Station object is created at instance a station connects to a given AP. 
+
+"""
 
 
 __all__ = ["Station"]
@@ -10,15 +17,30 @@ __all__ = ["Station"]
 
 class Station:
     def __init__(self, radio, mac_addr, supp_rates, timestamp) -> None:
+        """
+        Parameters
+        ----------
+        radio : str
+            Name of physical radio of the AP to which station is connected.
+        mac_addr : str
+            MAC address of the station.
+        supp_rates : list
+            List of MCS rates supported by the station.
+        timestamp : str
+            Timestamp in hex at which the station connected to the AP.
+        """
+
         self._radio = radio
         self._mac_addr = mac_addr
         self._supp_rates = supp_rates
-        self._latest_timestamp = timestamp
+        self._last_seen = timestamp
         self._stats = {}
+        self._rssi = 1
+        self._rssi_vals = []
 
     @property
-    def latest_timestamp(self) -> str:
-        return self._latest_timestamp
+    def last_seen(self) -> str:
+        return self._last_seen
 
     @property
     def radio(self) -> str:
@@ -44,21 +66,84 @@ class Station:
         return self._supp_rates[0]
 
     def update_stats(self, timestamp, info: dict) -> None:
-        for rate,stats in info.items():
-            if timestamp > self._latest_timestamp:
-                self._latest_timestamp = timestamp
+        """
+        Update packet transmission attempts and success statistics.
+        '''
+        Parameters
+        ----------
+        timestamp : str
+            Timestamp in hex at stats are updated.
+        info : dict
+            Key-value pairs with rates and their corresponding stats.
+
+        """
+        for rate, stats in info.items():
+            if timestamp > self._last_seen:
+                self._last_seen = timestamp
                 self._stats[rate] = stats
 
+    def update_rssi(self, timestamp, min_rssi, per_antenna):
+        if timestamp > self._last_seen:
+            self._rssi = min_rssi
+            self._rssi_vals = per_antenna
+
     def check_rate_entry(self, rate):
+        """
+
+
+        Parameters
+        ----------
+        rate : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
+        """
         return rate in self._stats
 
     def get_attempts(self, rate):
+        """
+        Get count of packet transmission attempts for the a give rate.
+
+        Parameters
+        ----------
+        rate : str
+            MCS rate index.
+
+        Returns
+        -------
+        int
+            Latest count of packet transmission attempts for a given rate.
+
+        """
         return self._stats[rate]["attempts"]
 
     def get_successes(self, rate):
+        """
+        Get count of packet transmission successes for the a give rate.
+
+        Parameters
+        ----------
+        rate : str
+            MCS rate index.
+
+        Returns
+        -------
+        int
+            Latest count of packet transmission successes for a given rate.
+
+        """
         return self._stats[rate]["success"]
 
     def reset_stats(self) -> None:
+        """
+        Reset packet transmission attempts and success statistics over all
+        rates.
+
+        """
         self._stats = {}
 
     def __str__(self):
