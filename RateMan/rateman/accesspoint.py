@@ -5,71 +5,95 @@
 
 r"""
 Accesspoint Object
-----------------
+------------------
 
-This class provides ... 
+TODO
 
 """
 import asyncio
 import logging
+import csv
+import sys
+import os
 from .station import Station
 
-__all__ = ["AccessPoint"]
+__all__ = ["AccessPoint", "get_aps_from_file", "parse_ap_strs"]
 
 
 class AccessPoint:
-    def __init__(self, AP_ID, AP_IP, AP_SSH_port, AP_MinstrelRCD_port=21059) -> None:
+    def __init__(self, ap_id, addr, ssh_port, rcd_port=21059):
+        """
+        Parameters
+        ----------
+        ap_id : str
+            ID given to the AP.
+        addr : int
+            IP address of the AP.
+        ssh_port : int
+            SSH Port of the AP.
+        rcd_port : int, optional
+            Port over which the Rate Control API is accessed.
+            The default is 21059.
+        save_data : bool, optional
+            Flag denoting if trace data is to be saved for the AP.
+            The default is False.
+        output_dir : dir, optional
+            File path of the directory where data is collected by RateMan
+            instance.
+            The default is None.
 
-        self._AP_ID = AP_ID
-        self._AP_IP = AP_IP
-        self._AP_SSH_port = AP_SSH_port
-        self._AP_MinstrelRCD_port = AP_MinstrelRCD_port
+        """
+        self._ap_id = ap_id
+        self._addr = addr
+        self._rcd_port = rcd_port
         self._supp_rates = {}
-        self._phy_list = ["phy0", "phy1"]
-        self._sta_list_active = {}
-        self._sta_list_inactive = {}
-        self._connection = False
-        self._data_dir = ""
-
-        for phy in self._phy_list:
-            self._sta_list_inactive[phy] = {}
-            self._sta_list_active[phy] = {}
+        self._phys = {}
+        self._connected = False
+        self._save_data = False
+        self._output_dir = None
+        self._ap_data_dir = None
+        self._data_file = None
+        self._latest_timestamp = 0
 
     @property
-    def AP_ID(self) -> str:
-        return self._AP_ID
+    def ap_id(self) -> str:
+        return self._ap_id
 
     @property
-    def AP_IP(self) -> str:
-        return self._AP_IP
-
-    @property
-    def AP_SSH_port(self) -> str:
-        return self._AP_SSH_port
+    def addr(self) -> str:
+        return self._addr
 
     @property
     def supp_rates(self) -> str:
         return self._supp_rates
 
     @property
-    def stations(self) -> dict:
-        pass
+    def active_stations(self) -> dict:
+        return self.get_stations()
 
     @property
-    def connection(self) -> dict:
-        return self._connection
+    def connected(self) -> dict:
+        return self._connected
 
-    @connection.setter
-    def connection(self, connection_status):
-        self._connection = connection_status
+    @connected.setter
+    def connected(self, connection_status):
+        self._connected = connection_status
 
     @property
-    def rate_control_type(self) -> dict:
-        return self._rate_control_type
+    def save_data(self) -> bool:
+        return self._save_data
 
-    @rate_control_type.setter
-    def rate_control_type(self, rate_control_type):
-        self._rate_control_type = rate_control_type
+    @save_data.setter
+    def save_data(self, save_data: bool):
+        self._save_data = save_data
+
+    @property
+    def ap_data_dir(self) -> str:
+        return self._ap_data_dir
+
+    @property
+    def data_file(self) -> object:
+        return self._data_file
 
     @property
     def rate_control_alg(self) -> dict:
@@ -80,16 +104,15 @@ class AccessPoint:
         self._rate_control_alg = rate_control_alg
 
     @property
-    def rate_control_handle(self) -> dict:
-        return self._rate_control_handle
+    def rate_control(self) -> dict:
+        return self._rate_control
 
-    @rate_control_handle.setter
-    def rate_control_handle(self, rate_control_handle):
-        self._rate_control_handle = rate_control_handle
+    @rate_control.setter
+    def rate_control(self, rate_control):
+        self._rate_control = rate_control
 
     @property
     def rate_control_settings(self) -> dict:
-
         return self._rate_control_settings
 
     @rate_control_settings.setter
@@ -98,7 +121,6 @@ class AccessPoint:
 
     @property
     def reader(self) -> object:
-
         return self._reader
 
     @property
@@ -106,173 +128,110 @@ class AccessPoint:
         return self._writer
 
     @property
-    def file_handle(self) -> object:
-        return self._file_handle
+    def phys(self) -> list:
+        return self._phys
 
-    @property
-    def phy_list(self) -> list:
-        return self._phy_list
+    def get_stations(self, which="active") -> dict:
+        if which == "all":
+            return self.get_stations(which="active") + self.get_stations(
+                which="inactive"
+            )
 
-    @property
-    def sta_list_inactive(self) -> dict:
-        return self._sta_list_inactive
+        stas = {}
+        for phy in self._phys:
+            for mac, sta in self._phys[phy][which].items():
+                stas[mac] = sta
 
-    @property
-    def sta_list_active(self) -> dict:
-        return self._sta_list_active
+        return stas
 
-    def add_station(self, sta_info) -> None:
-        """
+    def _get_sta(self, mac, phy, state):
+        try:
+            return self._phys[phy][state][mac]
+        except KeyError:
+            return None
 
+    def get_sta(self, mac: str, phy: str = None, state="active"):
+        if not phy:
+            for phy in self._phys:
+                sta = self.get_sta(mac, phy, state=state)
+                if sta:
+                    return sta
 
-        Parameters
-        ----------
-        SSHClient : object
-            SSH client object for a given access point.
+            return None
 
-        Returns
-        -------
-        None
-            DESCRIPTION.
+        if state == "any":
+            sta = self._get_sta(mac, phy, "active")
+            return sta if sta else self._get_sta(mac, phy, "inactive")
 
-        """
-        print("adding station")
-        for phy in self._phy_list:
-            if sta_info["radio"] == phy:
-                if sta_info["mac_addr"] not in list(self._sta_list_active[phy].keys()):
-                    self._sta_list_active[phy][sta_info["mac_addr"]] = Station(
-                        sta_info["radio"],
-                        sta_info["mac_addr"],
-                        sta_info["supp_rates"],
-                        sta_info["timestamp"],
-                    )
+        return None
 
-        pass
+    def add_phy(self, phy: str) -> None:
+        if phy not in self._phys:
+            logging.debug(f"{self.ap_id}: adding PHY {phy}")
+            self._phys[phy] = {"active": {}, "inactive": {}}
+            self._writer.write(f"{phy};dump\n".encode("ascii"))
+            self._writer.write(f"{phy};start;txs;rxs;stats\n".encode("ascii"))
 
-    def remove_station(self, sta_info) -> None:
-        """
+    def add_station(self, sta: Station) -> None:
+        if sta.mac_addr not in self._phys[sta.radio]["active"]:
+            logging.info(f"adding active {sta}")
+            self._phys[sta.radio]["active"][sta.mac_addr] = sta
 
+    def remove_station(self, mac: str, phy: str) -> None:
+        try:
+            sta = self._phys[phy]["active"].pop(mac)
+            sta.radio = None
+            self._phys[phy]["inactive"][mac] = sta
+            logging.info(f"removing {sta}")
+        except KeyError as e:
+            pass
 
-        Parameters
-        ----------
-        SSHClient : object
-            SSH client object for a given access point.
+    def update_timestamp(self, timestamp_str):
+        timestamp = int(timestamp_str, 16)
 
-        Returns
-        -------
-        None
-            DESCRIPTION.
+        if self._latest_timestamp == 0:
+            self._latest_timestamp = timestamp
+            return True
 
-        """
-
-        if sta_info["mac_addr"] not in list(
-            self._sta_list_inactive[sta_info["radio"]].keys()
+        if (
+            timestamp > self._latest_timestamp
+            and len(timestamp_str) - len(f"{self._latest_timestamp:x}") <= 1
         ):
-            self._sta_list_inactive[sta_info["radio"]][
-                sta_info["mac_addr"]
-            ] = self._sta_list_active[sta_info["radio"]][sta_info["mac_addr"]]
+            self._latest_timestamp = timestamp
+            return True
 
-        self._sta_list_active[sta_info["radio"]].pop([sta_info["mac_addr"]], None)
+        return False
 
-        pass
-
-    async def connect_AP(self, output_dir=""):
-        """
-        This async function takes a dictionary containing information about
-        an AP and connects with it.
-
-        Parameters
-        ----------
-        ap_info : dictionary
-            contains parameters such as ID, IP Address and Port of an AP
-        output_dir : str
-            the main directory where results of the experiment are stored
-
-        Returns
-        -------
-        ap_info : dictionary
-            contains parameters such as ID, IP Address, Port, relevant file
-            streams and connection status of an AP
-        """
-
-        self._data_dir = output_dir
-
-        self._file_handle = open(output_dir + "/data_" + self._AP_ID + ".csv", "w")
-
-        self._conn_handle = asyncio.open_connection(
-            self._AP_IP, self._AP_MinstrelRCD_port
-        )
-
+    async def connect(self):
         try:
             self._reader, self._writer = await asyncio.wait_for(
-                self._conn_handle, timeout=5
+                asyncio.open_connection(self._addr, self._rcd_port), timeout=0.5
             )
 
-            logging.info(
-                "Connected to {} : {} {}".format(
-                    self._AP_ID, self._AP_IP, self._AP_SSH_port
-                )
-            )
+            logging.info(f"Connected to {self.ap_id} at {self._addr}:{self._rcd_port}")
 
-            self._connection = True
+            self._connected = True
 
-        except (OSError, asyncio.TimeoutError, ConnectionError) as error_type:
+            if self.save_data:
+                self.open_data_file()
 
+        except (OSError, asyncio.TimeoutError, ConnectionError) as e:
             logging.error(
-                "Failed to connect {} : {} {} -> {}".format(
-                    self._AP_ID, self._AP_IP, self._AP_SSH_port, error_type
-                )
+                f"Failed to connect to {self.ap_id} at {self._addr}:{self._rcd_port}: {e}"
             )
+            self._connected = False
 
-            self._connection = False
+    def enable_rc_api(self, phy=None):
+        if not phy:
+            for phy in self._phys:
+                self.enable_rc_api(phy=phy)
 
-        pass
+        print(f"Enabling API for {phy}")
 
-    def start_radios(self):
-        """
-        This async function for an AP starts the radios i.e. executes the command
-        to enable rate control API.
+        self._writer.write(f"{phy};stop\n".encode("ascii"))
+        self._writer.write(f"{phy};start;stats;txs;rxs\n".encode("ascii"))
 
-        Parameters
-        ----------
-        ap_info : dictionary
-            contains parameters such as ID, IP Address, Port, relevant file
-            streams and connection status of an AP
-
-        Returns
-        -------
-        None.
-
-        """
-
-        cmd_footer = ";stop"
-        for phy in self._phy_list:
-            cmd = phy + cmd_footer
-            self._writer.write(cmd.encode("ascii") + b"\n")
-
-        cmd_footer = ";start;stats;txs"
-        for phy in self._phy_list:
-            cmd = phy + cmd_footer
-            self._writer.write(cmd.encode("ascii") + b"\n")
-
-    def set_rate(self, phy, MACID, mrr_rates, mrr_counts) -> None:
-        """
-
-
-        Parameters
-        ----------
-        ap_handles : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        None
-            DESCRIPTION.
-
-        """
-
-        writer = self._writer
-
+    def set_rate(self, phy, mac, mrr_rates, mrr_counts) -> None:
         if len(mrr_rates) != len(mrr_counts):
             print("Error: The number of rate and counts do not match!")
             return
@@ -280,88 +239,66 @@ class AccessPoint:
         mrr_rates = ["0" if mrr_rate == "00" else mrr_rate for mrr_rate in mrr_rates]
 
         if len(mrr_rates) == 1:
-            rate_field = mrr_rates[0]
-            counts_field = mrr_counts[0]
+            rate = mrr_rates[0]
+            count = mrr_counts[0]
         else:
-            rate_field = ",".join(mrr_rates)
-            counts_field = ",".join(mrr_counts)
+            rate = ",".join(mrr_rates)
+            count = ",".join(mrr_counts)
 
-        cmd = phy + ";rates;" + MACID + ";" + rate_field + ";" + counts_field
-        # print("Setting Rate:", cmd)
-        writer.write(cmd.encode("ascii") + b"\n")
-
-    async def set_txp(self, macaddr, phy, rate_ind) -> None:
-        """
-
-
-        Parameters
-        ----------
-        ap_handles : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        None
-            DESCRIPTION.
-
-        """
-
-        try:
-            print("in rate setter")
-
-            def cmd(phy, macaddr, rate):
-                return phy + ";rxs;" + macaddr + ";" + rate + ";1"
-
-            self._writer.write((phy + ";manual").encode("ascii") + b"\n")
-            self._writer.write(cmd(phy, macaddr, rate_ind).encode("ascii") + b"\n")
-            self._writer.write((phy + ";auto").encode("ascii") + b"\n")
-
-        except KeyboardInterrupt:
-            pass
-
-        pass
-
-    async def execute_param_setting(self) -> None:
-        """
-
-
-        Returns
-        -------
-        None
-            DESCRIPTION.
-
-        """
-
-        param_setting = self._rate_control_handle.get_param_settings()
-        macaddr = "mach"
-        phy = "phy1"
-
-        if ("rate" in param_setting) and ("txp" in param_setting):
-            await self.set_rate(param_setting["rate"])
-            await self.set_txp(param_setting["txp"])
-        elif "rate" in param_setting:
-            await self.set_rate(macaddr, phy, param_setting["rate"])
-        elif "txp" in param_setting:
-            await self.set_txp(param_setting["txp"])
-
-        pass
+        self._writer.write(f"{phy};rates;{mac};{rate};{count}\n".encode("ascii"))
 
     def add_supp_rates(self, group_idx, max_offset):
-        """
-
-
-        Parameters
-        ----------
-        group_idx : TYPE
-            DESCRIPTION.
-        max_offset : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        None.
-
-        """
         if group_idx not in self._supp_rates:
             self.supp_rates.update({group_idx: max_offset})
-        pass
+
+    def open_data_file(self):
+        if bool(self._output_dir):
+            self._ap_data_dir = os.path.join(self._output_dir, self._ap_id)
+        else:
+            self._ap_data_dir = os.path.join(os.getcwd(), self._ap_id)
+
+        if not os.path.exists(self._ap_data_dir):
+            os.mkdir(self._ap_data_dir)
+
+        self._data_file = open(self._ap_data_dir + ".csv", "w")
+
+
+def get_aps_from_file(file: dir):
+    def parse_ap(ap):
+        ap_id = ap["APID"]
+        addr = ap["IPADD"]
+        ssh_port = ap["SSHPORT"]
+
+        try:
+            rcd_port = int(ap["RCDPORT"])
+        except (KeyError, ValueError):
+            rcd_port = 21059
+
+        ap = AccessPoint(ap_id, addr, ssh_port, rcd_port=rcd_port)
+        return ap
+
+    with open(file, newline="") as csvfile:
+        return [parse_ap(ap) for ap in csv.DictReader(csvfile)]
+
+
+def parse_ap_strs(ap_strs):
+    aps = []
+
+    for apstr in ap_strs:
+        fields = apstr.split(":")
+        if len(fields) < 2:
+            print(f"Invalid access point: '{apstr}'", file=sys.stderr)
+            continue
+
+        ap_id = fields[0]
+        addr = fields[1]
+        ssh_port = fields[2]
+
+        try:
+            rcd_port = int(fields[3])
+        except (IndexError, ValueError):
+            rcd_port = 21059
+
+        aps.append(AccessPoint(ap_id, addr, ssh_port, rcd_port))
+
+    return aps
