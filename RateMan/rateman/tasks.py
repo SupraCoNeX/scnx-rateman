@@ -47,7 +47,7 @@ class TaskMan:
         for task in self._tasks:
             if task.get_name() == name:
                 return
-
+        logging.info(f"add task {name}")
         task = self._loop.create_task(coro, name=name)
         task.add_done_callback(self._tasks.remove)
         self._tasks.append(task)
@@ -166,8 +166,8 @@ class TaskMan:
             try:
                 line = await asyncio.wait_for(ap.reader.readline(), 0.01)
 
-                if not len(line):
-                    raise ConnectionError
+                # if not len(line):
+                #     raise ConnectionError
 
                 # do internal housekeeping first
                 fields = process_line(ap, line.decode("utf-8").rstrip("\n"))

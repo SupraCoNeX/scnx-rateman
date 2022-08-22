@@ -51,7 +51,6 @@ class AccessPoint:
         self._connected = False
         self._save_data = False
         self._output_dir = None
-        self._ap_data_dir = None
         self._data_file = None
         self._latest_timestamp = 0
 
@@ -88,8 +87,12 @@ class AccessPoint:
         self._save_data = save_data
 
     @property
-    def ap_data_dir(self) -> str:
-        return self._ap_data_dir
+    def output_dir(self) -> bool:
+        return self._output_dir
+
+    @output_dir.setter
+    def output_dir(self, output_dir: bool):
+        self._output_dir = output_dir
 
     @property
     def data_file(self) -> object:
@@ -170,11 +173,11 @@ class AccessPoint:
             logging.debug(f"{self.ap_id}: adding PHY {phy}")
             self._phys[phy] = {"active": {}, "inactive": {}}
             self._writer.write(f"{phy};dump\n".encode("ascii"))
-            self._writer.write(f"{phy};start;txs;rxs;stats\n".encode("ascii"))
+            self._writer.write(f"{phy};start;stats;txs;rxs\n".encode("ascii"))
 
     def add_station(self, sta: Station) -> None:
         if sta.mac_addr not in self._phys[sta.radio]["active"]:
-            logging.info(f"adding active {sta}")
+            logging.info(f"adding active {sta} to {sta.radio} on {self.ap_id}")
             self._phys[sta.radio]["active"][sta.mac_addr] = sta
 
     def remove_station(self, mac: str, phy: str) -> None:
@@ -252,15 +255,10 @@ class AccessPoint:
             self.supp_rates.update({group_idx: max_offset})
 
     def open_data_file(self):
-        if bool(self._output_dir):
-            self._ap_data_dir = os.path.join(self._output_dir, self._ap_id)
-        else:
-            self._ap_data_dir = os.path.join(os.getcwd(), self._ap_id)
+        if not bool(self._output_dir):
+            self._output_dir = os.path.join(os.getcwd())
 
-        if not os.path.exists(self._ap_data_dir):
-            os.mkdir(self._ap_data_dir)
-
-        self._data_file = open(self._ap_data_dir + ".csv", "w")
+        self._data_file = open(self._output_dir + "/" + self.ap_id + ".csv", "w")
 
 
 def get_aps_from_file(file: dir):

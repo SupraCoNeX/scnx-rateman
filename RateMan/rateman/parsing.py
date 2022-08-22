@@ -303,5 +303,5 @@ def parse_sta(ap, fields):
                 supp_rates += [f"{offset[:-1]}{i}" for i in range(no_supp_rates)]
 
     sta = Station(fields[0], fields[4], supp_rates, fields[1])
-    print("Station added ")
+
     return sta

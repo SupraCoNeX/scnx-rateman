@@ -63,7 +63,7 @@ class RateMan:
                 ap.output_dir = output_dir
             self._accesspoints[ap.ap_id] = ap
             self._taskman.add_task(
-                self._taskman.connect_ap(ap, 5), name=f"connect_{ap.ap_id}"
+                self._taskman.connect_ap(ap, 1), name=f"connect_{ap.ap_id}"
             )
 
     @property
@@ -111,7 +111,6 @@ class RateMan:
 
         for task in self._taskman.tasks:
             logging.info(f"Cancelling {task.get_name()}")
-            print(f"Cancelling {task.get_name()}")
             task.cancel()
 
         if len(self._taskman.tasks) > 0:

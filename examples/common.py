@@ -1,4 +1,5 @@
 import argparse
+import sys
 
 from rateman.accesspoint import AccessPoint
 
