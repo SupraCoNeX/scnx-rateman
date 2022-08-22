@@ -121,9 +121,12 @@ class TaskMan:
             await asyncio.sleep(timeout)
 
         while not ap.connected:
-            await ap.connect()
-            await asyncio.sleep(timeout)
-
+            try:
+                await ap.connect()
+                await asyncio.sleep(timeout)
+            except (KeyboardInterrupt, asyncio.CancelledError):
+                break
+            
         if skip_api_header:
             ap.enable_rc_api()
             await self.skip_header_lines(ap)
@@ -133,14 +136,15 @@ class TaskMan:
                     name=f"reconnect_{ap.ap_id}",
                 )
                 return
-
-        self.add_task(
-            self.collect_data(ap, reconnect_timeout=timeout),
-            name=f"collector_{ap.ap_id}",
-        )
-
-        if ap.rate_control_alg != "minstrel_ht_kernel_space":
-            self.add_task(ap.rate_control(ap, self._loop), name=f"rc_{ap.ap_id}")
+            
+        if ap.connected:
+            self.add_task(
+                self.collect_data(ap, reconnect_timeout=timeout),
+                name=f"collector_{ap.ap_id}",
+            )
+    
+            if ap.rate_control_alg != "minstrel_ht_kernel_space":
+                self.add_task(ap.rate_control(ap, self._loop), name=f"rc_{ap.ap_id}")
 
     async def collect_data(self, ap, reconnect_timeout=10):
         """

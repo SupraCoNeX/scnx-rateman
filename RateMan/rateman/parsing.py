@@ -94,11 +94,12 @@ def process_line(ap, line):
         process_api(ap, fields)
         return None
 
-    if fields[1] == "0" and len(fields) == 3 and fields[2] == "add":
-        if "phy" in fields[0]:
-            ap.add_phy(fields[0])
-            return None
-
+    if len(fields) == 3:
+        if fields[1] == "0" and fields[2] == "add":
+            if "phy" in fields[0]:
+                ap.add_phy(fields[0])
+                return None
+        
     fields = validate_line(ap, line)
 
     if not fields:

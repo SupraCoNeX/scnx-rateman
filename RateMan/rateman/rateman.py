@@ -117,7 +117,7 @@ class RateMan:
 
         if len(self._taskman.tasks) > 0:
             await asyncio.wait(self._taskman.tasks)
-
+            
         if self._new_loop_created:
             self._taskman.cur_loop.close()
 
