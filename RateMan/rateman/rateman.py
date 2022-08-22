@@ -107,7 +107,9 @@ class RateMan:
                 ap.writer.write(f"{phy};auto\n".encode("ascii"))
 
             ap.writer.close()
-            ap.data_file.close()
+
+            if ap.save_data:
+                ap.data_file.close()
 
         for task in self._taskman.tasks:
             logging.info(f"Cancelling {task.get_name()}")

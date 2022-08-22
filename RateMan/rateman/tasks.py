@@ -202,7 +202,7 @@ class TaskMan:
                 )
                 break
 
-    async def skip_header_lines(ap):
+    async def skip_header_lines(self, ap):
         """
         Receive data from an instance of minstrel-rcd without notifying rateman of
         minstrel-rcd API header lines. Once a non-API line is received, rateman
