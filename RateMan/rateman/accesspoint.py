@@ -233,6 +233,11 @@ class AccessPoint:
 
         self._writer.write(f"{phy};stop\n".encode("ascii"))
         self._writer.write(f"{phy};start;stats;txs;rxs\n".encode("ascii"))
+    
+    def enable_manual_mode(self, phy: str) -> None:
+        print(f"Enabling manual mode for {phy}")        
+        self._writer.write(f"{phy};manual\n".encode("ascii"))
+        
 
     def set_rate(self, phy, mac, mrr_rates, mrr_counts) -> None:
         if len(mrr_rates) != len(mrr_counts):
@@ -247,7 +252,7 @@ class AccessPoint:
         else:
             rate = ",".join(mrr_rates)
             count = ",".join(mrr_counts)
-
+        
         self._writer.write(f"{phy};rates;{mac};{rate};{count}\n".encode("ascii"))
 
     def add_supp_rates(self, group_idx, max_offset):
@@ -264,9 +269,13 @@ class AccessPoint:
 def get_aps_from_file(file: dir):
     def parse_ap(ap):
         ap_id = ap["APID"]
-        addr = ap["IPADD"]
-        ssh_port = ap["SSHPORT"]
-
+        addr = ap["IPADD"]        
+        
+        try:
+            ssh_port = int(ap["SSHPORT"])
+        except (KeyError, ValueError):
+            ssh_port = 22
+        
         try:
             rcd_port = int(ap["RCDPORT"])
         except (KeyError, ValueError):
@@ -290,8 +299,11 @@ def parse_ap_strs(ap_strs):
 
         ap_id = fields[0]
         addr = fields[1]
-        ssh_port = fields[2]
-
+        
+        try:
+            ssh_port = int(fields[2])
+        except (IndexError, ValueError):
+            ssh_port = 22
         try:
             rcd_port = int(fields[3])
         except (IndexError, ValueError):

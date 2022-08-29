@@ -7,6 +7,7 @@ import argparse
 import sys
 import logging
 import asyncio
+import importlib
 from .accesspoint import AccessPoint
 from .tasks import TaskMan
 from .parsing import *
@@ -113,6 +114,7 @@ class RateMan:
 
         for task in self._taskman.tasks:
             logging.info(f"Cancelling {task.get_name()}")
+            print(f"Cancelling {task.get_name()}")
             task.cancel()
 
         if len(self._taskman.tasks) > 0:
@@ -139,16 +141,13 @@ class RateMan:
 
         """
         entry_func = None
-
-        if rate_control_algorithm == "minstrel_ht_user_space":
-            try:
-                from minstrel import start_minstrel
-
-                entry_func = start_minstrel
-            except ImportError:
-                logging.error(
-                    f"Unable to execute user space minstrel: Import {rate_control_algorithm} failed"
-                )
+        
+        try:
+            entry_func = importlib.import_module(rate_control_algorithm).start
+        except ImportError:
+            logging.error(
+                f"Import {rate_control_algorithm} failed."
+            )
 
         return entry_func
 

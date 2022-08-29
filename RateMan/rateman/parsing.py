@@ -288,21 +288,14 @@ def update_pckt_count_rcs(ap, fields):
 
 def parse_sta(ap, fields):
     supp_rates = []
-    rates_flag = fields[7:]
+    mcs_groups = fields[7:]
 
-    for i, (groupIdx, max_offset) in enumerate(ap.supp_rates.items()):
-        # Only works for all masks with ff at the end, eg. 1ff, 3ff, ff
-        if "ff" in rates_flag[i]:
-            dec_mask = int(rates_flag[i], base=16)
-            bin_mask = str(bin(dec_mask))[2:]
-            no_supp_rates = bin_mask.count("1")
-            offset = groupIdx + "0"
-            no_rates = int(max_offset[-1]) + 1
-
-            # Making sure no of 1s in bit mask isn't greater than rates in that group index
-            if no_supp_rates <= no_rates:
-                supp_rates += [f"{offset[:-1]}{i}" for i in range(no_supp_rates)]
-
+    for i, group_idx in enumerate(ap.supp_rates):
+        mask = int(mcs_groups[i], 16)
+        for j in range(10):
+            if mask & (1 << j):
+                supp_rates.append(f"{group_idx}{j}")
+        
     sta = Station(fields[0], fields[4], supp_rates, fields[1])
 
     return sta
