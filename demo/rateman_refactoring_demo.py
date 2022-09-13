@@ -10,12 +10,12 @@ import argparse
 import asyncio
 
 
-# Exec: python rateman.py minstrel_ht_user_space AP1:192.168.23.4 AP2:192.46.34.23 -A ../../demo/sample_ap_lists/local_test.csv
+# Exec: python rateman.py minstrel-ht-user-space AP1:192.168.1.1:22 AP2:192.168.200.1:22 -A ../../demo/sample_ap_lists/local_test.csv
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument(
     "algorithm",
     type=str,
-    choices=["minstrel_ht_kernel_space", "minstrel_ht_user_space"],
+    choices=["minstrel_ht_kernel_space", "py_minstrel_ht", "samplerate"],
     default="minstrel_ht_kernel_space",
     help="Rate control algorithm to run.",
 )
