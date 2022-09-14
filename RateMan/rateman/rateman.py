@@ -141,6 +141,9 @@ class RateMan:
 
         """
         entry_func = None
+
+        if rate_control_algorithm == "minstrel_ht_kernel_space":
+            return
         
         try:
             entry_func = importlib.import_module(rate_control_algorithm).start
