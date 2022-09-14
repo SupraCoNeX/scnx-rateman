@@ -230,7 +230,7 @@ class AccessPoint:
                 self.enable_rc_api(phy=phy)
 
         print(f"Enabling API for {phy}")
-
+        
         self._writer.write(f"{phy};stop\n".encode("ascii"))
         self._writer.write(f"{phy};start;stats;txs;rxs\n".encode("ascii"))
     

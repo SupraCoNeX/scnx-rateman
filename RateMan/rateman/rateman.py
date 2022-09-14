@@ -140,6 +140,7 @@ class RateMan:
             Function to be called for initiating user space rate control.
 
         """
+
         entry_func = None
         
         try:
