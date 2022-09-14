@@ -94,7 +94,7 @@ def process_line(ap, line):
         process_api(ap, fields)
         return None
 
-    if len(fields) == 3:
+    if len(fields) == 4:
         if fields[1] == "0" and fields[2] == "add":
             if "phy" in fields[0]:
                 ap.add_phy(fields[0])
@@ -260,6 +260,12 @@ def update_pckt_count_txs(ap, fields):
 
     sta.update_stats(timestamp, info)
 
+    if num_frames > 1:
+        sta.ampdu_enabled = True
+    
+    sta.ampdu_len += num_frames
+    sta.ampdu_packets += 1
+
 
 def update_pckt_count_rcs(ap, fields):
     # TODO: what about this?
@@ -289,6 +295,8 @@ def update_pckt_count_rcs(ap, fields):
 def parse_sta(ap, fields):
     supp_rates = []
     mcs_groups = fields[7:]
+    overhead_mcs = int(fields[5], 16)
+    overhead_legacy = int(fields[6], 16)
 
     for i, group_idx in enumerate(ap.supp_rates):
         mask = int(mcs_groups[i], 16)
@@ -296,6 +304,6 @@ def parse_sta(ap, fields):
             if mask & (1 << j):
                 supp_rates.append(f"{group_idx}{j}")
         
-    sta = Station(fields[0], fields[4], supp_rates, fields[1])
+    sta = Station(fields[0], fields[4], supp_rates, fields[1], overhead_mcs, overhead_legacy)
 
     return sta

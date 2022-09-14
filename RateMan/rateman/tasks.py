@@ -143,7 +143,7 @@ class TaskMan:
                 name=f"collector_{ap.ap_id}",
             )
     
-            if ap.rate_control_alg != "minstrel_ht_kernel_space":
+            if ap.rate_control and ap.rate_control_alg != "minstrel_ht_kernel_space":
                 self.add_task(ap.rate_control(ap, self._loop), name=f"rc_{ap.ap_id}")
 
     async def collect_data(self, ap, reconnect_timeout=10):
@@ -192,7 +192,7 @@ class TaskMan:
                 break
             except (asyncio.TimeoutError, UnicodeError):
                 await asyncio.sleep(0.01)
-            except ConnectionError:
+            except (ConnectionError, TimeoutError):
                 ap.connected = False
                 logging.error(f"Disconnected from {ap.ap_id}")
 
