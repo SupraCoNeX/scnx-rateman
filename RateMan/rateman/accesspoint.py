@@ -190,7 +190,11 @@ class AccessPoint:
             pass
 
     def update_timestamp(self, timestamp_str):
-        timestamp = int(timestamp_str, 16)
+        try:
+            timestamp = int(timestamp_str, 16)
+        except:
+            return False
+                
 
         if self._latest_timestamp == 0:
             self._latest_timestamp = timestamp
