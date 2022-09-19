@@ -102,8 +102,9 @@ class RateMan:
         for _, ap in self._accesspoints.items():
             if not ap.connected:
                 continue
-
+            
             for phy in ap.phys:
+                await asyncio.sleep(0.01)
                 ap.writer.write(f"{phy};stop\n".encode("ascii"))
                 ap.writer.write(f"{phy};auto\n".encode("ascii"))
 
