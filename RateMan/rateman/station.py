@@ -16,7 +16,16 @@ __all__ = ["Station"]
 
 
 class Station:
-    def __init__(self, radio, mac_addr, supp_rates, timestamp, overhead_mcs, overhead_legacy) -> None:
+    def __init__(
+        self,
+        radio,
+        timestamp,
+        mac_addr,
+        supp_rates,
+        airtimes_ns,
+        overhead_mcs,
+        overhead_legacy,
+    ) -> None:
         """
         Parameters
         ----------
@@ -33,6 +42,7 @@ class Station:
         self._radio = radio
         self._mac_addr = mac_addr
         self._supp_rates = supp_rates
+        self._airtimes_ns = airtimes_ns
         self._last_seen = timestamp
         self._overhead_mcs = overhead_mcs
         self._overhead_legacy = overhead_legacy
@@ -55,43 +65,43 @@ class Station:
     @radio.setter
     def radio(self, radio):
         self._radio = radio
-    
+
     @property
     def ampdu_packets(self) -> int:
         return self._ampdu_packets
-    
+
     @ampdu_packets.setter
     def ampdu_packets(self, packet_count):
         self._ampdu_packets = packet_count
-    
+
     @property
     def ampdu_len(self) -> int:
         return self._ampdu_len
-    
+
     @ampdu_len.setter
     def ampdu_len(self, length):
         self._ampdu_len = length
-    
+
     @property
     def avg_ampdu_len(self):
         return self._avg_ampdu_len
-    
+
     @avg_ampdu_len.setter
     def avg_ampdu_len(self, avg_length):
         self._avg_ampdu_len = avg_length
-    
+
     @property
     def ampdu_enabled(self) -> bool:
         return self._ampdu_enabled
-    
+
     @ampdu_enabled.setter
     def ampdu_enabled(self, enabled: bool):
         self._ampdu_enabled = enabled
-    
+
     @property
     def overhead_mcs(self):
         return self._overhead_mcs
-    
+
     @property
     def overhead_legacy(self):
         return self._overhead_legacy
@@ -99,6 +109,10 @@ class Station:
     @property
     def supp_rates(self) -> list:
         return self._supp_rates
+
+    @property
+    def airtimes_ns(self) -> list:
+        return self._airtimes_ns
 
     @property
     def mac_addr(self) -> str:

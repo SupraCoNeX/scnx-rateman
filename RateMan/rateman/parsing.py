@@ -16,10 +16,9 @@ from .station import Station
 
 __all__ = [
     "process_api",
-    "parse_group",
+    "parse_group_info",
     "process_line",
     "update_pckt_count_txs",
-    "update_pckt_count_rcs",
     "parse_sta",
     "parse_s16",
     "parse_s32",
@@ -42,11 +41,11 @@ def process_api(ap, fields):
     line_type = fields[2]
 
     if line_type == "group":
-        idx, max_offset = parse_group(fields)
-        ap.add_supp_rates(idx, max_offset)
+        group_ind, group_info = parse_group_info(fields)
+        ap.add_supp_rates(group_ind, group_info)
 
 
-def parse_group(fields):
+def parse_group_info(fields):
     """
     Obtain maximum offset for a given MCS rate group available for an AP.
 
@@ -66,12 +65,23 @@ def parse_group(fields):
 
     """
     fields = list(filter(None, fields))
-    group_idx = fields[3]
-    offset = fields[4]
+    group_ind = fields[3]
 
-    max_offset = offset[:-1] + str(len(fields[9:]) - 1)
+    airtimes_hex = fields[9:]
+    rate_offsets = [str(ii) for ii in range(len(airtimes_hex))]
+    rate_inds = list(map(lambda jj: group_ind + jj, rate_offsets))
+    airtimes_ns = [int(ii, 16) for ii in airtimes_hex]
 
-    return group_idx, max_offset
+    group_info = {
+        "rate_inds": rate_inds,
+        "airtimes_ns": airtimes_ns,
+        "type": fields[5],
+        "nss": fields[6],
+        "bandwidth": fields[7],
+        "guard_interval": fields[8],
+    }
+
+    return group_ind, group_info
 
 
 def process_line(ap, line):
@@ -99,7 +109,7 @@ def process_line(ap, line):
             if "phy" in fields[0]:
                 ap.add_phy(fields[0])
                 return None
-        
+
     fields = validate_line(ap, line)
 
     if not fields:
@@ -109,8 +119,6 @@ def process_line(ap, line):
 
     if line_type == "txs":
         update_pckt_count_txs(ap, fields)
-    elif line_type == "stats":
-        update_pckt_count_rcs(ap, fields)
     elif line_type == "rxs":
         sta = ap.get_sta(fields[3], phy=fields[0])
         if sta:
@@ -262,48 +270,51 @@ def update_pckt_count_txs(ap, fields):
 
     if num_frames > 1:
         sta.ampdu_enabled = True
-    
+
     sta.ampdu_len += num_frames
     sta.ampdu_packets += 1
 
 
-def update_pckt_count_rcs(ap, fields):
-    # TODO: what about this?
-    pass
-    # radio = fields[0]
-    # timestamp = fields[1]
-    # mac_addr = fields[3]
-
-    # sta = ap.get_sta(mac_addr, radio)
-    # if not sta:
-    #     logging.warn(f"Unexpected rc stats for unknown MAC {mac_addr}")
-    #     return
-
-    # sta.update_stats(
-    #     timestamp,
-    #     {
-    #         fields[4]: {
-    #             "cur_attempts": int(fields[8], 16),
-    #             "cur_success": int(fields[7], 16),
-    #             "hist_attempts": int(fields[10], 16),
-    #             "hist_success": int(fields[9], 16),
-    #         }
-    #     }
-    # )
-
-
 def parse_sta(ap, fields):
+    """
+
+
+    Parameters
+    ----------
+    ap : Object
+        Object of rateman.AccessPoint class over which the station is associated.
+    fields : list
+        Fields contained with line separated by ';' and containing 'sta;add'
+        or 'sta;dump' strings.
+
+    Returns
+    -------
+    sta : Object
+        Object of rateman.Station class created after a station connects to a
+        give AP.
+
+    """
     supp_rates = []
+    airtimes_ns = []
     mcs_groups = fields[7:]
     overhead_mcs = int(fields[5], 16)
     overhead_legacy = int(fields[6], 16)
 
-    for i, group_idx in enumerate(ap.supp_rates):
-        mask = int(mcs_groups[i], 16)
-        for j in range(10):
-            if mask & (1 << j):
-                supp_rates.append(f"{group_idx}{j}")
-        
-    sta = Station(fields[0], fields[4], supp_rates, fields[1], overhead_mcs, overhead_legacy)
+    for ii, group_ind in enumerate(ap.supp_rates.keys()):
+        mask = int(mcs_groups[ii], 16)
+        for jj in range(10):
+            if mask & (1 << jj):
+                supp_rates.append(f"{group_ind}{jj}")
+                airtimes_ns.append(ap.supp_rates[group_ind]["airtimes_ns"][jj])
+
+    sta = Station(
+        fields[0],
+        fields[1],
+        fields[4],
+        supp_rates,
+        airtimes_ns,
+        overhead_mcs,
+        overhead_legacy,
+    )
 
     return sta
