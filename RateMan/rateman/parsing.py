@@ -316,5 +316,5 @@ def parse_sta(ap, fields):
         overhead_mcs,
         overhead_legacy,
     )
-
+    
     return sta
