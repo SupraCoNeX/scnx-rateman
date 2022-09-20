@@ -5,9 +5,11 @@
 
 import argparse
 import sys
+import os
 import logging
 import asyncio
 import importlib
+import csv
 from .accesspoint import AccessPoint
 from .tasks import TaskMan
 from .parsing import *
@@ -58,11 +60,13 @@ class RateMan:
 
         for ap in aps:
             ap.rate_control_alg = rate_control_alg
-            ap.rate_control = self.load_rc(rate_control_alg)
+            ap.rate_control = self._load_rc(rate_control_alg)
             if save_data:
                 ap.save_data = save_data
                 ap.output_dir = output_dir
+
             self._accesspoints[ap.ap_id] = ap
+
             self._taskman.add_task(
                 self._taskman.connect_ap(ap, 1), name=f"connect_{ap.ap_id}"
             )
@@ -102,7 +106,7 @@ class RateMan:
         for _, ap in self._accesspoints.items():
             if not ap.connected:
                 continue
-            
+
             for phy in ap.phys:
                 await asyncio.sleep(0.01)
                 ap.writer.write(f"{phy};stop\n".encode("ascii"))
@@ -120,13 +124,13 @@ class RateMan:
 
         if len(self._taskman.tasks) > 0:
             await asyncio.wait(self._taskman.tasks)
-            
+
         if self._new_loop_created:
             self._taskman.cur_loop.close()
 
         logging.info("RateMan stopped")
 
-    def load_rc(self, rate_control_algorithm):
+    def _load_rc(self, rate_control_algorithm):
         """
 
 
@@ -142,17 +146,13 @@ class RateMan:
 
         """
 
-        entry_func = None
-
         if rate_control_algorithm == "minstrel_ht_kernel_space":
-            return
-        
+            return None
+
         try:
             entry_func = importlib.import_module(rate_control_algorithm).start
         except ImportError:
-            logging.error(
-                f"Import {rate_control_algorithm} failed."
-            )
+            logging.error(f"Import {rate_control_algorithm} failed.")
 
         return entry_func
 

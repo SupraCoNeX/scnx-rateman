@@ -123,6 +123,14 @@ class AccessPoint:
         self._rate_control_settings = rate_control_settings
 
     @property
+    def airtimes(self) -> dict:
+        return self._airtimes
+
+    @airtimes.setter
+    def airtimes(self, airtimes):
+        self._airtimes = airtimes
+
+    @property
     def reader(self) -> object:
         return self._reader
 
@@ -194,7 +202,6 @@ class AccessPoint:
             timestamp = int(timestamp_str, 16)
         except:
             return False
-                
 
         if self._latest_timestamp == 0:
             self._latest_timestamp = timestamp
@@ -234,14 +241,13 @@ class AccessPoint:
                 self.enable_rc_api(phy=phy)
 
         print(f"Enabling API for {phy}")
-        
+
         self._writer.write(f"{phy};stop\n".encode("ascii"))
         self._writer.write(f"{phy};start;stats;txs\n".encode("ascii"))
-    
+
     def enable_manual_mode(self, phy: str) -> None:
-        print(f"Enabling manual mode for {phy}")        
+        print(f"Enabling manual mode for {phy}")
         self._writer.write(f"{phy};manual\n".encode("ascii"))
-        
 
     def set_rate(self, phy, mac, mrr_rates, mrr_counts) -> None:
         if len(mrr_rates) != len(mrr_counts):
@@ -256,12 +262,12 @@ class AccessPoint:
         else:
             rate = ",".join(mrr_rates)
             count = ",".join(mrr_counts)
-        
+
         self._writer.write(f"{phy};rates;{mac};{rate};{count}\n".encode("ascii"))
 
-    def add_supp_rates(self, group_idx, max_offset):
-        if group_idx not in self._supp_rates:
-            self.supp_rates.update({group_idx: max_offset})
+    def add_supp_rates(self, group_ind, group_info):
+        if group_ind not in self._supp_rates:
+            self._supp_rates.update({group_ind: group_info})
 
     def open_data_file(self):
         if not bool(self._output_dir):
@@ -273,13 +279,13 @@ class AccessPoint:
 def get_aps_from_file(file: dir):
     def parse_ap(ap):
         ap_id = ap["APID"]
-        addr = ap["IPADD"]        
-        
+        addr = ap["IPADD"]
+
         try:
             ssh_port = int(ap["SSHPORT"])
         except (KeyError, ValueError):
             ssh_port = 22
-        
+
         try:
             rcd_port = int(ap["RCDPORT"])
         except (KeyError, ValueError):
@@ -303,7 +309,7 @@ def parse_ap_strs(ap_strs):
 
         ap_id = fields[0]
         addr = fields[1]
-        
+
         try:
             ssh_port = int(fields[2])
         except (IndexError, ValueError):
