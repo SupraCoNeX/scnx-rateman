@@ -97,7 +97,9 @@ class TaskMan:
                     file=sys.stderr,
                 )
 
-    async def connect_ap(self, ap, timeout, reconnect=False, skip_api_header=False):
+    async def connect_ap(self, ap, timeout, reconnect=False, 
+                         skip_api_header=False, 
+                         **rate_control_options):
         """
         Attempt to connect to the given AP after waiting timeout seconds.
         On successful connection a data collection task is scheduled.
@@ -144,7 +146,7 @@ class TaskMan:
             )
 
             if ap.rate_control and ap.rate_control_alg != "minstrel_ht_kernel_space":
-                self.add_task(ap.rate_control(ap, self._loop), name=f"rc_{ap.ap_id}")
+                self.add_task(ap.rate_control(ap, self._loop,**rate_control_options), name=f"rc_{ap.ap_id}")
 
     async def collect_data(self, ap, reconnect_timeout=10):
         """
