@@ -19,7 +19,6 @@ from .parsing import process_line
 
 __all__ = ["TaskMan"]
 
-
 class TaskMan:
     def __init__(self, loop):
         """
@@ -47,7 +46,6 @@ class TaskMan:
         for task in self._tasks:
             if task.get_name() == name:
                 return
-        logging.info(f"add task {name}")
         task = self._loop.create_task(coro, name=name)
         task.add_done_callback(self._tasks.remove)
         self._tasks.append(task)

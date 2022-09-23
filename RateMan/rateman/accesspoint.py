@@ -240,13 +240,13 @@ class AccessPoint:
             for phy in self._phys:
                 self.enable_rc_api(phy=phy)
 
-        print(f"Enabling API for {phy}")
+        logging.info(f"Enabling API for {phy} on {self._ap_id}")
 
         self._writer.write(f"{phy};stop\n".encode("ascii"))
         self._writer.write(f"{phy};start;stats;txs\n".encode("ascii"))
 
     def enable_manual_mode(self, phy: str) -> None:
-        print(f"Enabling manual mode for {phy}")
+        logging.info(f"Enabling manual mode on {phy} on {self._ap_id}")
         self._writer.write(f"{phy};manual\n".encode("ascii"))
 
     def set_rate(self, phy, mac, mrr_rates, mrr_counts) -> None:
