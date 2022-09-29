@@ -123,7 +123,6 @@ class TaskMan:
         while not ap.connected:
             try:
                 await ap.connect()
-                ap.enable_rc_api()
                 await asyncio.sleep(timeout)
             except (KeyboardInterrupt, asyncio.CancelledError):
                 break
@@ -138,6 +137,7 @@ class TaskMan:
                 return
 
         if ap.connected:
+            ap.enable_rc_api()
             self.add_task(
                 self.collect_data(ap, reconnect_timeout=timeout),
                 name=f"collector_{ap.ap_id}",
