@@ -327,9 +327,3 @@ def parse_ap_strs(ap_strs):
         aps.append(AccessPoint(ap_id, addr, ssh_port, rcd_port))
 
     return aps
-
-#%%
-phy = None
-
-if not phy:
-    print('j<3hkp')
