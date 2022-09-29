@@ -185,8 +185,6 @@ class AccessPoint:
         if phy not in self._phys:
             logging.debug(f"{self.ap_id}: adding PHY {phy}")
             self._phys[phy] = {"active": {}, "inactive": {}}
-            self._writer.write(f"{phy};dump\n".encode("ascii"))
-            self._writer.write(f"{phy};start;stats;txs\n".encode("ascii"))
 
     def add_station(self, sta: Station) -> None:
         if sta.mac_addr not in self._phys[sta.radio]["active"]:
@@ -240,14 +238,14 @@ class AccessPoint:
             )
             self._connected = False
 
-    def enable_rc_api(self, phy=True):
-        if not phy:
+    def enable_rc_api(self, phy=None):
+        if phy == None:
             for phy in self._phys:
                 self.enable_rc_api(phy=phy)
-
+        
         logging.info(f"Enabling API for {phy} on {self._ap_id}")
-
         self._writer.write(f"{phy};stop\n".encode("ascii"))
+        self._writer.write(f"{phy};dump\n".encode("ascii"))
         self._writer.write(f"{phy};start;stats;txs\n".encode("ascii"))
 
     def enable_manual_mode(self, phy: str) -> None:

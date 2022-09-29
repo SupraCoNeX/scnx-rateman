@@ -128,6 +128,7 @@ class TaskMan:
                 break
 
         if skip_api_header:
+            ap.enable_rc_api()
             await self.skip_header_lines(ap)
             if not ap.connected:
                 self.add_task(
@@ -137,7 +138,6 @@ class TaskMan:
                 return
 
         if ap.connected:
-            ap.enable_rc_api()
             self.add_task(
                 self.collect_data(ap, reconnect_timeout=timeout),
                 name=f"collector_{ap.ap_id}",
