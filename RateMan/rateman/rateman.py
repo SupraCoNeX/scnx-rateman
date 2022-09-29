@@ -120,7 +120,6 @@ class RateMan:
 
         for task in self._taskman.tasks:
             logging.info(f"Cancelling {task.get_name()}")
-            print(f"Cancelling {task.get_name()}")
             task.cancel()
 
         if len(self._taskman.tasks) > 0:

@@ -46,6 +46,7 @@ class AccessPoint:
         self._ap_id = ap_id
         self._addr = addr
         self._rcd_port = rcd_port
+        self._ssh_port = ssh_port
         self._supp_rates = {}
         self._phys = {}
         self._connected = False
@@ -141,6 +142,10 @@ class AccessPoint:
     @property
     def phys(self) -> list:
         return self._phys
+    
+    @property 
+    def ssh_port(self) -> int:
+        return self._ssh_port
 
     def get_stations(self, which="active") -> dict:
         if which == "all":

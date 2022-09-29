@@ -123,12 +123,12 @@ class TaskMan:
         while not ap.connected:
             try:
                 await ap.connect()
+                ap.enable_rc_api()
                 await asyncio.sleep(timeout)
             except (KeyboardInterrupt, asyncio.CancelledError):
                 break
 
         if skip_api_header:
-            ap.enable_rc_api()
             await self.skip_header_lines(ap)
             if not ap.connected:
                 self.add_task(
