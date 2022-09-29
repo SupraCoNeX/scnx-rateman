@@ -240,7 +240,7 @@ class AccessPoint:
             )
             self._connected = False
 
-    def enable_rc_api(self, phy=None):
+    def enable_rc_api(self, phy=True):
         if not phy:
             for phy in self._phys:
                 self.enable_rc_api(phy=phy)
@@ -327,3 +327,9 @@ def parse_ap_strs(ap_strs):
         aps.append(AccessPoint(ap_id, addr, ssh_port, rcd_port))
 
     return aps
+
+#%%
+phy = None
+
+if not phy:
+    print('j<3hkp')
