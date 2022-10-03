@@ -248,6 +248,14 @@ class AccessPoint:
     def enable_manual_mode(self, phy: str) -> None:
         logging.info(f"Enabling manual mode on {phy} on {self._ap_id}")
         self._writer.write(f"{phy};manual\n".encode("ascii"))
+    
+    def enable_auto_mode(self, phy: str) -> None:
+        logging.info(f"Enabling auto mode on {phy} on {self._ap_id}")
+        self._writer.write(f"{phy};auto\n".encode("ascii"))
+    
+    def reset_phy_stats(self, phy: str) -> None:
+        logging.info(f"Reseting rate table for {phy} on {self._ap_id}")
+        self._writer.write(f"{phy};reset_stats\n".encode("ascii"))
 
     def set_rate(self, phy, mac, mrr_rates, mrr_counts) -> None:
         if len(mrr_rates) != len(mrr_counts):
