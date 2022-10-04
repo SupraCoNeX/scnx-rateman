@@ -237,21 +237,42 @@ class AccessPoint:
                 f"Failed to connect to {self.ap_id} at {self._addr}:{self._rcd_port}: {e}"
             )
             self._connected = False
-
-    def enable_rc_api(self, phy=None):
-        if phy == None:
+            
+    def enable_rc_info(self, phy=None):
+        if not phy:
             for phy in self._phys:
-                self.enable_rc_api(phy=phy)
-        
+                self.enable_rc_info(phy=phy)
+
         logging.info(f"Enabling API for {phy} on {self._ap_id}")
-        self._writer.write(f"{phy};stop\n".encode("ascii"))
-        self._writer.write(f"{phy};reset_stats\n".encode("ascii"))
-        self._writer.write(f"{phy};dump\n".encode("ascii"))
+
         self._writer.write(f"{phy};start;stats;txs\n".encode("ascii"))
 
-    def enable_manual_mode(self, phy: str) -> None:
+    def enable_manual_mode(self, phy=None) -> None:
+        if not phy:
+            for phy in self._phys:
+                self.enable_manual_mode(phy=phy)
+                
         logging.info(f"Enabling manual mode on {phy} on {self._ap_id}")
+        self._writer.write(f"{phy};stop\n".encode("ascii"))
         self._writer.write(f"{phy};manual\n".encode("ascii"))
+    
+    def enable_auto_mode(self, phy=None) -> None:
+        if not phy:
+            for phy in self._phys:
+                self.enable_auto_mode(phy=phy)
+                
+        logging.info(f"Enabling auto mode on {phy} on {self._ap_id}")
+        self._writer.write(f"{phy};stop\n".encode("ascii"))
+        self._writer.write(f"{phy};auto\n".encode("ascii"))
+    
+    def reset_phy_stats(self, phy=None) -> None:
+        if not phy:
+            for phy in self._phys:
+                self.reset_phy_stats(phy=phy)
+                
+        logging.info(f"Reseting rate table for {phy} on {self._ap_id}")
+        self._writer.write(f"{phy};stop\n".encode("ascii"))
+        self._writer.write(f"{phy};reset_stats\n".encode("ascii"))
 
     def set_rate(self, phy, mac, mrr_rates, mrr_counts) -> None:
         if len(mrr_rates) != len(mrr_counts):
