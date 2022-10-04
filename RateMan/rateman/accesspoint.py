@@ -243,7 +243,7 @@ class AccessPoint:
             for phy in self._phys:
                 self.enable_rc_info(phy=phy)
 
-        logging.info(f"Enabling API for {phy} on {self._ap_id}")
+        logging.info(f"Enabling RC info for {phy} on {self._ap_id}")
 
         self._writer.write(f"{phy};start;stats;txs\n".encode("ascii"))
 
@@ -270,7 +270,7 @@ class AccessPoint:
             for phy in self._phys:
                 self.reset_phy_stats(phy=phy)
                 
-        logging.info(f"Reseting rate table for {phy} on {self._ap_id}")
+        logging.info(f"Reseting rate statistics for {phy} on {self._ap_id}")
         self._writer.write(f"{phy};stop\n".encode("ascii"))
         self._writer.write(f"{phy};reset_stats\n".encode("ascii"))
 
