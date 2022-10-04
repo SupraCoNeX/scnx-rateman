@@ -46,6 +46,7 @@ class AccessPoint:
         self._ap_id = ap_id
         self._addr = addr
         self._rcd_port = rcd_port
+        self._ssh_port = ssh_port
         self._supp_rates = {}
         self._phys = {}
         self._connected = False
@@ -141,6 +142,10 @@ class AccessPoint:
     @property
     def phys(self) -> list:
         return self._phys
+    
+    @property 
+    def ssh_port(self) -> int:
+        return self._ssh_port
 
     def get_stations(self, which="active") -> dict:
         if which == "all":
@@ -180,8 +185,6 @@ class AccessPoint:
         if phy not in self._phys:
             logging.debug(f"{self.ap_id}: adding PHY {phy}")
             self._phys[phy] = {"active": {}, "inactive": {}}
-            self._writer.write(f"{phy};dump\n".encode("ascii"))
-            self._writer.write(f"{phy};start;stats;txs\n".encode("ascii"))
 
     def add_station(self, sta: Station) -> None:
         if sta.mac_addr not in self._phys[sta.radio]["active"]:
@@ -236,13 +239,14 @@ class AccessPoint:
             self._connected = False
 
     def enable_rc_api(self, phy=None):
-        if not phy:
+        if phy == None:
             for phy in self._phys:
                 self.enable_rc_api(phy=phy)
-
+        
         logging.info(f"Enabling API for {phy} on {self._ap_id}")
-
         self._writer.write(f"{phy};stop\n".encode("ascii"))
+        self._writer.write(f"{phy};reset_stats\n".encode("ascii"))
+        self._writer.write(f"{phy};dump\n".encode("ascii"))
         self._writer.write(f"{phy};start;stats;txs\n".encode("ascii"))
 
     def enable_manual_mode(self, phy: str) -> None:

@@ -95,7 +95,7 @@ class TaskMan:
                     file=sys.stderr,
                 )
 
-    async def connect_ap(self, ap, timeout, reconnect=False, 
+    async def connect_ap(self, ap, timeout = 5, reconnect=False, 
                          skip_api_header=False, 
                          **rate_control_options):
         """
@@ -123,7 +123,8 @@ class TaskMan:
         while not ap.connected:
             try:
                 await ap.connect()
-                await asyncio.sleep(timeout)
+                if not ap.connected:
+                    await asyncio.sleep(timeout)
             except (KeyboardInterrupt, asyncio.CancelledError):
                 break
 
