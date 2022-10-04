@@ -128,7 +128,7 @@ class TaskMan:
                 break
 
         if skip_api_header:
-            ap.enable_rc_api()
+            ap.enable_rc_info()
             await self.skip_header_lines(ap)
             if not ap.connected:
                 self.add_task(
@@ -143,8 +143,13 @@ class TaskMan:
                 name=f"collector_{ap.ap_id}",
             )
 
-            if ap.rate_control and ap.rate_control_alg != "minstrel_ht_kernel_space":
-                self.add_task(ap.rate_control(ap, self._loop,**rate_control_options), name=f"rc_{ap.ap_id}")
+            if ap.rate_control_alg == "minstrel_ht_kernel_space":
+                ap.enable_auto_mode()
+                ap.reset_phy_stats()
+            elif ap.rate_control:
+                self.add_task(ap.rate_control(ap, self._loop,
+                                              **rate_control_options), 
+                              name=f"rc_{ap.ap_id}")
 
     async def collect_data(self, ap, reconnect_timeout=10):
         """
