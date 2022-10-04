@@ -11,7 +11,7 @@ This is the main processing module that provides functions to asynchronously
 monitor network status and set rates.
 
 """
-
+import logging
 from .station import Station
 
 __all__ = [

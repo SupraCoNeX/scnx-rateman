@@ -245,6 +245,7 @@ class AccessPoint:
         
         logging.info(f"Enabling API for {phy} on {self._ap_id}")
         self._writer.write(f"{phy};stop\n".encode("ascii"))
+        self._writer.write(f"{phy};reset_stats\n".encode("ascii"))
         self._writer.write(f"{phy};dump\n".encode("ascii"))
         self._writer.write(f"{phy};start;stats;txs\n".encode("ascii"))
 

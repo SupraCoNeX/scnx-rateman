@@ -69,7 +69,7 @@ class RateMan:
             self._accesspoints[ap.ap_id] = ap
 
             self._taskman.add_task(
-                self._taskman.connect_ap(ap, 1, **rate_control_options), name=f"connect_{ap.ap_id}"
+                self._taskman.connect_ap(ap, **rate_control_options), name=f"connect_{ap.ap_id}"
             )
 
     @property
