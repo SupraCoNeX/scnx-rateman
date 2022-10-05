@@ -175,14 +175,8 @@ class TaskMan:
         while True:
             try:
                 line = await asyncio.wait_for(ap.reader.readline(), 0.01)
-
-                # if not len(line):
-                #     raise ConnectionError
-
-                # do internal housekeeping first
                 fields = process_line(ap, line.decode("utf-8").rstrip("\n"))
 
-                # execute raw data callbacks on unvalidated line
                 for cb in self._raw_data_callbacks:
                     cb(ap, line.decode("utf-8").rstrip("\n"))
 
@@ -194,7 +188,7 @@ class TaskMan:
 
                 self.execute_callbacks(ap, fields)
 
-            except (KeyboardInterrupt, asyncio.CancelledError):
+            except (KeyboardInterrupt, IOError, ValueError,asyncio.CancelledError):
                 break
             except (asyncio.TimeoutError, UnicodeError):
                 await asyncio.sleep(0.01)
