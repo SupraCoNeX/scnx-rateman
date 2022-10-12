@@ -259,7 +259,9 @@ class AccessPoint:
         if phy:
             logging.info(f"Enabling manual mode on {phy} on {self._ap_id}")
             self._writer.write(f"{phy};stop\n".encode("ascii"))
+            self._writer.write(f"{phy};dump\n".encode("ascii"))
             self._writer.write(f"{phy};manual\n".encode("ascii"))
+            
     
     def enable_auto_mode(self, phy=None) -> None:
         if not phy:
