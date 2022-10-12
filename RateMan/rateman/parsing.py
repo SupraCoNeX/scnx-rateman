@@ -107,7 +107,7 @@ def process_line(ap, line):
     if len(fields) == 4:
         if fields[1] == "0" and fields[2] == "add":
             if "phy" in fields[0]:
-                ap.add_phy(fields[0], fields[3])
+                ap.add_phy(fields[0])
                 if "mt76" in fields[3]:
                     ap.disable_kernel_fallback(fields[0], "mt76")
                 ap.enable_rc_info(fields[0])

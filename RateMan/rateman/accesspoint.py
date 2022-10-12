@@ -183,7 +183,7 @@ class AccessPoint:
 
     def add_phy(self, phy: str) -> None:
         if phy not in self._phys:
-            logging.debug(f"{self.ap_id}: adding PHY {phy}")
+            logging.info(f"{self.ap_id}: adding PHY {phy}")
             self._phys[phy] = {"active": {}, "inactive": {}}
 
     def add_station(self, sta: Station) -> None:
