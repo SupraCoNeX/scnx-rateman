@@ -247,6 +247,10 @@ class AccessPoint:
             logging.info(f"Enabling RC info for {phy} on {self._ap_id}")    
             self._writer.write(f"{phy};start;stats;txs\n".encode("ascii"))
 
+    def disable_kernel_fallback(self, phy: str, driver: str):
+        logging.info(f"Disabling Kernel Fallback RC for {phy} with {driver} on {self._ap_id}")    
+        self._writer.write(f"{phy};debugfs;{driver}/force_rate_retry;1".encode("ascii"))
+
     def enable_manual_mode(self, phy=None) -> None:
         if not phy:
             for phy in self._phys:
