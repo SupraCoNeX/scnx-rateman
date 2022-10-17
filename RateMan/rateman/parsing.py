@@ -108,9 +108,12 @@ def process_line(ap, line):
         if fields[1] == "0" and fields[2] == "add":
             if "phy" in fields[0]:
                 ap.add_phy(fields[0])
+                if "mt76" in fields[3]:
+                    if ap.rate_control_alg != 'minstrel_ht_kernel_space':
+                        ap.disable_kernel_fallback(fields[0], "mt76")
                 ap.enable_rc_info(fields[0])
                 return None
-
+    
     fields = validate_line(ap, line)
 
     if not fields:
