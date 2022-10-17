@@ -183,7 +183,7 @@ class AccessPoint:
 
     def add_phy(self, phy: str) -> None:
         if phy not in self._phys:
-            logging.debug(f"{self.ap_id}: adding PHY {phy}")
+            logging.info(f"{self.ap_id}: adding PHY {phy}")
             self._phys[phy] = {"active": {}, "inactive": {}}
 
     def add_station(self, sta: Station) -> None:
@@ -247,6 +247,10 @@ class AccessPoint:
             logging.info(f"Enabling RC info for {phy} on {self._ap_id}")    
             self._writer.write(f"{phy};start;stats;txs\n".encode("ascii"))
 
+    def disable_kernel_fallback(self, phy: str, driver: str):
+        logging.info(f"Disabling Kernel Fallback RC for {phy} with {driver} on {self._ap_id}")    
+        self._writer.write(f"{phy};debugfs;{driver}/force_rate_retry;1".encode("ascii"))
+
     def enable_manual_mode(self, phy=None) -> None:
         if not phy:
             for phy in self._phys:
@@ -255,7 +259,9 @@ class AccessPoint:
         if phy:
             logging.info(f"Enabling manual mode on {phy} on {self._ap_id}")
             self._writer.write(f"{phy};stop\n".encode("ascii"))
+            self._writer.write(f"{phy};dump\n".encode("ascii"))
             self._writer.write(f"{phy};manual\n".encode("ascii"))
+            
     
     def enable_auto_mode(self, phy=None) -> None:
         if not phy:

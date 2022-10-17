@@ -112,6 +112,7 @@ def process_line(ap, line):
                     if ap.rate_control_alg != 'minstrel_ht_kernel_space':
                         ap.disable_kernel_fallback(fields[0], "mt76")
                 ap.enable_rc_info(fields[0])
+                
                 return None
     
     fields = validate_line(ap, line)
