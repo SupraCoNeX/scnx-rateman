@@ -266,6 +266,12 @@ class AccessPoint:
             self._writer.write(f"{phy};stop\n".encode("ascii"))
             self._writer.write(f"{phy};auto\n".encode("ascii"))
     
+    def disable_kernel_fallback(self, phy, driver) -> None:
+    
+        logging.info(f"Disabling kernel fallback rate control for {phy} on {self._ap_id}")
+        self._writer.write(f"{phy};debugfs;{driver}/force_rate_retry;1\n".encode("ascii"))
+
+
     def reset_phy_stats(self, phy=None) -> None:
         if not phy:
             for phy in self._phys:
