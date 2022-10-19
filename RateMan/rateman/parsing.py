@@ -114,8 +114,6 @@ def process_line(ap, line):
                 else:    
                     ap.reset_phy_stats(fields[0])
                     ap.enable_rc_info(fields[0])
-                    
-        return None
     
     fields = validate_line(ap, line)
 
