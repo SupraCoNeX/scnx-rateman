@@ -166,6 +166,13 @@ class AccessPoint:
         except KeyError:
             return None
 
+    def add_sample_table(self, data):
+        self.sample_table = []
+
+        for row in data:
+            self.sample_table.append(row.split(","))
+        
+
     def get_sta(self, mac: str, phy: str = None, state="active"):
         if not phy:
             for phy in self._phys:

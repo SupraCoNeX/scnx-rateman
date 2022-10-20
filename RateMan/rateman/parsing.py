@@ -136,6 +136,8 @@ def process_line(ap, line):
         ap.add_station(parse_sta(ap, fields))
     elif line_type == "sta" and fields[3] == "remove":
         ap.remove_station(fields[4], fields[0])
+    elif line_type == "sample_table":
+        ap.add_sample_table(fields[5:])
 
     return fields
 
