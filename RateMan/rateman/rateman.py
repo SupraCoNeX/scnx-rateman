@@ -66,10 +66,10 @@ class RateMan:
                 ap.save_data = save_data
                 ap.output_dir = output_dir
 
-            self._accesspoints[ap.ap_id] = ap
+            self._accesspoints[ap.id] = ap
 
             self._taskman.add_task(
-                self._taskman.connect_ap(ap, **rate_control_options), name=f"connect_{ap.ap_id}"
+                self._taskman.connect_ap(ap, **rate_control_options), name=f"connect_{ap.id}"
             )
 
     @property
@@ -167,7 +167,7 @@ if __name__ == "__main__":
                 print(f"Invalid access point: '{apstr}'", file=sys.stderr)
                 continue
 
-            ap_id = fields[0]
+            id = fields[0]
             addr = fields[1]
 
             try:
@@ -175,7 +175,7 @@ if __name__ == "__main__":
             except (IndexError, ValueError):
                 rcd_port = 21059
 
-            aps.append(AccessPoint(ap_id, addr, rcd_port))
+            aps.append(AccessPoint(id, addr, rcd_port))
 
         return aps
 
