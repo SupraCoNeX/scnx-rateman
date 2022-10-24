@@ -21,7 +21,7 @@ __all__ = ["AccessPoint", "get_aps_from_file", "parse_ap_strs"]
 
 
 class AccessPoint:
-    def __init__(self, id, addr, ssh_port, rcd_port=21059):
+    def __init__(self, id, addr, rcd_port=21059):
         """
         Parameters
         ----------
@@ -29,8 +29,6 @@ class AccessPoint:
             ID given to the AP.
         addr : int
             IP address of the AP.
-        ssh_port : int
-            SSH Port of the AP.
         rcd_port : int, optional
             Port over which the Rate Control API is accessed.
             The default is 21059.
@@ -46,7 +44,6 @@ class AccessPoint:
         self._id = id
         self._addr = addr
         self._rcd_port = rcd_port
-        self._ssh_port = ssh_port
         self._supp_rates = {}
         self._phys = {}
         self._connected = False
@@ -142,10 +139,6 @@ class AccessPoint:
     @property
     def phys(self) -> list:
         return self._phys
-    
-    @property 
-    def ssh_port(self) -> int:
-        return self._ssh_port
 
     def get_stations(self, which="active") -> dict:
         if which == "all":
@@ -320,16 +313,11 @@ def get_aps_from_file(file: dir):
         addr = ap["IPADD"]
 
         try:
-            ssh_port = int(ap["SSHPORT"])
-        except (KeyError, ValueError):
-            ssh_port = 22
-
-        try:
             rcd_port = int(ap["RCDPORT"])
         except (KeyError, ValueError):
             rcd_port = 21059
 
-        ap = AccessPoint(ap_id, addr, ssh_port, rcd_port=rcd_port)
+        ap = AccessPoint(id, addr, rcd_port=rcd_port)
         return ap
 
     with open(file, newline="") as csvfile:
@@ -349,14 +337,10 @@ def parse_ap_strs(ap_strs):
         addr = fields[1]
 
         try:
-            ssh_port = int(fields[2])
-        except (IndexError, ValueError):
-            ssh_port = 22
-        try:
             rcd_port = int(fields[3])
         except (IndexError, ValueError):
             rcd_port = 21059
 
-        aps.append(AccessPoint(id, addr, ssh_port, rcd_port))
+        aps.append(AccessPoint(id, addr, rcd_port))
 
     return aps
