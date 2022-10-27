@@ -21,16 +21,14 @@ __all__ = ["AccessPoint", "get_aps_from_file", "parse_ap_strs"]
 
 
 class AccessPoint:
-    def __init__(self, ap_id, addr, ssh_port, rcd_port=21059):
+    def __init__(self, id, addr, rcd_port=21059):
         """
         Parameters
         ----------
-        ap_id : str
+        id : str
             ID given to the AP.
         addr : int
             IP address of the AP.
-        ssh_port : int
-            SSH Port of the AP.
         rcd_port : int, optional
             Port over which the Rate Control API is accessed.
             The default is 21059.
@@ -43,10 +41,9 @@ class AccessPoint:
             The default is None.
 
         """
-        self._ap_id = ap_id
+        self._id = id
         self._addr = addr
         self._rcd_port = rcd_port
-        self._ssh_port = ssh_port
         self._supp_rates = {}
         self._phys = {}
         self._connected = False
@@ -56,8 +53,8 @@ class AccessPoint:
         self._latest_timestamp = 0
 
     @property
-    def ap_id(self) -> str:
-        return self._ap_id
+    def id(self) -> str:
+        return self._id
 
     @property
     def addr(self) -> str:
@@ -142,11 +139,7 @@ class AccessPoint:
     @property
     def phys(self) -> list:
         return self._phys
-    
-    @property 
-    def ssh_port(self) -> int:
-        return self._ssh_port
-    
+  
     @property
     def sample_table(self) -> list:
         return self._sample_table
@@ -154,7 +147,6 @@ class AccessPoint:
     @sample_table.setter
     def sample_table(self, sample_table_data):
         self._sample_table = []
-
         for row in sample_table_data:
             self._sample_table.append(list(map(int,row.split(","))))
         
@@ -196,12 +188,12 @@ class AccessPoint:
 
     def add_phy(self, phy: str) -> None:
         if phy not in self._phys:
-            logging.info(f"{self.ap_id}: adding PHY {phy}")
+            logging.info(f"{self.id}: adding PHY {phy}")
             self._phys[phy] = {"active": {}, "inactive": {}}
 
     def add_station(self, sta: Station) -> None:
         if sta.mac_addr not in self._phys[sta.radio]["active"]:
-            logging.info(f"adding active {sta} to {sta.radio} on {self.ap_id}")
+            logging.info(f"adding active {sta} to {sta.radio} on {self.id}")
             self._phys[sta.radio]["active"][sta.mac_addr] = sta
 
     def remove_station(self, mac: str, phy: str) -> None:
@@ -238,7 +230,7 @@ class AccessPoint:
                 asyncio.open_connection(self._addr, self._rcd_port), timeout=0.5
             )
 
-            logging.info(f"Connected to {self.ap_id} at {self._addr}:{self._rcd_port}")
+            logging.info(f"Connected to {self.id} at {self._addr}:{self._rcd_port}")
 
             self._connected = True
 
@@ -247,7 +239,7 @@ class AccessPoint:
 
         except (OSError, asyncio.TimeoutError, ConnectionError) as e:
             logging.error(
-                f"Failed to connect to {self.ap_id} at {self._addr}:{self._rcd_port}: {e}"
+                f"Failed to connect to {self.id} at {self._addr}:{self._rcd_port}: {e}"
             )
             self._connected = False
             
@@ -257,11 +249,11 @@ class AccessPoint:
                 self.enable_rc_info(phy=phy)
         
         if phy:
-            logging.info(f"Enabling RC info for {phy} on {self._ap_id}")    
+            logging.info(f"Enabling RC info for {phy} on {self._id}")
             self._writer.write(f"{phy};start;stats;txs\n".encode("ascii"))
 
     def disable_kernel_fallback(self, phy: str, driver: str):
-        logging.info(f"Disabling Kernel Fallback RC for {phy} with {driver} on {self._ap_id}")    
+        logging.info(f"Disabling Kernel Fallback RC for {phy} with {driver} on {self._id}")
         self._writer.write(f"{phy};debugfs;{driver}/force_rate_retry;1".encode("ascii"))
 
     def enable_manual_mode(self, phy=None) -> None:
@@ -270,7 +262,7 @@ class AccessPoint:
                 self.enable_manual_mode(phy=phy)
         
         if phy:
-            logging.info(f"Enabling manual mode on {phy} on {self._ap_id}")
+            logging.info(f"Enabling manual mode on {phy} on {self._id}")
             self._writer.write(f"{phy};stop\n".encode("ascii"))
             self._writer.write(f"{phy};dump\n".encode("ascii"))
             self._writer.write(f"{phy};manual\n".encode("ascii"))
@@ -281,13 +273,13 @@ class AccessPoint:
             for phy in self._phys:
                 self.enable_auto_mode(phy=phy)
         if phy:                    
-            logging.info(f"Enabling auto mode on {phy} on {self._ap_id}")
+            logging.info(f"Enabling auto mode on {phy} on {self._id}")
             self._writer.write(f"{phy};stop\n".encode("ascii"))
             self._writer.write(f"{phy};auto\n".encode("ascii"))
     
     def disable_kernel_fallback(self, phy, driver) -> None:
     
-        logging.info(f"Disabling kernel fallback rate control for {phy} on {self._ap_id}")
+        logging.info(f"Disabling kernel fallback rate control for {phy} on {self._id}")
         self._writer.write(f"{phy};debugfs;{driver}/force_rate_retry;1\n".encode("ascii"))
 
 
@@ -296,7 +288,7 @@ class AccessPoint:
             for phy in self._phys:
                 self.reset_phy_stats(phy=phy)
         if phy:                
-            logging.info(f"Reseting rate statistics for {phy} on {self._ap_id}")
+            logging.info(f"Reseting rate statistics for {phy} on {self._id}")
             self._writer.write(f"{phy};stop\n".encode("ascii"))
             self._writer.write(f"{phy};reset_stats\n".encode("ascii"))
 
@@ -328,25 +320,20 @@ class AccessPoint:
         if not bool(self._output_dir):
             self._output_dir = os.path.join(os.getcwd())
 
-        self._data_file = open(self._output_dir + "/" + self.ap_id + ".csv", "w")
+        self._data_file = open(self._output_dir + "/" + self.id + ".csv", "w")
 
 
 def get_aps_from_file(file: dir):
     def parse_ap(ap):
-        ap_id = ap["APID"]
+        id = ap["APID"]
         addr = ap["IPADD"]
-
-        try:
-            ssh_port = int(ap["SSHPORT"])
-        except (KeyError, ValueError):
-            ssh_port = 22
 
         try:
             rcd_port = int(ap["RCDPORT"])
         except (KeyError, ValueError):
             rcd_port = 21059
 
-        ap = AccessPoint(ap_id, addr, ssh_port, rcd_port=rcd_port)
+        ap = AccessPoint(id, addr, rcd_port=rcd_port)
         return ap
 
     with open(file, newline="") as csvfile:
@@ -362,18 +349,14 @@ def parse_ap_strs(ap_strs):
             print(f"Invalid access point: '{apstr}'", file=sys.stderr)
             continue
 
-        ap_id = fields[0]
+        id = fields[0]
         addr = fields[1]
 
-        try:
-            ssh_port = int(fields[2])
-        except (IndexError, ValueError):
-            ssh_port = 22
         try:
             rcd_port = int(fields[3])
         except (IndexError, ValueError):
             rcd_port = 21059
 
-        aps.append(AccessPoint(ap_id, addr, ssh_port, rcd_port))
+        aps.append(AccessPoint(id, addr, rcd_port))
 
     return aps
