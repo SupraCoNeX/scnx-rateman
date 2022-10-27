@@ -80,7 +80,7 @@ class TaskMan:
                 cbs.remove(cb)
 
     def execute_callbacks(self, ap, fields):
-        logging.debug(f"{ap.ap_id} > {';'.join(fields)}")
+        logging.debug(f"{ap.name} > {';'.join(fields)}")
 
         for cb in self._data_callbacks["any"]:
             cb(ap, fields)
@@ -134,14 +134,14 @@ class TaskMan:
             if not ap.connected:
                 self.add_task(
                     self.connect_ap(ap, timeout, reconnect=True, skip_api_header=True),
-                    name=f"reconnect_{ap.ap_id}",
+                    name=f"reconnect_{ap.name}",
                 )
                 return
 
         if ap.connected:
             self.add_task(
                 self.collect_data(ap, reconnect_timeout=timeout),
-                name=f"collector_{ap.ap_id}",
+                name=f"collector_{ap.name}",
             )
 
             if ap.rate_control_alg == "minstrel_ht_kernel_space":
@@ -150,7 +150,7 @@ class TaskMan:
             elif ap.rate_control:
                 self.add_task(ap.rate_control(ap, self._loop,
                                               **rate_control_options), 
-                              name=f"rc_{ap.ap_id}")
+                              name=f"rc_{ap.name}")
 
     async def collect_data(self, ap, reconnect_timeout=10):
         """
@@ -194,7 +194,7 @@ class TaskMan:
                 await asyncio.sleep(0.01)
             except (ConnectionError, TimeoutError):
                 ap.connected = False
-                logging.error(f"Disconnected from {ap.ap_id}")
+                logging.error(f"Disconnected from {ap.name}")
 
                 # FIXME: we might be setting skip to True prematurely here. Maybe we need a flag
                 #        indicating whether the API header has been received completely for an AP.
@@ -202,7 +202,7 @@ class TaskMan:
                     self.connect_ap(
                         ap, reconnect_timeout, reconnect=True, skip_api_header=True
                     ),
-                    name=f"reconnect_{ap.ap_id}",
+                    name=f"reconnect_{ap.name}",
                 )
                 break
 
@@ -231,7 +231,7 @@ class TaskMan:
 
                 if not len(data_line):
                     ap.connected = False
-                    logging.error(f"Disconnected from {ap.ap_id}")
+                    logging.error(f"Disconnected from {ap.name}")
                     break
 
                 line = data_line.decode("utf-8").rstrip("\n")
@@ -240,6 +240,6 @@ class TaskMan:
                     process_line(ap, line)
                     break
             except (OSError, ConnectionError, asyncio.TimeoutError) as error:
-                logging.error(f"Disconnected from {ap.ap_id}: {error}")
+                logging.error(f"Disconnected from {ap.name}: {error}")
                 ap.connected = False
                 break
