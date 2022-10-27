@@ -44,7 +44,7 @@ def process_api(ap, fields):
         group_ind, group_info = parse_group_info(fields)
         ap.add_supp_rates(group_ind, group_info)
     elif line_type == "sample_table":
-        ap.add_sample_table(fields[5:])
+        ap.sample_table = fields[5:]
 
 
 def parse_group_info(fields):
