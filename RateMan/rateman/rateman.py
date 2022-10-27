@@ -32,7 +32,7 @@ class RateMan:
         Parameters
         ----------
         aps : list
-            List of AccessPoint objects for a give list of APs provided
+            List of AccessPoint objects for a give list of APs proved
             via CLI or a .csv file.
         rate_control_alg : str, optional
             Rate control algorithm to be executed.
@@ -66,10 +66,10 @@ class RateMan:
                 ap.save_data = save_data
                 ap.output_dir = output_dir
 
-            self._accesspoints[ap.id] = ap
+            self._accesspoints[ap.name] = ap
 
             self._taskman.add_task(
-                self._taskman.connect_ap(ap, **rate_control_options), name=f"connect_{ap.id}"
+                self._taskman.connect_ap(ap, **rate_control_options), name=f"connect_{ap.name}"
             )
 
     @property
@@ -82,13 +82,13 @@ class RateMan:
 
     def add_raw_data_callback(self, cb):
         """
-        Register a callback to be called on unvalidated incoming data
+        Register a callback to be called on unvalated incoming data
         """
         self._taskman.add_raw_data_callback(cb)
 
     def add_data_callback(self, cb, type="any"):
         """
-        Register a callback to be called on validated incoming data.
+        Register a callback to be called on valated incoming data.
         """
         self._taskman.add_data_callback(cb, type)
 
@@ -164,10 +164,10 @@ if __name__ == "__main__":
         for apstr in apstrs:
             fields = apstr.split(":")
             if len(fields) < 2:
-                print(f"Invalid access point: '{apstr}'", file=sys.stderr)
+                print(f"Inval access point: '{apstr}'", file=sys.stderr)
                 continue
 
-            id = fields[0]
+            name = fields[0]
             addr = fields[1]
 
             try:
@@ -175,7 +175,7 @@ if __name__ == "__main__":
             except (IndexError, ValueError):
                 rcd_port = 21059
 
-            aps.append(AccessPoint(id, addr, rcd_port))
+            aps.append(AccessPoint(name, addr, rcd_port))
 
         return aps
 
@@ -194,14 +194,14 @@ if __name__ == "__main__":
         metavar="AP_FILE",
         type=str,
         help="Path to a csv file where each line contains information about an access point "
-        + "in the format: ID,ADDR,RCDPORT.",
+        + "in the format: NAME,ADDR,RCDPORT.",
     )
     arg_parser.add_argument(
         "accesspoints",
         metavar="AP",
         nargs="*",
         type=str,
-        help="Accesspoint to connecto to. Format: 'ID:ADDR:RCDPORT'. "
+        help="Accesspoint to connecto to. Format: 'NAME:ADDR:RCDPORT'. "
         + "RCDPORT is optional and defaults to 21059.",
     )
     args = arg_parser.parse_args()
@@ -221,7 +221,7 @@ if __name__ == "__main__":
     rateman = RateMan(aps, rate_control_alg=args.algorithm, loop=loop)
 
     # add a simple print callback to see the incoming data
-    rateman.add_data_callback(lambda ap, line: print(f"{ap.id}> '{line}'"))
+    rateman.add_data_callback(lambda ap, line: print(f"{ap.name}> '{line}'"))
 
     try:
         loop.run_forever()
