@@ -139,7 +139,17 @@ class AccessPoint:
     @property
     def phys(self) -> list:
         return self._phys
-
+  
+    @property
+    def sample_table(self) -> list:
+        return self._sample_table
+    
+    @sample_table.setter
+    def sample_table(self, sample_table_data):
+        self._sample_table = []
+        for row in sample_table_data:
+            self._sample_table.append(list(map(int,row.split(","))))
+        
     def get_stations(self, which="active") -> dict:
         if which == "all":
             return self.get_stations(which="active") + self.get_stations(
@@ -158,6 +168,8 @@ class AccessPoint:
             return self._phys[phy][state][mac]
         except KeyError:
             return None
+
+
 
     def get_sta(self, mac: str, phy: str = None, state="active"):
         if not phy:
@@ -295,6 +307,10 @@ class AccessPoint:
             count = ",".join(mrr_counts)
 
         self._writer.write(f"{phy};rates;{mac};{rate};{count}\n".encode("ascii"))
+    
+    def set_probe_rate(self, phy, mac, rate) -> None:
+        self._writer.write(f"{phy};probe;{mac};{rate}\n".encode("ascii"))
+        logging.info(f"{phy};probe;{mac};{rate}\n")
 
     def add_supp_rates(self, group_ind, group_info):
         if group_ind not in self._supp_rates:

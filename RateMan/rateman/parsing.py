@@ -43,6 +43,8 @@ def process_api(ap, fields):
     if line_type == "group":
         group_ind, group_info = parse_group_info(fields)
         ap.add_supp_rates(group_ind, group_info)
+    elif line_type == "sample_table":
+        ap.sample_table = fields[5:]
 
 
 def parse_group_info(fields):
@@ -111,10 +113,10 @@ def process_line(ap, line):
                 if ap.rate_control_alg != 'minstrel_ht_kernel_space':
                     if "mt76" in fields[3]:
                         ap.disable_kernel_fallback(fields[0], "mt76")
-                else:    
-                    ap.reset_phy_stats(fields[0])
-                    ap.enable_rc_info(fields[0])
-    
+              
+                ap.reset_phy_stats(fields[0])
+                ap.enable_rc_info(fields[0])
+
     fields = validate_line(ap, line)
 
     if not fields:
