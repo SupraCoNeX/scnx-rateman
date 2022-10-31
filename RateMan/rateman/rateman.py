@@ -80,17 +80,23 @@ class RateMan:
     def accesspoints(self) -> dict:
         return self._accesspoints
 
+    def add_task(self, coro, name=""):
+        self._taskman.add_task(coro, name)
+
+    def connect_ap(self, ap, **rc_opts):
+        return self._taskman.connect_ap(ap, name=f"connect_{ap.id}", **rc_opts)
+
     def add_raw_data_callback(self, cb):
         """
         Register a callback to be called on unvalated incoming data
         """
         self._taskman.add_raw_data_callback(cb)
 
-    def add_data_callback(self, cb, type="any"):
+    def add_data_callback(self, cb, type="any", args=None):
         """
         Register a callback to be called on valated incoming data.
         """
-        self._taskman.add_data_callback(cb, type)
+        self._taskman.add_data_callback(cb, type, args)
 
     def remove_data_callback(self, cb):
         """

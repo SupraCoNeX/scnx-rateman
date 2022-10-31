@@ -49,6 +49,7 @@ class TaskMan:
         task = self._loop.create_task(coro, name=name)
         task.add_done_callback(self._tasks.remove)
         self._tasks.append(task)
+        return task
 
     def add_raw_data_callback(self, cb):
         """
@@ -57,37 +58,41 @@ class TaskMan:
         if cb not in self._raw_data_callbacks:
             self._raw_data_callbacks.append(cb)
 
-    def add_data_callback(self, cb, type="any"):
+    def add_data_callback(self, cb, type="any", args=None):
         """
         Register a callback to be called on incoming data.
         """
-        if type not in ["any", "txs", "rxs", "stats", "sta"]:
+        if type not in ["any", "txs", "rxs", "stats", "sta", "best_rates", "sample_table"]:
             raise ValueError(type)
 
-        if cb not in self._data_callbacks[type]:
-            self._data_callbacks[type].append(cb)
+        for (c,_) in self._data_callbacks[type]:
+            if c == cb:
+                return
+
+        self._data_callbacks[type].append((cb, args))
 
     def remove_data_callback(self, cb):
         """
         Unregister a data callback.
         """
-        if cb in self._raw_data_callbacks:
-            self._raw_data_callbacks.remove(cb)
-            return
+        for (c,a) in self._raw_data_callbacks:
+            if c == cb:
+                self._raw_data_callbacks.remove((c,a))
+                return
 
         for _, cbs in self._data_callbacks.items():
-            if cb in cbs:
-                cbs.remove(cb)
+            for (c,a) in cbs:
+                if c == cb:
+                    cbs.remove((c,a))
+                    break
 
     def execute_callbacks(self, ap, fields):
-        logging.debug(f"{ap.name} > {';'.join(fields)}")
+        for (cb,args) in self._data_callbacks["any"]:
+            cb(ap, fields, args)
 
-        for cb in self._data_callbacks["any"]:
-            cb(ap, fields)
-
-        for cb in self._data_callbacks[fields[2]]:
+        for (cb,args) in self._data_callbacks[fields[2]]:
             try:
-                cb(ap, *fields)
+                cb(ap, *fields, args=args)
             except TypeError:
                 print(
                     "Incorrect callback signature. Argument count must "
@@ -148,9 +153,10 @@ class TaskMan:
                 ap.enable_auto_mode()
                 ap.reset_phy_stats()
             elif ap.rate_control:
-                self.add_task(ap.rate_control(ap, self._loop,
-                                              **rate_control_options), 
-                              name=f"rc_{ap.name}")
+                self.add_task(
+                    ap.rate_control(ap, self._loop, **rate_control_options),
+                    name=f"rc_{ap.name}"
+                )
 
     async def collect_data(self, ap, reconnect_timeout=10):
         """
@@ -239,7 +245,7 @@ class TaskMan:
                 if line[0] != "*":
                     process_line(ap, line)
                     break
-            except (OSError, ConnectionError, asyncio.TimeoutError) as error:
+            except (OSError, ConnectionError, asyncio.TimeoutError, asyncio.CancelledError) as error:
                 logging.error(f"Disconnected from {ap.name}: {error}")
                 ap.connected = False
                 break

@@ -17,16 +17,16 @@ import sys
 import os
 from .station import Station
 
-__all__ = ["AccessPoint", "get_aps_from_file", "parse_ap_strs"]
+__all__ = ["AccessPoint", "from_file", "from_strings"]
 
 
 class AccessPoint:
-    def __init__(self, name, addr, rcd_port=21059):
+    def __init__(self, name, addr, rcd_port=21059, rc_alg="minstrel_ht_kernel_space"):
         """
         Parameters
         ----------
         name : str
-             name to identify the AP.
+            Name given to the AP.
         addr : int
             IP address of the AP.
         rcd_port : int, optional
@@ -51,6 +51,7 @@ class AccessPoint:
         self._output_dir = None
         self._data_file = None
         self._latest_timestamp = 0
+        self._rate_control_alg = rc_alg
 
     @property
     def name(self) -> str:
@@ -139,17 +140,7 @@ class AccessPoint:
     @property
     def phys(self) -> list:
         return self._phys
-  
-    @property
-    def sample_table(self) -> list:
-        return self._sample_table
-    
-    @sample_table.setter
-    def sample_table(self, sample_table_data):
-        self._sample_table = []
-        for row in sample_table_data:
-            self._sample_table.append(list(map(int,row.split(","))))
-        
+
     def get_stations(self, which="active") -> dict:
         if which == "all":
             return self.get_stations(which="active") + self.get_stations(
@@ -169,8 +160,6 @@ class AccessPoint:
         except KeyError:
             return None
 
-
-
     def get_sta(self, mac: str, phy: str = None, state="active"):
         if not phy:
             for phy in self._phys:
@@ -188,12 +177,12 @@ class AccessPoint:
 
     def add_phy(self, phy: str) -> None:
         if phy not in self._phys:
-            logging.info(f"{self._name}: adding PHY {phy}")
+            logging.info(f"{self.id}: adding PHY {phy}")
             self._phys[phy] = {"active": {}, "inactive": {}}
 
     def add_station(self, sta: Station) -> None:
         if sta.mac_addr not in self._phys[sta.radio]["active"]:
-            logging.info(f"adding active {sta} to {sta.radio} on {self._name}")
+            logging.info(f"adding active {sta} to {sta.radio} on {self.id}")
             self._phys[sta.radio]["active"][sta.mac_addr] = sta
 
     def remove_station(self, mac: str, phy: str) -> None:
@@ -237,7 +226,7 @@ class AccessPoint:
             if self.save_data:
                 self.open_data_file()
 
-        except (OSError, asyncio.TimeoutError, ConnectionError) as e:
+        except (OSError, asyncio.TimeoutError, asyncio.CancelledError, ConnectionError) as e:
             logging.error(
                 f"Failed to connect to {self._name} at {self._addr}:{self._rcd_port}: {e}"
             )
@@ -307,10 +296,6 @@ class AccessPoint:
             count = ",".join(mrr_counts)
 
         self._writer.write(f"{phy};rates;{mac};{rate};{count}\n".encode("ascii"))
-    
-    def set_probe_rate(self, phy, mac, rate) -> None:
-        self._writer.write(f"{phy};probe;{mac};{rate}\n".encode("ascii"))
-        logging.info(f"{phy};probe;{mac};{rate}\n")
 
     def add_supp_rates(self, group_ind, group_info):
         if group_ind not in self._supp_rates:
@@ -326,7 +311,7 @@ class AccessPoint:
 def get_aps_from_file(file: dir):
     def parse_ap(ap):
         name = ap["NAME"]
-        addr = ap["IPADD"]
+        addr = ap["ADDR"]
 
         try:
             rcd_port = int(ap["RCDPORT"])
@@ -340,7 +325,7 @@ def get_aps_from_file(file: dir):
         return [parse_ap(ap) for ap in csv.DictReader(csvfile)]
 
 
-def parse_ap_strs(ap_strs):
+def from_strings(ap_strs):
     aps = []
 
     for apstr in ap_strs:
