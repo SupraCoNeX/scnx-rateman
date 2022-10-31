@@ -59,7 +59,7 @@ rateman = rateman.RateMan(
 
 # add a simple print callback to see the incoming data
 rateman.taskman.add_raw_data_callback(
-    lambda ap, fields: print(f"{ap.ap_id}> '{fields}'")
+    lambda ap, fields: print(f"{ap.name}> '{fields}'")
 )
 
 try:

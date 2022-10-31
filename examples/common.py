@@ -13,7 +13,7 @@ def parse_aps(apstrs):
             print(f"Invalid access point: '{apstr}'", file=sys.stderr)
             continue
 
-        ap_id = fields[0]
+        name = fields[0]
         addr = fields[1]
 
         try:
@@ -21,7 +21,7 @@ def parse_aps(apstrs):
         except (IndexError, ValueError):
             rcd_port = 21059
 
-        aps.append(AccessPoint(ap_id, addr, rcd_port))
+        aps.append(AccessPoint(name, addr, rcd_port))
 
     return aps
 

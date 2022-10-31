@@ -84,7 +84,7 @@ class RateMan:
         self._taskman.add_task(coro, name)
 
     def connect_ap(self, ap, **rc_opts):
-        return self._taskman.connect_ap(ap, name=f"connect_{ap.id}", **rc_opts)
+        return self._taskman.connect_ap(ap, name=f"connect_{ap.name}", **rc_opts)
 
     def add_raw_data_callback(self, cb):
         """

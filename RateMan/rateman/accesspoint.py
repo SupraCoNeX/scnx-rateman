@@ -177,12 +177,12 @@ class AccessPoint:
 
     def add_phy(self, phy: str) -> None:
         if phy not in self._phys:
-            logging.info(f"{self.id}: adding PHY {phy}")
+            logging.info(f"{self.name}: adding PHY {phy}")
             self._phys[phy] = {"active": {}, "inactive": {}}
 
     def add_station(self, sta: Station) -> None:
         if sta.mac_addr not in self._phys[sta.radio]["active"]:
-            logging.info(f"adding active {sta} to {sta.radio} on {self.id}")
+            logging.info(f"adding active {sta} to {sta.radio} on {self.name}")
             self._phys[sta.radio]["active"][sta.mac_addr] = sta
 
     def remove_station(self, mac: str, phy: str) -> None:
@@ -308,7 +308,7 @@ class AccessPoint:
         self._data_file = open(self._output_dir + "/" + self._name + ".csv", "w")
 
 
-def get_aps_from_file(file: dir):
+def from_file(file: dir):
     def parse_ap(ap):
         name = ap["NAME"]
         addr = ap["ADDR"]
