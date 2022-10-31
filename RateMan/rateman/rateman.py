@@ -108,9 +108,9 @@ class RateMan:
             if not ap.connected:
                 continue
 
-            for phy in ap.phys:
+            for radio in ap.radios:
                 await asyncio.sleep(0.01)
-                ap.enable_auto_mode(phy)
+                ap.enable_auto_mode(radio)
 
             ap.writer.close()
 

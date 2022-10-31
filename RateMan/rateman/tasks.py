@@ -146,7 +146,7 @@ class TaskMan:
 
             if ap.rate_control_alg == "minstrel_ht_kernel_space":
                 ap.enable_auto_mode()
-                ap.reset_phy_stats()
+                ap.reset_radio_stats()
             elif ap.rate_control:
                 self.add_task(ap.rate_control(ap, self._loop,
                                               **rate_control_options), 
