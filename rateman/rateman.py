@@ -57,14 +57,15 @@ class RateMan:
             self._new_loop_created = False
 
         self._taskman = TaskMan(loop)
-
+        self._accesspoints = dict()
         for ap in aps:
             ap.rate_control = self._load_rc(rate_control_alg)
             ap.rate_control_alg = rate_control_alg
             if save_data:
                 ap.save_data = save_data
                 ap.output_dir = output_dir
-
+            
+            self._accesspoints[ap.name] = ap
             self._taskman.add_task(
                 self._taskman.connect_ap(ap, **rate_control_options), name=f"connect_{ap.name}"
             )
@@ -72,11 +73,16 @@ class RateMan:
     @property
     def taskman(self) -> dict:
         return self._taskman
-
+    
+    @property
+    def accesspoints(self) -> dict:
+        return self._accesspoints
+    
     def add_task(self, coro, name=""):
         self._taskman.add_task(coro, name)
 
     def connect_ap(self, ap, rate_control_alg: str = "minstrel_ht_kernel_space", **rc_opts):
+        self._accesspoints[ap.name] = ap
         ap.rate_control = self._load_rc(rate_control_alg)
         ap.rate_control_alg = rate_control_alg
         return self._taskman.connect_ap(ap, name=f"connect_{ap.name}", **rc_opts)
