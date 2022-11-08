@@ -19,6 +19,7 @@ from .parsing import process_line
 
 __all__ = ["TaskMan"]
 
+
 class TaskMan:
     def __init__(self, loop):
         """
@@ -62,10 +63,18 @@ class TaskMan:
         """
         Register a callback to be called on incoming data.
         """
-        if type not in ["any", "txs", "rxs", "stats", "sta", "best_rates", "sample_table"]:
+        if type not in [
+            "any",
+            "txs",
+            "rxs",
+            "stats",
+            "sta",
+            "best_rates",
+            "sample_table",
+        ]:
             raise ValueError(type)
 
-        for (c,_) in self._data_callbacks[type]:
+        for (c, _) in self._data_callbacks[type]:
             if c == cb:
                 return
 
@@ -75,22 +84,22 @@ class TaskMan:
         """
         Unregister a data callback.
         """
-        for (c,a) in self._raw_data_callbacks:
+        for (c, a) in self._raw_data_callbacks:
             if c == cb:
-                self._raw_data_callbacks.remove((c,a))
+                self._raw_data_callbacks.remove((c, a))
                 return
 
         for _, cbs in self._data_callbacks.items():
-            for (c,a) in cbs:
+            for (c, a) in cbs:
                 if c == cb:
-                    cbs.remove((c,a))
+                    cbs.remove((c, a))
                     break
 
     def execute_callbacks(self, ap, fields):
-        for (cb,args) in self._data_callbacks["any"]:
+        for (cb, args) in self._data_callbacks["any"]:
             cb(ap, fields, args)
 
-        for (cb,args) in self._data_callbacks[fields[2]]:
+        for (cb, args) in self._data_callbacks[fields[2]]:
             try:
                 cb(ap, *fields, args=args)
             except TypeError:
@@ -100,9 +109,14 @@ class TaskMan:
                     file=sys.stderr,
                 )
 
-    async def connect_ap(self, ap, timeout = 5, reconnect=False, 
-                         skip_api_header=False, 
-                         **rate_control_options):
+    async def connect_ap(
+        self,
+        ap,
+        timeout=5,
+        reconnect=False,
+        skip_api_header=False,
+        **rate_control_options,
+    ):
         """
         Attempt to connect to the given AP after waiting timeout seconds.
         On successful connection a data collection task is scheduled.
@@ -155,7 +169,7 @@ class TaskMan:
             elif ap.rate_control:
                 self.add_task(
                     ap.rate_control(ap, self._loop, **rate_control_options),
-                    name=f"rc_{ap.name}"
+                    name=f"rc_{ap.name}",
                 )
 
     async def collect_data(self, ap, reconnect_timeout=10):
@@ -194,7 +208,7 @@ class TaskMan:
 
                 self.execute_callbacks(ap, fields)
 
-            except (KeyboardInterrupt, IOError, ValueError,asyncio.CancelledError):
+            except (KeyboardInterrupt, IOError, ValueError, asyncio.CancelledError):
                 break
             except (asyncio.TimeoutError, UnicodeError):
                 await asyncio.sleep(0.01)
@@ -245,7 +259,12 @@ class TaskMan:
                 if line[0] != "*":
                     process_line(ap, line)
                     break
-            except (OSError, ConnectionError, asyncio.TimeoutError, asyncio.CancelledError) as error:
+            except (
+                OSError,
+                ConnectionError,
+                asyncio.TimeoutError,
+                asyncio.CancelledError,
+            ) as error:
                 logging.error(f"Disconnected from {ap.name}: {error}")
                 ap.connected = False
                 break

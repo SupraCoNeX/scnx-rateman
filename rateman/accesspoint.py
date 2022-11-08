@@ -149,14 +149,14 @@ class AccessPoint:
 
         stas = {}
         for phy in self._phys:
-            for mac, sta in self._phys[phy][which].items():
+            for mac, sta in self._phys[phy]["stations"][which].items():
                 stas[mac] = sta
 
         return stas
 
     def _get_sta(self, mac, phy, state):
         try:
-            return self._phys[phy][state][mac]
+            return self._phys[phy]["stations"][state][mac]
         except KeyError:
             return None
 
@@ -175,21 +175,22 @@ class AccessPoint:
 
         return None
 
-    def add_phy(self, phy: str) -> None:
+    def add_phy(self, phy: str, driver: str) -> None:
         if phy not in self._phys:
-            logging.info(f"{self.name}: adding PHY {phy}")
-            self._phys[phy] = {"active": {}, "inactive": {}}
+            logging.info(f"{self.name}: adding PHY {phy} with driver {driver}")
+            self._phys[phy]["driver"] = driver
+            self._phys[phy]["stations"] = {"active": {}, "inactive": {}}
 
     def add_station(self, sta: Station) -> None:
         if sta.mac_addr not in self._phys[sta.radio]["active"]:
             logging.info(f"adding active {sta} to {sta.radio} on {self.name}")
-            self._phys[sta.radio]["active"][sta.mac_addr] = sta
+            self._phys[sta.radio]["stations"]["active"][sta.mac_addr] = sta
 
     def remove_station(self, mac: str, phy: str) -> None:
         try:
-            sta = self._phys[phy]["active"].pop(mac)
+            sta = self._phys[phy]["stations"]["active"].pop(mac)
             sta.radio = None
-            self._phys[phy]["inactive"][mac] = sta
+            self._phys[phy]["stations"]["inactive"][mac] = sta
             logging.info(f"removing {sta}")
         except KeyError as e:
             pass
@@ -226,57 +227,72 @@ class AccessPoint:
             if self.save_data:
                 self.open_data_file()
 
-        except (OSError, asyncio.TimeoutError, asyncio.CancelledError, ConnectionError) as e:
+        except (
+            OSError,
+            asyncio.TimeoutError,
+            asyncio.CancelledError,
+            ConnectionError,
+        ) as e:
             logging.error(
                 f"Failed to connect to {self._name} at {self._addr}:{self._rcd_port}: {e}"
             )
             self._connected = False
-            
+
     def enable_rc_info(self, phy=None):
         if not phy:
             for phy in self._phys:
                 self.enable_rc_info(phy=phy)
-        
+
         if phy:
             logging.info(f"Enabling RC info for {phy} on {self._name}")
             self._writer.write(f"{phy};start;stats;txs\n".encode("ascii"))
-
-    def disable_kernel_fallback(self, phy: str, driver: str):
-        logging.info(f"Disabling Kernel Fallback RC for {phy} with {driver} on {self._name}")
-        self._writer.write(f"{phy};debugfs;{driver}/force_rate_retry;1".encode("ascii"))
 
     def enable_manual_mode(self, phy=None) -> None:
         if not phy:
             for phy in self._phys:
                 self.enable_manual_mode(phy=phy)
-        
+
         if phy:
             logging.info(f"Enabling manual mode on {phy} on {self._name}")
             self._writer.write(f"{phy};stop\n".encode("ascii"))
             self._writer.write(f"{phy};dump\n".encode("ascii"))
             self._writer.write(f"{phy};manual\n".encode("ascii"))
-            
-    
+
     def enable_auto_mode(self, phy=None) -> None:
         if not phy:
             for phy in self._phys:
                 self.enable_auto_mode(phy=phy)
-        if phy:                    
+        if phy:
             logging.info(f"Enabling auto mode on {phy} on {self._name}")
             self._writer.write(f"{phy};stop\n".encode("ascii"))
             self._writer.write(f"{phy};auto\n".encode("ascii"))
-    
-    def disable_kernel_fallback(self, phy, driver) -> None:
-    
-        logging.info(f"Disabling kernel fallback rate control for {phy} on {self._name}")
-        self._writer.write(f"{phy};debugfs;{driver}/force_rate_retry;1\n".encode("ascii"))
 
+    def disable_kernel_fallback(self, phy: str, driver: str) -> None:
+
+        logging.info(
+            f"Disabling kernel fallback rate control for {phy}  with {driver} on {self._name}"
+        )
+        self._writer.write(
+            f"{phy};debugfs;{driver}/force_rate_retry;1\n".encode("ascii")
+        )
+
+    def toggle_sensitivity_control(self, setting) -> None:
+
+        logging.info(
+            f"Setting sensitivity control for {self._name} to {setting}"
+        )
+        
+        for phy in self._phys:
+            if self._phys[phy]["driver"] == "ath9k":
+                self._writer.write(f"{phy};debugfs;ath9k/ani;{setting}\n".encode("ascii"))
+            elif self._phys[phy]["driver"] == "mt76":
+                self._writer.write(f"{phy};debugfs;mt76/scs;{setting}\n".encode("ascii"))
 
     def reset_phy_stats(self, phy=None) -> None:
         if not phy:
             for phy in self._phys:
                 self.reset_phy_stats(phy=phy)
-        if phy:                
+        if phy:
             logging.info(f"Reseting rate statistics for {phy} on {self._name}")
             self._writer.write(f"{phy};stop\n".encode("ascii"))
             self._writer.write(f"{phy};reset_stats\n".encode("ascii"))

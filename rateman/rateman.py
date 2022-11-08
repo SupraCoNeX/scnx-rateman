@@ -26,7 +26,7 @@ class RateMan:
         save_data=False,
         output_dir=None,
         rate_control_alg: str = "minstrel_ht_kernel_space",
-        **rate_control_options
+        **rate_control_options,
     ):
         """
         Parameters
@@ -64,24 +64,27 @@ class RateMan:
             if save_data:
                 ap.save_data = save_data
                 ap.output_dir = output_dir
-            
+
             self._accesspoints[ap.name] = ap
             self._taskman.add_task(
-                self._taskman.connect_ap(ap, **rate_control_options), name=f"connect_{ap.name}"
+                self._taskman.connect_ap(ap, **rate_control_options),
+                name=f"connect_{ap.name}",
             )
 
     @property
     def taskman(self) -> dict:
         return self._taskman
-    
+
     @property
     def accesspoints(self) -> dict:
         return self._accesspoints
-    
+
     def add_task(self, coro, name=""):
         self._taskman.add_task(coro, name)
 
-    def connect_ap(self, ap, rate_control_alg: str = "minstrel_ht_kernel_space", **rc_opts):
+    def connect_ap(
+        self, ap, rate_control_alg: str = "minstrel_ht_kernel_space", **rc_opts
+    ):
         self._accesspoints[ap.name] = ap
         ap.rate_control = self._load_rc(rate_control_alg)
         ap.rate_control_alg = rate_control_alg
