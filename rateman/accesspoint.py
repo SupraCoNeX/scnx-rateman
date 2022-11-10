@@ -178,11 +178,12 @@ class AccessPoint:
     def add_phy(self, phy: str, driver: str) -> None:
         if phy not in self._phys:
             logging.info(f"{self.name}: adding PHY {phy} with driver {driver}")
+            self._phys[phy] = dict()
             self._phys[phy]["driver"] = driver
             self._phys[phy]["stations"] = {"active": {}, "inactive": {}}
 
     def add_station(self, sta: Station) -> None:
-        if sta.mac_addr not in self._phys[sta.radio]["active"]:
+        if sta.mac_addr not in self._phys[sta.radio]["stations"]["active"]:
             logging.info(f"adding active {sta} to {sta.radio} on {self.name}")
             self._phys[sta.radio]["stations"]["active"][sta.mac_addr] = sta
 
@@ -270,23 +271,28 @@ class AccessPoint:
     def disable_kernel_fallback(self, phy: str, driver: str) -> None:
 
         logging.info(
-            f"Disabling kernel fallback rate control for {phy}  with {driver} on {self._name}"
+            f"Disabling kernel fallback rate control for {phy} with {driver} on {self._name}"
         )
         self._writer.write(
             f"{phy};debugfs;{driver}/force_rate_retry;1\n".encode("ascii")
         )
 
-    def toggle_sensitivity_control(self, setting) -> None:
+    def toggle_sensitivity_control(self, toggle: [0,1]) -> None:
 
-        logging.info(
-            f"Setting sensitivity control for {self._name} to {setting}"
-        )
-        
-        for phy in self._phys:
-            if self._phys[phy]["driver"] == "ath9k":
-                self._writer.write(f"{phy};debugfs;ath9k/ani;{setting}\n".encode("ascii"))
-            elif self._phys[phy]["driver"] == "mt76":
-                self._writer.write(f"{phy};debugfs;mt76/scs;{setting}\n".encode("ascii"))
+        if toggle not in [0, 1]:
+             logging.error(
+                 f"Invalid toggle {toggle} for {self._name}"
+             )   
+        else:
+            logging.info(
+                f"Setting sensitivity control for {self._name} to {toggle}"
+            )
+            
+            for phy in self._phys:
+                if self._phys[phy]["driver"] == "ath9k":
+                    self._writer.write(f"{phy};debugfs;ath9k/ani;{toggle}\n".encode("ascii"))
+                elif self._phys[phy]["driver"] == "mt76":
+                    self._writer.write(f"{phy};debugfs;mt76/scs;{toggle}\n".encode("ascii"))
 
     def reset_phy_stats(self, phy=None) -> None:
         if not phy:
