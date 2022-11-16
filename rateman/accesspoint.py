@@ -171,8 +171,8 @@ class AccessPoint:
             return None
 
     def get_sta(self, mac: str, radio: str = None, state="active"):
-        if not phy:
-            for phy in self._radios:
+        if not radio:
+            for radio in self._radios:
                 sta = self.get_sta(mac, radio, state=state)
                 if sta:
                     return sta
@@ -190,10 +190,10 @@ class AccessPoint:
             logging.info(f"{self._name}: adding radio {radio} with driver {driver}")
             self._radios[radio] = dict()
             self._radios[radio]["driver"] = driver
-            self._radios[radio] = {"active": {}, "inactive": {}}
+            self._radios[radio]["stations"] = {"active": {}, "inactive": {}}
 
     def add_station(self, sta: Station) -> None:
-        if sta.mac_addr not in self._radios[sta.radio]["active"]:
+        if sta.mac_addr not in self._radios[sta.radio]["stations"]["active"]:
             logging.info(f"adding active {sta} to {sta.radio} on {self._name}")
             self._radios[sta.radio]["stations"]["active"][sta.mac_addr] = sta
 
@@ -248,7 +248,6 @@ class AccessPoint:
                 f"Failed to connect to {self._name} at {self._addr}:{self._rcd_port}: {e}"
             )
             self._connected = False
-<<<<<<< HEAD:RateMan/rateman/accesspoint.py
             
     def enable_rc_info(self, radio=None):
         if not radio:
@@ -274,7 +273,6 @@ class AccessPoint:
             self._writer.write(f"{radio};dump\n".encode("ascii"))
             self._writer.write(f"{radio};manual\n".encode("ascii"))
             
-    
     def enable_auto_mode(self, radio=None) -> None:
         if not radio:
             for radio in self._radios:
@@ -283,51 +281,6 @@ class AccessPoint:
             logging.info(f"Enabling auto mode on {radio} on {self._name}")
             self._writer.write(f"{radio};stop\n".encode("ascii"))
             self._writer.write(f"{radio};auto\n".encode("ascii"))
-    
-    def disable_kernel_fallback(self, radio, driver) -> None:
-    
-        logging.info(f"Disabling kernel fallback rate control for {radio} on {self._name}")
-        self._writer.write(f"{radio};debugfs;{driver}/force_rate_retry;1\n".encode("ascii"))
-=======
-
-    def enable_rc_info(self, phy=None):
-        if not phy:
-            for phy in self._phys:
-                self.enable_rc_info(phy=phy)
-
-        if phy:
-            logging.info(f"Enabling RC info for {phy} on {self._name}")
-            self._writer.write(f"{phy};start;stats;txs\n".encode("ascii"))
-
-    def enable_manual_mode(self, phy=None) -> None:
-        if not phy:
-            for phy in self._phys:
-                self.enable_manual_mode(phy=phy)
-
-        if phy:
-            logging.info(f"Enabling manual mode on {phy} on {self._name}")
-            self._writer.write(f"{phy};stop\n".encode("ascii"))
-            self._writer.write(f"{phy};dump\n".encode("ascii"))
-            self._writer.write(f"{phy};manual\n".encode("ascii"))
-
-    def enable_auto_mode(self, phy=None) -> None:
-        if not phy:
-            for phy in self._phys:
-                self.enable_auto_mode(phy=phy)
-        if phy:
-            logging.info(f"Enabling auto mode on {phy} on {self._name}")
-            self._writer.write(f"{phy};stop\n".encode("ascii"))
-            self._writer.write(f"{phy};auto\n".encode("ascii"))
->>>>>>> main:rateman/accesspoint.py
-
-    def disable_kernel_fallback(self, phy: str, driver: str) -> None:
-
-        logging.info(
-            f"Disabling kernel fallback rate control for {phy} with {driver} on {self._name}"
-        )
-        self._writer.write(
-            f"{phy};debugfs;{driver}/force_rate_retry;1\n".encode("ascii")
-        )
 
     def toggle_sensitivity_control(self, toggle: [0,1]) -> None:
 
@@ -340,13 +293,12 @@ class AccessPoint:
                 f"Setting sensitivity control for {self._name} to {toggle}"
             )
             
-            for phy in self._phys:
-                if self._phys[phy]["driver"] == "ath9k":
-                    self._writer.write(f"{phy};debugfs;ath9k/ani;{toggle}\n".encode("ascii"))
-                elif self._phys[phy]["driver"] == "mt76":
-                    self._writer.write(f"{phy};debugfs;mt76/scs;{toggle}\n".encode("ascii"))
+            for radio in self._radios:
+                if self._radios[radio]["driver"] == "ath9k":
+                    self._writer.write(f"{radio};debugfs;ath9k/ani;{toggle}\n".encode("ascii"))
+                elif self._radios[radio]["driver"] == "mt76":
+                    self._writer.write(f"{radio};debugfs;mt76/scs;{toggle}\n".encode("ascii"))
 
-<<<<<<< HEAD:RateMan/rateman/accesspoint.py
     def reset_radio_stats(self, radio=None) -> None:
         if not radio:
             for radio in self._radios:
@@ -355,16 +307,6 @@ class AccessPoint:
             logging.info(f"Reseting rate statistics for {radio} on {self._name}")
             self._writer.write(f"{radio};stop\n".encode("ascii"))
             self._writer.write(f"{radio};reset_stats\n".encode("ascii"))
-=======
-    def reset_phy_stats(self, phy=None) -> None:
-        if not phy:
-            for phy in self._phys:
-                self.reset_phy_stats(phy=phy)
-        if phy:
-            logging.info(f"Reseting rate statistics for {phy} on {self._name}")
-            self._writer.write(f"{phy};stop\n".encode("ascii"))
-            self._writer.write(f"{phy};reset_stats\n".encode("ascii"))
->>>>>>> main:rateman/accesspoint.py
 
     def set_rate(self, radio, mac, mrr_rates, mrr_counts) -> None:
         if len(mrr_rates) != len(mrr_counts):
@@ -379,16 +321,12 @@ class AccessPoint:
         else:
             rate = ",".join(mrr_rates)
             count = ",".join(mrr_counts)
-
-<<<<<<< HEAD:RateMan/rateman/accesspoint.py
+        
         self._writer.write(f"{radio};rates;{mac};{rate};{count}\n".encode("ascii"))
     
     def set_probe_rate(self, radio, mac, rate) -> None:
         self._writer.write(f"{radio};probe;{mac};{rate}\n".encode("ascii"))
         logging.info(f"{radio};probe;{mac};{rate}\n")
-=======
-        self._writer.write(f"{phy};rates;{mac};{rate};{count}\n".encode("ascii"))
->>>>>>> main:rateman/accesspoint.py
 
     def add_supp_rates(self, group_ind, group_info):
         if group_ind not in self._supp_rates:
@@ -399,7 +337,6 @@ class AccessPoint:
             self._output_dir = os.path.join(os.getcwd())
 
         self._data_file = open(self._output_dir + "/" + self._name + ".csv", "w")
-
 
 def from_file(file: dir):
     def parse_ap(ap):
