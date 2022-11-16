@@ -26,7 +26,7 @@ class RateMan:
         save_data=False,
         output_dir=None,
         rate_control_alg: str = "minstrel_ht_kernel_space",
-        **rate_control_options
+        **rate_control_options,
     ):
         """
         Parameters
@@ -56,9 +56,8 @@ class RateMan:
         else:
             self._new_loop_created = False
 
-        self._accesspoints = {}
         self._taskman = TaskMan(loop)
-
+        self._accesspoints = dict()
         for ap in aps:
             ap.rate_control = self._load_rc(rate_control_alg)
             ap.rate_control_alg = rate_control_alg
@@ -67,9 +66,9 @@ class RateMan:
                 ap.output_dir = output_dir
 
             self._accesspoints[ap.name] = ap
-
             self._taskman.add_task(
-                self._taskman.connect_ap(ap, **rate_control_options), name=f"connect_{ap.name}"
+                self._taskman.connect_ap(ap, **rate_control_options),
+                name=f"connect_{ap.name}",
             )
 
     @property
@@ -80,17 +79,29 @@ class RateMan:
     def accesspoints(self) -> dict:
         return self._accesspoints
 
+    def add_task(self, coro, name=""):
+        self._taskman.add_task(coro, name)
+
+    def connect_ap(
+        self, ap, rate_control_alg: str = "minstrel_ht_kernel_space", **rc_opts
+    ):
+       
+        ap.rate_control = self._load_rc(rate_control_alg)
+        ap.rate_control_alg = rate_control_alg
+        self._accesspoints[ap.name] = ap
+        return self._taskman.connect_ap(ap, name=f"connect_{ap.name}", **rc_opts)
+
     def add_raw_data_callback(self, cb):
         """
         Register a callback to be called on unvalated incoming data
         """
         self._taskman.add_raw_data_callback(cb)
 
-    def add_data_callback(self, cb, type="any"):
+    def add_data_callback(self, cb, type="any", args=None):
         """
         Register a callback to be called on valated incoming data.
         """
-        self._taskman.add_data_callback(cb, type)
+        self._taskman.add_data_callback(cb, type, args)
 
     def remove_data_callback(self, cb):
         """
@@ -116,7 +127,7 @@ class RateMan:
 
             if ap.save_data:
                 ap.data_file.close()
-
+        
         for task in self._taskman.tasks:
             logging.info(f"Cancelling {task.get_name()}")
             task.cancel()
@@ -144,6 +155,7 @@ class RateMan:
             Function to be called for initiating user space rate control.
 
         """
+        
 
         if rate_control_algorithm == "minstrel_ht_kernel_space":
             return None
@@ -152,7 +164,7 @@ class RateMan:
             entry_func = importlib.import_module(rate_control_algorithm).start
         except ImportError:
             logging.error(f"Import {rate_control_algorithm} failed.")
-
+                    
         return entry_func
 
 

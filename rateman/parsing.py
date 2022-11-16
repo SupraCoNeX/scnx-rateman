@@ -108,11 +108,15 @@ def process_line(ap, line):
 
     if len(fields) == 4:
         if fields[1] == "0" and fields[2] == "add":
-            ap.add_radio(fields[0])
-            if ap.rate_control_alg != 'minstrel_ht_kernel_space':
+            if "ath9k" in fields[3]:
+                ap.add_radio(fields[0], "ath9k")
+            elif "mt76" in fields[3]:
+                ap.add_radio(fields[0], "mt76")
+            
+            if ap.rate_control_alg != "minstrel_ht_kernel_space":
                 if "mt76" in fields[3]:
                     ap.disable_kernel_fallback(fields[0], "mt76")
-          
+
             ap.reset_radio_stats(fields[0])
             ap.enable_rc_info(fields[0])
 
@@ -322,5 +326,5 @@ def parse_sta(ap, fields):
         overhead_mcs,
         overhead_legacy,
     )
-    
+
     return sta

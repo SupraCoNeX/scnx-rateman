@@ -13,7 +13,7 @@ from common import parse_aps, setup_argparser
 # the number of fields separated by ';' in 'rxs' lines, i.e. 9
 def log_rssi(ap, phy, timestamp, type, mac, min_rssi, rssi0, rssi1, rssi2, rssi3):
     rssi = parse_s32(min_rssi)
-    print(f"{ap.id} (c- [{mac}] at RSSI {rssi}")
+    print(f"{ap.name} (c- [{mac}] at RSSI {rssi}")
 
 
 if __name__ == "__main__":

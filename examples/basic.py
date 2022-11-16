@@ -25,7 +25,7 @@ if __name__ == "__main__":
     rateman_obj = rateman.RateMan(aps, rate_control_alg=args.algorithm, loop=loop)
 
     # add a simple print callback to see the raw incoming data
-    rateman_obj.add_raw_data_callback(lambda ap, fields: print(f"{ap.id} > '{fields}'"))
+    rateman_obj.add_raw_data_callback(lambda ap, fields: print(f"{ap.name} > '{fields}'"))
 
     try:
         loop.run_forever()
