@@ -85,9 +85,10 @@ class RateMan:
     def connect_ap(
         self, ap, rate_control_alg: str = "minstrel_ht_kernel_space", **rc_opts
     ):
-        self._accesspoints[ap.name] = ap
+       
         ap.rate_control = self._load_rc(rate_control_alg)
         ap.rate_control_alg = rate_control_alg
+        self._accesspoints[ap.name] = ap
         return self._taskman.connect_ap(ap, name=f"connect_{ap.name}", **rc_opts)
 
     def add_raw_data_callback(self, cb):
@@ -126,7 +127,7 @@ class RateMan:
 
             if ap.save_data:
                 ap.data_file.close()
-
+        
         for task in self._taskman.tasks:
             logging.info(f"Cancelling {task.get_name()}")
             task.cancel()
@@ -154,6 +155,7 @@ class RateMan:
             Function to be called for initiating user space rate control.
 
         """
+        
 
         if rate_control_algorithm == "minstrel_ht_kernel_space":
             return None
@@ -162,7 +164,7 @@ class RateMan:
             entry_func = importlib.import_module(rate_control_algorithm).start
         except ImportError:
             logging.error(f"Import {rate_control_algorithm} failed.")
-
+                    
         return entry_func
 
 
