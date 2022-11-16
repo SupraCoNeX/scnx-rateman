@@ -45,7 +45,7 @@ class AccessPoint:
         self._addr = addr
         self._rcd_port = rcd_port
         self._supp_rates = {}
-        self._phys = {}
+        self._radios = {}
         self._connected = False
         self._save_data = False
         self._output_dir = None
@@ -138,9 +138,19 @@ class AccessPoint:
         return self._writer
 
     @property
-    def phys(self) -> list:
-        return self._phys
-
+    def radios(self) -> list:
+        return self._radios
+  
+    @property
+    def sample_table(self) -> list:
+        return self._sample_table
+    
+    @sample_table.setter
+    def sample_table(self, sample_table_data):
+        self._sample_table = []
+        for row in sample_table_data:
+            self._sample_table.append(list(map(int,row.split(","))))
+        
     def get_stations(self, which="active") -> dict:
         if which == "all":
             return self.get_stations(which="active") + self.get_stations(
@@ -148,50 +158,50 @@ class AccessPoint:
             )
 
         stas = {}
-        for phy in self._phys:
-            for mac, sta in self._phys[phy]["stations"][which].items():
+        for radio in self._radios:
+            for mac, sta in self._radios[radio]["stations"][which].items():
                 stas[mac] = sta
 
         return stas
-
-    def _get_sta(self, mac, phy, state):
+    
+    def _get_sta(self, mac, radio, state):
         try:
-            return self._phys[phy]["stations"][state][mac]
+            return self._radios[radio]["stations"][state][mac]
         except KeyError:
             return None
 
-    def get_sta(self, mac: str, phy: str = None, state="active"):
+    def get_sta(self, mac: str, radio: str = None, state="active"):
         if not phy:
-            for phy in self._phys:
-                sta = self.get_sta(mac, phy, state=state)
+            for phy in self._radios:
+                sta = self.get_sta(mac, radio, state=state)
                 if sta:
                     return sta
-
+    
             return None
-
+    
         if state == "any":
-            sta = self._get_sta(mac, phy, "active")
-            return sta if sta else self._get_sta(mac, phy, "inactive")
-
+            sta = self._get_sta(mac, radio, "active")
+            return sta if sta else self._get_sta(mac, radio, "inactive")
+    
         return None
-
-    def add_phy(self, phy: str, driver: str) -> None:
-        if phy not in self._phys:
-            logging.info(f"{self.name}: adding PHY {phy} with driver {driver}")
-            self._phys[phy] = dict()
-            self._phys[phy]["driver"] = driver
-            self._phys[phy]["stations"] = {"active": {}, "inactive": {}}
+    
+    def add_radio(self, radio: str, driver: str) -> None:
+        if radio not in self._radios:
+            logging.info(f"{self._name}: adding radio {radio} with driver {driver}")
+            self._radios[radio] = dict()
+            self._radios[radio]["driver"] = driver
+            self._radios[radio] = {"active": {}, "inactive": {}}
 
     def add_station(self, sta: Station) -> None:
-        if sta.mac_addr not in self._phys[sta.radio]["stations"]["active"]:
-            logging.info(f"adding active {sta} to {sta.radio} on {self.name}")
-            self._phys[sta.radio]["stations"]["active"][sta.mac_addr] = sta
+        if sta.mac_addr not in self._radios[sta.radio]["active"]:
+            logging.info(f"adding active {sta} to {sta.radio} on {self._name}")
+            self._radios[sta.radio]["stations"]["active"][sta.mac_addr] = sta
 
-    def remove_station(self, mac: str, phy: str) -> None:
+    def remove_station(self, mac: str, radio: str) -> None:
         try:
-            sta = self._phys[phy]["stations"]["active"].pop(mac)
+            sta = self._radios[radio]["stations"]["active"].pop(mac)
             sta.radio = None
-            self._phys[phy]["stations"]["inactive"][mac] = sta
+            self._radios[radio]["stations"]["inactive"][mac] = sta
             logging.info(f"removing {sta}")
         except KeyError as e:
             pass
@@ -238,6 +248,47 @@ class AccessPoint:
                 f"Failed to connect to {self._name} at {self._addr}:{self._rcd_port}: {e}"
             )
             self._connected = False
+<<<<<<< HEAD:RateMan/rateman/accesspoint.py
+            
+    def enable_rc_info(self, radio=None):
+        if not radio:
+            for radio in self._radios:
+                self.enable_rc_info(radio=radio)
+        
+        if radio:
+            logging.info(f"Enabling RC info for {radio} on {self._name}")
+            self._writer.write(f"{radio};start;stats;txs\n".encode("ascii"))
+
+    def disable_kernel_fallback(self, radio: str, driver: str):
+        logging.info(f"Disabling Kernel Fallback RC for {radio} with {driver} on {self._name}")
+        self._writer.write(f"{radio};debugfs;{driver}/force_rate_retry;1".encode("ascii"))
+
+    def enable_manual_mode(self, radio=None) -> None:
+        if not radio:
+            for radio in self._radios:
+                self.enable_manual_mode(radio=radio)
+        
+        if radio:
+            logging.info(f"Enabling manual mode on {radio} on {self._name}")
+            self._writer.write(f"{radio};stop\n".encode("ascii"))
+            self._writer.write(f"{radio};dump\n".encode("ascii"))
+            self._writer.write(f"{radio};manual\n".encode("ascii"))
+            
+    
+    def enable_auto_mode(self, radio=None) -> None:
+        if not radio:
+            for radio in self._radios:
+                self.enable_auto_mode(radio=radio)
+        if radio:                    
+            logging.info(f"Enabling auto mode on {radio} on {self._name}")
+            self._writer.write(f"{radio};stop\n".encode("ascii"))
+            self._writer.write(f"{radio};auto\n".encode("ascii"))
+    
+    def disable_kernel_fallback(self, radio, driver) -> None:
+    
+        logging.info(f"Disabling kernel fallback rate control for {radio} on {self._name}")
+        self._writer.write(f"{radio};debugfs;{driver}/force_rate_retry;1\n".encode("ascii"))
+=======
 
     def enable_rc_info(self, phy=None):
         if not phy:
@@ -267,6 +318,7 @@ class AccessPoint:
             logging.info(f"Enabling auto mode on {phy} on {self._name}")
             self._writer.write(f"{phy};stop\n".encode("ascii"))
             self._writer.write(f"{phy};auto\n".encode("ascii"))
+>>>>>>> main:rateman/accesspoint.py
 
     def disable_kernel_fallback(self, phy: str, driver: str) -> None:
 
@@ -294,6 +346,16 @@ class AccessPoint:
                 elif self._phys[phy]["driver"] == "mt76":
                     self._writer.write(f"{phy};debugfs;mt76/scs;{toggle}\n".encode("ascii"))
 
+<<<<<<< HEAD:RateMan/rateman/accesspoint.py
+    def reset_radio_stats(self, radio=None) -> None:
+        if not radio:
+            for radio in self._radios:
+                self.reset_radio_stats(radio=radio)
+        if radio:                
+            logging.info(f"Reseting rate statistics for {radio} on {self._name}")
+            self._writer.write(f"{radio};stop\n".encode("ascii"))
+            self._writer.write(f"{radio};reset_stats\n".encode("ascii"))
+=======
     def reset_phy_stats(self, phy=None) -> None:
         if not phy:
             for phy in self._phys:
@@ -302,8 +364,9 @@ class AccessPoint:
             logging.info(f"Reseting rate statistics for {phy} on {self._name}")
             self._writer.write(f"{phy};stop\n".encode("ascii"))
             self._writer.write(f"{phy};reset_stats\n".encode("ascii"))
+>>>>>>> main:rateman/accesspoint.py
 
-    def set_rate(self, phy, mac, mrr_rates, mrr_counts) -> None:
+    def set_rate(self, radio, mac, mrr_rates, mrr_counts) -> None:
         if len(mrr_rates) != len(mrr_counts):
             print("Error: The number of rate and counts do not match!")
             return
@@ -317,7 +380,15 @@ class AccessPoint:
             rate = ",".join(mrr_rates)
             count = ",".join(mrr_counts)
 
+<<<<<<< HEAD:RateMan/rateman/accesspoint.py
+        self._writer.write(f"{radio};rates;{mac};{rate};{count}\n".encode("ascii"))
+    
+    def set_probe_rate(self, radio, mac, rate) -> None:
+        self._writer.write(f"{radio};probe;{mac};{rate}\n".encode("ascii"))
+        logging.info(f"{radio};probe;{mac};{rate}\n")
+=======
         self._writer.write(f"{phy};rates;{mac};{rate};{count}\n".encode("ascii"))
+>>>>>>> main:rateman/accesspoint.py
 
     def add_supp_rates(self, group_ind, group_info):
         if group_ind not in self._supp_rates:

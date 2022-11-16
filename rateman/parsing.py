@@ -109,15 +109,15 @@ def process_line(ap, line):
     if len(fields) == 4:
         if fields[1] == "0" and fields[2] == "add":
             if "ath9k" in fields[3]:
-                ap.add_phy(fields[0], "ath9k")
+                ap.add_radio(fields[0], "ath9k")
             elif "mt76" in fields[3]:
-                ap.add_phy(fields[0], "mt76")
+                ap.add_radio(fields[0], "mt76")
             
             if ap.rate_control_alg != "minstrel_ht_kernel_space":
                 if "mt76" in fields[3]:
                     ap.disable_kernel_fallback(fields[0], "mt76")
 
-            ap.reset_phy_stats(fields[0])
+            ap.reset_radio_stats(fields[0])
             ap.enable_rc_info(fields[0])
 
     fields = validate_line(ap, line)
@@ -130,7 +130,7 @@ def process_line(ap, line):
     if line_type == "txs":
         update_pckt_count_txs(ap, fields)
     elif line_type == "rxs":
-        sta = ap.get_sta(fields[3], phy=fields[0])
+        sta = ap.get_sta(fields[3], radio=fields[0])
         if sta:
             sta.update_rssi(
                 int(fields[1], 16),
