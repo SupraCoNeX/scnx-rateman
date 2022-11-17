@@ -188,9 +188,29 @@ class AccessPoint:
     def add_radio(self, radio: str, driver: str) -> None:
         if radio not in self._radios:
             logging.info(f"{self._name}: adding radio {radio} with driver {driver}")
-            self._radios[radio] = dict()
-            self._radios[radio]["driver"] = driver
-            self._radios[radio]["stations"] = {"active": {}, "inactive": {}}
+            self._radios[radio] = {
+                "driver": driver,
+                "interfaces": [],
+                "stations": {
+                    "active": {},
+                    "inactive": {}
+                }
+            }
+
+    def add_interface(self, radio: str, iface: str) -> None:
+        if radio not in self._radios or iface in self._radios[radio]["interfaces"]:
+            return
+
+        logging.info(f"{self._name}: adding interface {iface} to radio {radio}")
+
+        self._radios[radio]["interfaces"].append(iface)
+
+    def radio_for_interface(self, iface: str) -> str:
+        for radio in self._radios:
+            if iface in self._radios[radio]["interfaces"]:
+                return radio
+
+        return None
 
     def add_station(self, sta: Station) -> None:
         if sta.mac_addr not in self._radios[sta.radio]["stations"]["active"]:

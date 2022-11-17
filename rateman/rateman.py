@@ -233,7 +233,7 @@ if __name__ == "__main__":
     rateman = RateMan(aps, rate_control_alg=args.algorithm, loop=loop)
 
     # add a simple print callback to see the incoming data
-    rateman.add_data_callback(lambda ap, line: print(f"{ap.name}> '{line}'"))
+    rateman.add_data_callback(lambda ap,line,_: print(f"{ap.name}> '{line}'"))
 
     try:
         loop.run_forever()

@@ -106,12 +106,17 @@ def process_line(ap, line):
         process_api(ap, fields)
         return None
 
-    if len(fields) == 4:
+    # phy add lines: parse radio and interfaces
+    if len(fields) in [4,5]:
         if fields[1] == "0" and fields[2] == "add":
             if "ath9k" in fields[3]:
                 ap.add_radio(fields[0], "ath9k")
             elif "mt76" in fields[3]:
                 ap.add_radio(fields[0], "mt76")
+
+            if len(fields) == 5:
+                for iface in fields[4].split(","):
+                    ap.add_interface(fields[0], iface)
             
             if ap.rate_control_alg != "minstrel_ht_kernel_space":
                 if "mt76" in fields[3]:
