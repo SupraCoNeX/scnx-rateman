@@ -14,14 +14,13 @@ and asyncio tasks. Includes basic methods to collect data from Rate Control API.
 
 import asyncio
 import sys
-import logging
 from .parsing import process_line
 
 __all__ = ["TaskMan"]
 
 
 class TaskMan:
-    def __init__(self, loop):
+    def __init__(self, loop, logger):
         """
         Parameters
         ----------
@@ -31,6 +30,7 @@ class TaskMan:
 
         """
         self._loop = loop
+        self._logger = logger
         self._tasks = []
         self._raw_data_callbacks = []
         self._data_callbacks = {"any": [], "txs": [], "stats": [], "rxs": [], "sta": []}
@@ -168,7 +168,7 @@ class TaskMan:
                 ap.reset_radio_stats()
             elif ap.rate_control:
                 self.add_task(
-                    ap.rate_control(ap, self._loop, **rate_control_options),
+                    ap.rate_control(ap, self._loop, self._logger, **rate_control_options),
                     name=f"rc_{ap.name}",
                 )
 
@@ -214,7 +214,7 @@ class TaskMan:
                 await asyncio.sleep(0.01)
             except (ConnectionError, TimeoutError):
                 ap.connected = False
-                logging.error(f"Disconnected from {ap.name}")
+                self._logger.error(f"Disconnected from {ap.name}")
 
                 # FIXME: we might be setting skip to True prematurely here. Maybe we need a flag
                 #        indicating whether the API header has been received completely for an AP.
@@ -251,7 +251,7 @@ class TaskMan:
 
                 if not len(data_line):
                     ap.connected = False
-                    logging.error(f"Disconnected from {ap.name}")
+                    self._logger.error(f"Disconnected from {ap.name}")
                     break
 
                 line = data_line.decode("utf-8").rstrip("\n")
@@ -265,6 +265,6 @@ class TaskMan:
                 asyncio.TimeoutError,
                 asyncio.CancelledError,
             ) as error:
-                logging.error(f"Disconnected from {ap.name}: {error}")
+                self._logger.error(f"Disconnected from {ap.name}: {error}")
                 ap.connected = False
                 break

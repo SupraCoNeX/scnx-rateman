@@ -25,6 +25,7 @@ class RateMan:
         loop=None,
         save_data=False,
         output_dir=None,
+        logger = None,
         rate_control_alg: str = "minstrel_ht_kernel_space",
         **rate_control_options,
     ):
@@ -47,16 +48,22 @@ class RateMan:
         output_dir : dir, optional
             File path where AP trace data is to be saved. The default is None.
         """
-
+        
+        if not logger:
+            self._logger = logging.getLogger('rateman')
+        else:
+            self._logger = logger
+        
         if not loop:
-            logging.info("Creating new event loop")
-            loop = asyncio.new_event_loop()
+            self._logger.debug("Creating new event loop")
+            self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             self._new_loop_created = True
         else:
+            self._loop = loop
             self._new_loop_created = False
 
-        self._taskman = TaskMan(loop)
+        self._taskman = TaskMan(self._loop, self._logger)
         self._accesspoints = dict()
         for ap in aps:
             ap.rate_control = self._load_rc(rate_control_alg)
@@ -129,7 +136,7 @@ class RateMan:
                 ap.data_file.close()
         
         for task in self._taskman.tasks:
-            logging.info(f"Cancelling {task.get_name()}")
+            self._logger.debug(f"Cancelling {task.get_name()}")
             task.cancel()
 
         if len(self._taskman.tasks) > 0:
@@ -138,7 +145,7 @@ class RateMan:
         if self._new_loop_created:
             self._taskman.cur_loop.close()
 
-        logging.info("RateMan stopped")
+        self._logger.info("RateMan stopped")
 
     def _load_rc(self, rate_control_algorithm):
         """
@@ -163,7 +170,7 @@ class RateMan:
         try:
             entry_func = importlib.import_module(rate_control_algorithm).start
         except ImportError:
-            logging.error(f"Import {rate_control_algorithm} failed.")
+            self._logger.error(f"Import {rate_control_algorithm} failed.")
                     
         return entry_func
 

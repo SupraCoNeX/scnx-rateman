@@ -11,17 +11,17 @@ TODO
 
 """
 import asyncio
-import logging
 import csv
 import sys
 import os
+import logging
 from .station import Station
 
 __all__ = ["AccessPoint", "from_file", "from_strings"]
 
 
 class AccessPoint:
-    def __init__(self, name, addr, rcd_port=21059, rc_alg="minstrel_ht_kernel_space"):
+    def __init__(self, name, addr, rcd_port=21059, rc_alg="minstrel_ht_kernel_space", logger=None):
         """
         Parameters
         ----------
@@ -52,6 +52,7 @@ class AccessPoint:
         self._data_file = None
         self._latest_timestamp = 0
         self._rate_control_alg = rc_alg
+        self._logger = logger if logger else logging.getLogger()
 
     @property
     def name(self) -> str:
@@ -187,7 +188,7 @@ class AccessPoint:
     
     def add_radio(self, radio: str, driver: str) -> None:
         if radio not in self._radios:
-            logging.info(f"{self._name}: adding radio {radio} with driver {driver}")
+            self._logger.debug(f"{self._name}: adding radio {radio} with driver {driver}")
             self._radios[radio] = {
                 "driver": driver,
                 "interfaces": [],
@@ -201,7 +202,7 @@ class AccessPoint:
         if radio not in self._radios or iface in self._radios[radio]["interfaces"]:
             return
 
-        logging.info(f"{self._name}: adding interface {iface} to radio {radio}")
+        self._logger.debug(f"{self._name}: adding interface {iface} to radio {radio}")
 
         self._radios[radio]["interfaces"].append(iface)
 
@@ -214,7 +215,7 @@ class AccessPoint:
 
     def add_station(self, sta: Station) -> None:
         if sta.mac_addr not in self._radios[sta.radio]["stations"]["active"]:
-            logging.info(f"adding active {sta} to {sta.radio} on {self._name}")
+            self._logger.debug(f"adding active {sta} to {sta.radio} on {self._name}")
             self._radios[sta.radio]["stations"]["active"][sta.mac_addr] = sta
 
     def remove_station(self, mac: str, radio: str) -> None:
@@ -222,7 +223,7 @@ class AccessPoint:
             sta = self._radios[radio]["stations"]["active"].pop(mac)
             sta.radio = None
             self._radios[radio]["stations"]["inactive"][mac] = sta
-            logging.info(f"removing {sta}")
+            self._logger.debug(f"removing {sta}")
         except KeyError as e:
             pass
 
@@ -251,7 +252,7 @@ class AccessPoint:
                 asyncio.open_connection(self._addr, self._rcd_port), timeout=0.5
             )
 
-            logging.info(f"Connected to {self._name} at {self._addr}:{self._rcd_port}")
+            self._logger.debug(f"Connected to {self._name} at {self._addr}:{self._rcd_port}")
 
             self._connected = True
 
@@ -264,7 +265,7 @@ class AccessPoint:
             asyncio.CancelledError,
             ConnectionError,
         ) as e:
-            logging.error(
+            self._logger.error(
                 f"Failed to connect to {self._name} at {self._addr}:{self._rcd_port}: {e}"
             )
             self._connected = False
@@ -275,11 +276,11 @@ class AccessPoint:
                 self.enable_rc_info(radio=radio)
         
         if radio:
-            logging.info(f"Enabling RC info for {radio} on {self._name}")
+            self._logger.debug(f"Enabling RC info for {radio} on {self._name}")
             self._writer.write(f"{radio};start;stats;txs\n".encode("ascii"))
 
     def disable_kernel_fallback(self, radio: str, driver: str):
-        logging.info(f"Disabling Kernel Fallback RC for {radio} with {driver} on {self._name}")
+        self._logger.debug(f"Disabling Kernel Fallback RC for {radio} with {driver} on {self._name}")
         self._writer.write(f"{radio};debugfs;{driver}/force_rate_retry;1".encode("ascii"))
 
     def enable_manual_mode(self, radio=None) -> None:
@@ -288,7 +289,7 @@ class AccessPoint:
                 self.enable_manual_mode(radio=radio)
         
         if radio:
-            logging.info(f"Enabling manual mode on {radio} on {self._name}")
+            self._logger.debug(f"Enabling manual mode on {radio} on {self._name}")
             self._writer.write(f"{radio};stop\n".encode("ascii"))
             self._writer.write(f"{radio};dump\n".encode("ascii"))
             self._writer.write(f"{radio};manual\n".encode("ascii"))
@@ -298,18 +299,18 @@ class AccessPoint:
             for radio in self._radios:
                 self.enable_auto_mode(radio=radio)
         if radio:                    
-            logging.info(f"Enabling auto mode on {radio} on {self._name}")
+            self._logger.debug(f"Enabling auto mode on {radio} on {self._name}")
             self._writer.write(f"{radio};stop\n".encode("ascii"))
             self._writer.write(f"{radio};auto\n".encode("ascii"))
 
     def toggle_sensitivity_control(self, toggle: [0,1]) -> None:
 
         if toggle not in [0, 1]:
-             logging.error(
+             self._logger.error(
                  f"Invalid toggle {toggle} for {self._name}"
              )   
         else:
-            logging.info(
+            self._logger.info(
                 f"Setting sensitivity control for {self._name} to {toggle}"
             )
             
@@ -324,7 +325,7 @@ class AccessPoint:
             for radio in self._radios:
                 self.reset_radio_stats(radio=radio)
         if radio:                
-            logging.info(f"Reseting rate statistics for {radio} on {self._name}")
+            self._logger.debug(f"Reseting rate statistics for {radio} on {self._name}")
             self._writer.write(f"{radio};stop\n".encode("ascii"))
             self._writer.write(f"{radio};reset_stats\n".encode("ascii"))
 
@@ -346,7 +347,7 @@ class AccessPoint:
     
     def set_probe_rate(self, radio, mac, rate) -> None:
         self._writer.write(f"{radio};probe;{mac};{rate}\n".encode("ascii"))
-        logging.info(f"{radio};probe;{mac};{rate}\n")
+        self._logger.debug(f"{radio};probe;{mac};{rate}\n")
 
     def add_supp_rates(self, group_ind, group_info):
         if group_ind not in self._supp_rates:
