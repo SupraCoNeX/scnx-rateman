@@ -359,7 +359,7 @@ class AccessPoint:
 
         self._data_file = open(self._output_dir + "/" + self._name + ".csv", "w")
 
-def from_file(file: dir):
+def from_file(file: dir, logger=None):
     def parse_ap(ap):
         name = ap["NAME"]
         addr = ap["ADDR"]
@@ -369,14 +369,14 @@ def from_file(file: dir):
         except (KeyError, ValueError):
             rcd_port = 21059
 
-        ap = AccessPoint(name, addr, rcd_port=rcd_port)
+        ap = AccessPoint(name, addr, rcd_port, logger)
         return ap
 
     with open(file, newline="") as csvfile:
         return [parse_ap(ap) for ap in csv.DictReader(csvfile)]
 
 
-def from_strings(ap_strs):
+def from_strings(ap_strs, logger=None):
     aps = []
 
     for apstr in ap_strs:
@@ -393,6 +393,6 @@ def from_strings(ap_strs):
         except (IndexError, ValueError):
             rcd_port = 21059
 
-        aps.append(AccessPoint(name, addr, rcd_port))
+        aps.append(AccessPoint(name, addr, rcd_port, logger))
 
     return aps
