@@ -115,6 +115,7 @@ class TaskMan:
         timeout=5,
         reconnect=False,
         skip_api_header=False,
+        reset_rate_stats=True,
         **rate_control_options,
     ):
         """
@@ -165,7 +166,8 @@ class TaskMan:
 
             if ap.rate_control_alg == "minstrel_ht_kernel_space":
                 ap.enable_auto_mode()
-                ap.reset_radio_stats()
+                if reset_rate_stats:
+                    ap.reset_radio_stats()
             elif ap.rate_control:
                 self.add_task(
                     ap.rate_control(ap, self._loop, self._logger, **rate_control_options),
