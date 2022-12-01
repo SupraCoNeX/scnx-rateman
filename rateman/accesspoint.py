@@ -324,7 +324,7 @@ class AccessPoint:
         if not radio:
             for radio in self._radios:
                 self.reset_radio_stats(radio=radio)
-        if radio:                
+        else:
             self._logger.debug(f"Reseting rate statistics for {radio} on {self._name}")
             self._writer.write(f"{radio};stop\n".encode("ascii"))
             self._writer.write(f"{radio};reset_stats\n".encode("ascii"))
