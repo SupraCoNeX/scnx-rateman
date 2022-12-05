@@ -33,7 +33,14 @@ class TaskMan:
         self._logger = logger
         self._tasks = []
         self._raw_data_callbacks = []
-        self._data_callbacks = {"any": [], "txs": [], "stats": [], "rxs": [], "sta": []}
+        self._data_callbacks = {
+            "any": [],
+            "txs": [],
+            "stats": [],
+            "rxs": [],
+            "sta": [],
+            "best_rates": []
+        }
 
     @property
     def tasks(self) -> list:
@@ -63,15 +70,7 @@ class TaskMan:
         """
         Register a callback to be called on incoming data.
         """
-        if type not in [
-            "any",
-            "txs",
-            "rxs",
-            "stats",
-            "sta",
-            "best_rates",
-            "sample_table",
-        ]:
+        if type not in self._data_callbacks.keys():
             raise ValueError(type)
 
         for (c, _) in self._data_callbacks[type]:
