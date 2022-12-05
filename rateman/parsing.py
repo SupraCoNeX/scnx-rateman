@@ -183,12 +183,20 @@ def validate_sta(fields):
     # TODO: more validation?
     return fields
 
+def validate_best_rates(fields):
+    if len(fields) != 9:
+        return None
+
+    # TODO: more validation?
+    return fields
+
 
 VALIDATORS = {
     "txs": validate_txs,
     "stats": validate_rc_stats,
     "rxs": validate_rxs,
     "sta": validate_sta,
+    "best_rates": validate_best_rates
 }
 
 
