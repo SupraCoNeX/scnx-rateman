@@ -145,7 +145,7 @@ class RateMan:
         if self._new_loop_created:
             self._taskman.cur_loop.close()
 
-        self._logger.info("RateMan stopped")
+        self._logger.debug("RateMan stopped")
 
     def _load_rc(self, rate_control_algorithm):
         """
