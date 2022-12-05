@@ -303,22 +303,18 @@ class AccessPoint:
             self._writer.write(f"{radio};stop\n".encode("ascii"))
             self._writer.write(f"{radio};auto\n".encode("ascii"))
 
-    def toggle_sensitivity_control(self, toggle: [0,1]) -> None:
-
-        if toggle not in [0, 1]:
-             self._logger.error(
-                 f"Invalid toggle {toggle} for {self._name}"
-             )   
-        else:
+    def set_sensitivity_control(self, enable: bool) -> None:
             self._logger.info(
-                f"Setting sensitivity control for {self._name} to {toggle}"
+                f"{self._name}: {'En' if enable else 'Dis'}abling hardware sensitivity control"
             )
-            
+
+            val = 1 if enable else 0
+
             for radio in self._radios:
                 if self._radios[radio]["driver"] == "ath9k":
-                    self._writer.write(f"{radio};debugfs;ath9k/ani;{toggle}\n".encode("ascii"))
+                    self._writer.write(f"{radio};debugfs;ath9k/ani;{val}\n".encode("ascii"))
                 elif self._radios[radio]["driver"] == "mt76":
-                    self._writer.write(f"{radio};debugfs;mt76/scs;{toggle}\n".encode("ascii"))
+                    self._writer.write(f"{radio};debugfs;mt76/scs;{val}\n".encode("ascii"))
 
     def reset_radio_stats(self, radio=None) -> None:
         if not radio:
