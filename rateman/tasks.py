@@ -14,7 +14,7 @@ and asyncio tasks. Includes basic methods to collect data from Rate Control API.
 
 import asyncio
 import sys
-from .parsing import process_line
+from .parsing import process_line, process_phy_info
 
 __all__ = ["TaskMan"]
 
@@ -113,9 +113,7 @@ class TaskMan:
         ap,
         timeout=5,
         reconnect=False,
-        skip_api_header=False,
-        reset_rate_stats=True,
-        **rate_control_options,
+        radio_config=None
     ):
         """
         Attempt to connect to the given AP after waiting timeout seconds.
@@ -132,8 +130,6 @@ class TaskMan:
         reconnect : bool
             Flag indicating whether this is the first connection attempt. If set to
             True the timeout is ignored
-        skip_api_header : bool
-            When set to True rateman is not notified of incoming API data
         """
 
         if reconnect:
@@ -144,39 +140,37 @@ class TaskMan:
                 await ap.connect()
                 if not ap.connected:
                     await asyncio.sleep(timeout)
+
             except (KeyboardInterrupt, asyncio.CancelledError):
                 break
 
-        if skip_api_header:
-            ap.enable_rc_info()
-            await self.skip_header_lines(ap)
-            if not ap.connected:
-                self.add_task(
-                    self.connect_ap(ap, timeout, reconnect=True, skip_api_header=True),
-                    name=f"reconnect_{ap.name}",
-                )
-                return
+        line = await self.process_header(ap)
+        if not line and not ap.connected:
+            return # TODO: handle disconnect
+        elif line:
+            process_line(ap, line)
 
-        if ap.connected:
-            self.add_task(
-                self.collect_data(ap, reconnect_timeout=timeout),
-                name=f"collector_{ap.name}",
-            )
+        ap.set_rc_info(False)
 
-            if ap.rate_control_alg == "minstrel_ht_kernel_space":
-                ap.enable_auto_mode()
-                if reset_rate_stats:
-                    ap.reset_radio_stats()
-            elif ap.rate_control:
-                self.add_task(
-                    ap.rate_control(ap, self._loop, self._logger, **rate_control_options),
-                    name=f"rc_{ap.name}",
-                )
+        if radio_config:
+            for radio,cfg in radio_config.items():
+                ap.apply_radio_config(radio, cfg)
+
+        ap.set_rc_info(True)
+
+        for rc_task in ap.apply_rate_control():
+            if rc_task:
+                self.add_task(rc_task, name=f"rc_{ap.name}")
+
+        self.add_task(
+            self.collect_data(ap, reconnect_timeout=timeout),
+            name=f"collector_{ap.name}",
+        )
 
     async def collect_data(self, ap, reconnect_timeout=10):
         """
-        Receive data from an instance of minstrel-rcd notifying rateman of new data and attempting to
-        reconnect on connection failure.
+        Receive data from an instance of minstrel-rcd. Reconnect if connection
+        is lost.
 
         Parameters
         ----------
@@ -195,15 +189,13 @@ class TaskMan:
 
         while True:
             try:
-                line = await asyncio.wait_for(ap.reader.readline(), 0.01)
-                fields = process_line(ap, line.decode("utf-8").rstrip("\n"))
+                data = await asyncio.wait_for(ap.reader.readline(), 0.01)
+                line = data.decode("utf-8").rstrip()
 
                 for cb in self._raw_data_callbacks:
-                    cb(ap, line.decode("utf-8").rstrip("\n"))
+                    cb(ap, line)
 
-                if ap.save_data:
-                    ap.data_file.write(line.decode("utf-8"))
-
+                fields = process_line(ap, line)
                 if not fields:
                     continue
 
@@ -227,6 +219,31 @@ class TaskMan:
                 )
                 break
 
+    async def get_next_data_line(self, ap, timeout):
+        data = await asyncio.wait_for(ap.reader.readline(), timeout=timeout)
+
+        if data == "":
+            ap.connected = False
+            self._logger.error(f"Disconnected from {ap.name}")
+            return None
+
+        return data.decode("utf-8").rstrip()
+
+    async def process_header(self, ap):
+        # scroll past api header
+        line = await self.skip_header_lines(ap)
+        fields = line.split(";")
+
+        try:
+            while process_phy_info(ap, fields):
+                line = await self.get_next_data_line(ap, 1)
+                if not line:
+                    return
+
+                fields = line.split(";")
+        except asyncio.TimeoutError:
+            return
+
     async def skip_header_lines(self, ap):
         """
         Receive data from an instance of minstrel-rcd without notifying rateman of
@@ -236,36 +253,24 @@ class TaskMan:
 
         Parameters
         ----------
-        rateman : RateMan
-            The rateman instance managing this task.
         ap : AccessPoint
             The AP to receive the data from.
         Returns
         -------
-        None.
+        The first non-API-header line
 
         """
 
-        while True:
-            try:
-                data_line = await asyncio.wait_for(ap.reader.readline(), timeout=0.01)
+        try:
+            line = "*"
 
-                if not len(data_line):
-                    ap.connected = False
-                    self._logger.error(f"Disconnected from {ap.name}")
+            while line[0] == "*":
+                line = await self.get_next_data_line(ap, 1)
+                if not line:
                     break
 
-                line = data_line.decode("utf-8").rstrip("\n")
-
-                if line[0] != "*":
-                    process_line(ap, line)
-                    break
-            except (
-                OSError,
-                ConnectionError,
-                asyncio.TimeoutError,
-                asyncio.CancelledError,
-            ) as error:
-                self._logger.error(f"Disconnected from {ap.name}: {error}")
-                ap.connected = False
-                break
+            return line
+        except Exception as e:
+            self._logger.error(f"Disconnected from {ap.name}: {e}")
+            ap.connected = False
+            return None

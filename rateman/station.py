@@ -25,6 +25,8 @@ class Station:
         airtimes_ns,
         overhead_mcs,
         overhead_legacy,
+        rc_alg="minstrel_ht_kernel_space",
+        rc_opts=None
     ) -> None:
         """
         Parameters
@@ -53,6 +55,8 @@ class Station:
         self._stats = {}
         self._rssi = 1
         self._rssi_vals = []
+        self._rate_control_algorithm = rc_alg
+        self._rate_control_options = rc_opts
 
     @property
     def last_seen(self) -> str:
@@ -121,6 +125,10 @@ class Station:
     @property
     def stats(self) -> dict:
         return self._stats
+
+    @property
+    def rate_control(self):
+        return (self._rate_control_algorithm, self._rate_control_options)
 
     def lowest_supp_rate(self):
         return self._supp_rates[0]

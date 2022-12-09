@@ -17,11 +17,11 @@ import os
 import logging
 from .station import Station
 
-__all__ = ["AccessPoint", "from_file", "from_strings"]
+__all__ = ["AccessPoint", "NotConnectedException", "from_file", "from_strings"]
 
 
 class AccessPoint:
-    def __init__(self, name, addr, rcd_port=21059, rc_alg="minstrel_ht_kernel_space", logger=None):
+    def __init__(self, name, addr, rcd_port=21059, logger=None):
         """
         Parameters
         ----------
@@ -32,14 +32,8 @@ class AccessPoint:
         rcd_port : int, optional
             Port over which the Rate Control API is accessed.
             The default is 21059.
-        save_data : bool, optional
-            Flag denoting if trace data is to be saved for the AP.
-            The default is False.
-        output_dir : dir, optional
-            File path of the directory where data is collected by RateMan
-            instance.
-            The default is None.
-
+        logger : logging.Logger
+            Log
         """
         self._name = name
         self._addr = addr
@@ -47,12 +41,9 @@ class AccessPoint:
         self._supp_rates = {}
         self._radios = {}
         self._connected = False
-        self._save_data = False
-        self._output_dir = None
-        self._data_file = None
         self._latest_timestamp = 0
-        self._rate_control_alg = rc_alg
         self._logger = logger if logger else logging.getLogger()
+        self._last_cmd = None
 
     @property
     def name(self) -> str:
@@ -78,49 +69,15 @@ class AccessPoint:
     def connected(self, connection_status):
         self._connected = connection_status
 
-    @property
-    def save_data(self) -> bool:
-        return self._save_data
+    def get_sta_rate_control(self, sta):
+        for (radio, info) in self._radios.items():
+            if sta in info["stations"]["active"]:
+                return (
+                    info["stations"]["active"]["rate_control_algorithm"],
+                    info["stations"]["active"]["rate_control_options"]
+                )
 
-    @save_data.setter
-    def save_data(self, save_data: bool):
-        self._save_data = save_data
-
-    @property
-    def output_dir(self) -> bool:
-        return self._output_dir
-
-    @output_dir.setter
-    def output_dir(self, output_dir: bool):
-        self._output_dir = output_dir
-
-    @property
-    def data_file(self) -> object:
-        return self._data_file
-
-    @property
-    def rate_control_alg(self) -> dict:
-        return self._rate_control_alg
-
-    @rate_control_alg.setter
-    def rate_control_alg(self, rate_control_alg):
-        self._rate_control_alg = rate_control_alg
-
-    @property
-    def rate_control(self) -> dict:
-        return self._rate_control
-
-    @rate_control.setter
-    def rate_control(self, rate_control):
-        self._rate_control = rate_control
-
-    @property
-    def rate_control_settings(self) -> dict:
-        return self._rate_control_settings
-
-    @rate_control_settings.setter
-    def rate_control_settings(self, rate_control_settings):
-        self._rate_control_settings = rate_control_settings
+        return None
 
     @property
     def airtimes(self) -> dict:
@@ -145,13 +102,13 @@ class AccessPoint:
     @property
     def sample_table(self) -> list:
         return self._sample_table
-    
+
     @sample_table.setter
     def sample_table(self, sample_table_data):
         self._sample_table = []
         for row in sample_table_data:
             self._sample_table.append(list(map(int,row.split(","))))
-        
+
     def get_stations(self, which="active") -> dict:
         if which == "all":
             return self.get_stations(which="active") + self.get_stations(
@@ -164,7 +121,7 @@ class AccessPoint:
                 stas[mac] = sta
 
         return stas
-    
+
     def _get_sta(self, mac, radio, state):
         try:
             return self._radios[radio]["stations"][state][mac]
@@ -177,21 +134,25 @@ class AccessPoint:
                 sta = self.get_sta(mac, radio, state=state)
                 if sta:
                     return sta
-    
+
             return None
-    
+
         if state == "any":
             sta = self._get_sta(mac, radio, "active")
             return sta if sta else self._get_sta(mac, radio, "inactive")
-    
+
         return None
-    
-    def add_radio(self, radio: str, driver: str) -> None:
+
+    def add_radio(self, radio: str, driver: str, rc_alg="minstrel_ht_kernel_space", rc_opts={}, cfg=None) -> None:
         if radio not in self._radios:
             self._logger.debug(f"{self._name}: adding radio {radio} with driver {driver}")
+
             self._radios[radio] = {
                 "driver": driver,
                 "interfaces": [],
+                "rate_control_algorithm": rc_alg,
+                "rate_control_options": rc_opts,
+                "config": cfg,
                 "stations": {
                     "active": {},
                     "inactive": {}
@@ -246,19 +207,28 @@ class AccessPoint:
 
         return False
 
+    def send(self, cmd: str):
+        if not self.connected:
+            raise NotConnectedException(f"{self._name}: Cannot send '{cmd}': Not Connected")
+
+        if cmd[-1] != "\n":
+            cmd += "\n"
+
+        self._writer.write(cmd.encode("ascii"))
+        self._last_cmd = cmd
+
+    def handle_error(self, error):
+        self._logger.error(f"{self._name}: Error '{error}', last command='{self._last_cmd}'")
+
     async def connect(self):
         try:
             self._reader, self._writer = await asyncio.wait_for(
                 asyncio.open_connection(self._addr, self._rcd_port), timeout=0.5
             )
 
-            self._logger.debug(f"Connected to {self._name} at {self._addr}:{self._rcd_port}")
+            self._logger.debug(f"{self._name}: Connected at {self._addr}:{self._rcd_port}")
 
             self._connected = True
-
-            if self.save_data:
-                self.open_data_file()
-
         except (
             OSError,
             asyncio.TimeoutError,
@@ -269,61 +239,181 @@ class AccessPoint:
                 f"Failed to connect to {self._name} at {self._addr}:{self._rcd_port}: {e}"
             )
             self._connected = False
-            
-    def enable_rc_info(self, radio=None):
-        if not radio:
-            for radio in self._radios:
-                self.enable_rc_info(radio=radio)
-        
-        if radio:
-            self._logger.debug(f"Enabling RC info for {radio} on {self._name}")
-            self._writer.write(f"{radio};start;stats;txs\n".encode("ascii"))
 
-    def disable_kernel_fallback(self, radio: str, driver: str):
-        self._logger.debug(f"Disabling Kernel Fallback RC for {radio} with {driver} on {self._name}")
-        self._writer.write(f"{radio};debugfs;{driver}/force_rate_retry;1".encode("ascii"))
+    def set_default_rate_control(self, rc_alg, rc_opts={}, radio="all"):
+        if radio == "all":
+            for radio in self._radios:
+                self.set_default_rate_control(rc_alg, rc_opts, radio)
+
+            return
+
+        if radio not in self._radios:
+            return
+
+        self._radios[radio]["rate_control_algorithm"] = rc_alg
+        self._radios[radio]["rate_control_options"] = rc_opts
+
+    def apply_radio_config(self, radio="all", new_config=None, apply_rc=True):
+        if radio == "all":
+            for radio in self._radios:
+                self.apply_radio_config(radio, new_config)
+
+            return
+
+        if radio not in self._radios:
+            return
+
+        if not self._connected:
+            raise NotConnectedException(f"{self._name}: Not Connected")
+
+        if new_config:
+            self._radios[radio]["config"] = new_config
+
+        cfg = self._radios[radio]["config"]
+        if not cfg:
+            return
+
+        self._logger.debug(f"{self._name}: {radio}: applying config: {cfg}")
+
+        if "sensitivity_control" in cfg:
+            self.set_sensitivity_control(cfg["sensitivity_control"], radio)
+
+        if "disable_firmware_rate_downgrade" in cfg:
+            self.mt76_set_firmware_rate_downgrade(cfg["disable_firmware_rate_downgrade"], radio)
+
+        if apply_rc and "rate_control_algorithm" in cfg:
+            rc_alg = cfg["rate_control_algorithm"]
+            rc_opts = cfg["rate_control_options"] if "rate_control_options" in cfg else {}
+            self.apply_rate_control(radio, rc_alg, rc_opts)
+
+    def apply_rate_control(self, radio="all", algorithm=None, options={}):
+        if radio == "all":
+            return [self.apply_rate_control(radio) for radio in self._radios]
+
+        if radio not in self._radios:
+            return None
+
+        if not self._connected:
+            raise NotConnectedException(f"{self._name}: Not Connected")
+
+        if algorithm:
+            self._radios[radio]["rate_control_algorithm"] = algorithm
+            self._radios[radio]["rate_control_options"] = options
+
+        rc_alg = self._radios[radio]["rate_control_algorithm"]
+        rc_opts = self._radios[radio]["rate_control_options"]
+
+        self._logger.debug(f"{self._name}: {radio}: applying rate control algorithm {rc_alg}, options: {rc_opts}")
+
+        if rc_alg == "minstrel_ht_kernel_space":
+            self.enable_auto_mode(radio)
+            if "reset_rate_stats" in rc_opts and rc_opts["reset_rate_stats"]:
+                self.reset_rate_stats(radio)
+
+            return None
+        else:
+            rc = load_rate_control_algorithm(rc_alg)
+            if not rc:
+                return None
+
+            return rc(self, self._loop, self._logger, **rc_opts)
+
+    def set_rc_info(self, enable, radio="all"):
+        if radio == "all":
+            self._logger.debug(
+                f"{self._name}: {'En' if enable else 'Dis'}abling RC info for all radios"
+            )
+            self.send(f"*;{'start' if enable else 'stop'};txs;rxs;stats")
+        elif radio in self._radios:
+            self._logger.debug(
+                f"{self._name}: {radio}: {'En' if enable else 'Dis'}abling RC info"
+            )
+            self.send(f"{radio};{'start' if enable else 'stop'};txs;rxs;stats")
+
+    def mt76_set_firmware_rate_downgrade(self, enable, radio="all"):
+        if radio == "all":
+            for radio in self._radios:
+                self.mt76_disable_firmware_rate_downgrade(enable, radio)
+            return
+
+        if radio not in self._radios or "mt7615" not in self._radios[radio]["driver"]:
+            return
+
+        self._logger.debug(
+            f"{self._name}: {radio}: {'En' if enable else 'Dis'}abling firmware rate downgrade"
+        )
+        self.send(f"{radio};debugfs;mt76/force_rate_retry;{1 if enable else 0}")
 
     def enable_manual_mode(self, radio=None) -> None:
         if not radio:
             for radio in self._radios:
                 self.enable_manual_mode(radio=radio)
-        
-        if radio:
-            self._logger.debug(f"Enabling manual mode on {radio} on {self._name}")
-            self._writer.write(f"{radio};stop\n".encode("ascii"))
-            self._writer.write(f"{radio};dump\n".encode("ascii"))
-            self._writer.write(f"{radio};manual\n".encode("ascii"))
-            
-    def enable_auto_mode(self, radio=None) -> None:
-        if not radio:
+
+            return
+
+        self._logger.debug(f"{self._name}: {radio}: Enabling manual mode")
+        self.send(f"{radio};manual")
+
+    def enable_auto_mode(self, radio="all") -> None:
+        if radio == "all":
             for radio in self._radios:
                 self.enable_auto_mode(radio=radio)
-        if radio:                    
-            self._logger.debug(f"Enabling auto mode on {radio} on {self._name}")
-            self._writer.write(f"{radio};stop\n".encode("ascii"))
-            self._writer.write(f"{radio};auto\n".encode("ascii"))
 
-    def set_sensitivity_control(self, enable: bool) -> None:
-            self._logger.info(
-                f"{self._name}: {'En' if enable else 'Dis'}abling hardware sensitivity control"
-            )
+            return
 
-            val = 1 if enable else 0
+        if radio not in self._radios:
+            return
 
+        if not self._connected:
+            raise NotConnectedException(f"{self._name}: Not Connected")
+
+        self._logger.debug(f"{self._name}: {radio}: Enabling auto mode")
+        self.send(f"{radio};auto")
+
+    def set_sensitivity_control(self, enable: bool, radio="all") -> None:
+        if radio == "all":
             for radio in self._radios:
-                if self._radios[radio]["driver"] == "ath9k":
-                    self._writer.write(f"{radio};debugfs;ath9k/ani;{val}\n".encode("ascii"))
-                elif self._radios[radio]["driver"] == "mt76":
-                    self._writer.write(f"{radio};debugfs;mt76/scs;{val}\n".encode("ascii"))
+                self.set_sensitivity_control(enable, radio)
 
-    def reset_radio_stats(self, radio=None) -> None:
-        if not radio:
+            return
+
+        if radio not in self._radios:
+            return
+
+        self._logger.debug(
+            f"{self._name}: {radio}: "
+            f"{'En' if enable else 'Dis'}abling hardware sensitivity control"
+        )
+
+        val = 1 if enable else 0
+
+        if self._radios[radio]["driver"] == "ath9k":
+            self.send(f"{radio};debugfs;ath9k/ani;{val}")
+        elif self._radios[radio]["driver"] == "mt76":
+            self.send(f"{radio};debugfs;mt76/scs;{val}")
+
+    def reset_rate_stats(self, radio="all", sta=None) -> None:
+        if radio == "all":
             for radio in self._radios:
-                self.reset_radio_stats(radio=radio)
+                self.reset_rate_stats(radio)
+
+            return
+
+        if radio not in self._radios:
+            return
+
+        if not self._connected:
+            raise NotConnectedException(f"{self._name}: Not Connected")
+
+        if sta:
+            if sta in self._radios[radio]["stations"]["active"]:
+                self._logger.debug(
+                    f"{self._name}: {radio}: Resetting rate statistics for {sta}"
+                )
+                self.send(f"{radio};reset_stats;{sta}")
         else:
-            self._logger.debug(f"Reseting rate statistics for {radio} on {self._name}")
-            self._writer.write(f"{radio};stop\n".encode("ascii"))
-            self._writer.write(f"{radio};reset_stats\n".encode("ascii"))
+            self._logger.debug(f"{self._name}: {radio}: Resetting rate statistics")
+            self.send(f"{radio};reset_stats")
 
     def set_rate(self, radio, mac, mrr_rates, mrr_counts) -> None:
         if len(mrr_rates) != len(mrr_counts):
@@ -338,22 +428,20 @@ class AccessPoint:
         else:
             rate = ",".join(mrr_rates)
             count = ",".join(mrr_counts)
-        
-        self._writer.write(f"{radio};rates;{mac};{rate};{count}\n".encode("ascii"))
-    
+
+        self.send(f"{radio};rates;{mac};{rate};{count}")
+
     def set_probe_rate(self, radio, mac, rate) -> None:
-        self._writer.write(f"{radio};probe;{mac};{rate}\n".encode("ascii"))
+        self.send(f"{radio};probe;{mac};{rate}")
         self._logger.debug(f"{radio};probe;{mac};{rate}\n")
 
     def add_supp_rates(self, group_ind, group_info):
         if group_ind not in self._supp_rates:
             self._supp_rates.update({group_ind: group_info})
 
-    def open_data_file(self):
-        if not bool(self._output_dir):
-            self._output_dir = os.path.join(os.getcwd())
-
-        self._data_file = open(self._output_dir + "/" + self._name + ".csv", "w")
+class NotConnectedException(Exception):
+    def __init__(self, msg):
+        super().__init__(msg)
 
 def from_file(file: dir, logger=None):
     def parse_ap(ap):

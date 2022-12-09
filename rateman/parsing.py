@@ -85,6 +85,21 @@ def parse_group_info(fields):
 
     return group_ind, group_info
 
+def process_phy_info(ap, fields):
+    if len(fields) != 5 or not (fields[1] == "0" and fields[2] == "add"):
+        return False
+
+    if "ath9k" in fields[3]:
+        ap.add_radio(fields[0], "ath9k")
+    elif "mt76" in fields[3]:
+        ap.add_radio(fields[0], "mt76")
+    else:
+        ap.add_radio(fields[0], fields[3])
+
+    for iface in fields[4].split(","):
+        ap.add_interface(fields[0], iface)
+
+    return True
 
 def process_line(ap, line):
     """
@@ -103,27 +118,13 @@ def process_line(ap, line):
     fields = line.split(";")
 
     if fields[0] == "*":
-        process_api(ap, fields)
+        if fields[2] == "#error":
+            ap.handle_error(fields[3])
+        else:
+            process_api(ap, fields)
         return None
 
-    # phy add lines: parse radio and interfaces
-    if len(fields) in [4,5]:
-        if fields[1] == "0" and fields[2] == "add":
-            if "ath9k" in fields[3]:
-                ap.add_radio(fields[0], "ath9k")
-            elif "mt76" in fields[3]:
-                ap.add_radio(fields[0], "mt76")
-
-            if len(fields) == 5:
-                for iface in fields[4].split(","):
-                    ap.add_interface(fields[0], iface)
-            
-            if ap.rate_control_alg != "minstrel_ht_kernel_space":
-                if "mt76" in fields[3]:
-                    ap.disable_kernel_fallback(fields[0], "mt76")
-
-            ap.reset_radio_stats(fields[0])
-            ap.enable_rc_info(fields[0])
+    process_phy_info(ap, fields)
 
     fields = validate_line(ap, line)
 
