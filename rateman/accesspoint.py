@@ -336,7 +336,7 @@ class AccessPoint:
                 self.mt76_disable_firmware_rate_downgrade(enable, radio)
             return
 
-        if radio not in self._radios or "mt7615" not in self._radios[radio]["driver"]:
+        if radio not in self._radios or "mt76" not in self._radios[radio]["driver"]:
             return
 
         self._logger.debug(
@@ -423,11 +423,11 @@ class AccessPoint:
         mrr_rates = ["0" if mrr_rate == "00" else mrr_rate for mrr_rate in mrr_rates]
 
         if len(mrr_rates) == 1:
-            rate = mrr_rates[0]
-            count = mrr_counts[0]
+            rate = int(mrr_rates[0])
+            count = int(mrr_counts[0])
         else:
-            rate = ",".join(mrr_rates)
-            count = ",".join(mrr_counts)
+            rate = ",".join([str(r) for r in mrr_rates])
+            count = ",".join([str(c) for c in mrr_counts])
 
         self.send(f"{radio};rates;{mac};{rate};{count}")
 

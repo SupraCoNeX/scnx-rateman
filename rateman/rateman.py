@@ -86,7 +86,7 @@ class RateMan:
 
     def add_data_callback(self, cb, type="any", args=None):
         """
-        Register a callback to be called on valated incoming data.
+        Register a callback to be called on validated incoming data.
         """
         self._taskman.add_data_callback(cb, type, args)
 

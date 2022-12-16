@@ -99,14 +99,7 @@ class TaskMan:
             cb(ap, fields, args)
 
         for (cb, args) in self._data_callbacks[fields[2]]:
-            try:
-                cb(ap, *fields, args=args)
-            except TypeError:
-                print(
-                    "Incorrect callback signature. Argument count must "
-                    + "match the number of fields separated by ';' in the line",
-                    file=sys.stderr,
-                )
+            cb(ap, *fields, args=args)
 
     async def connect_ap(
         self,
