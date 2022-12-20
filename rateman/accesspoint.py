@@ -15,6 +15,7 @@ import csv
 import sys
 import os
 import logging
+import importlib
 from .station import Station
 
 __all__ = ["AccessPoint", "NotConnectedException", "from_file", "from_strings"]
@@ -286,6 +287,19 @@ class AccessPoint:
             rc_opts = cfg["rate_control_options"] if "rate_control_options" in cfg else {}
             self.apply_rate_control(radio, rc_alg, rc_opts)
 
+        
+    def load_rate_control_algorithm(self, rc_alg):
+        if rc_alg == "minstrel_ht_kernel_space":
+            return None
+    
+        try:
+            entry_func = importlib.import_module(rc_alg).start
+        except ImportError as e:
+            self._logger.error(f"Importing {rc_alg} failed: {e}")
+            return None
+    
+        return entry_func
+        
     def apply_rate_control(self, radio="all", algorithm=None, options={}):
         if radio == "all":
             return [self.apply_rate_control(radio) for radio in self._radios]
@@ -312,7 +326,7 @@ class AccessPoint:
 
             return None
         else:
-            rc = load_rate_control_algorithm(rc_alg)
+            rc = self.load_rate_control_algorithm(rc_alg)
             if not rc:
                 return None
 

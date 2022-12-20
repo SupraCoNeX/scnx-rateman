@@ -15,7 +15,7 @@ from .tasks import TaskMan
 from .parsing import *
 
 
-__all__ = ["RateMan", "load_rate_control_algorithm"]
+__all__ = ["RateMan"]
 
 
 class RateMan:
@@ -124,17 +124,6 @@ class RateMan:
 
         self._logger.debug("RateMan stopped")
 
-def load_rate_control_algorithm(self, rc_alg):
-    if rc_alg == "minstrel_ht_kernel_space":
-        return None
-
-    try:
-        entry_func = importlib.import_module(rc_alg).start
-    except ImportError as e:
-        self._logger.error(f"Importing {rc_alg} failed: {e}")
-        return None
-
-    return entry_func
 
 if __name__ == "__main__":
 
