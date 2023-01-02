@@ -101,6 +101,14 @@ class TaskMan:
         for (cb, args) in self._data_callbacks[fields[2]]:
             cb(ap, *fields, args=args)
 
+    def reconnect_ap(self, ap, timeout, radio_config=None):
+        self.add_task(
+            self.connect_ap(
+                ap, timeout, reconnect=True, skip_api_header=True
+            ),
+            name=f"reconnect_{ap.name}"
+        )
+
     async def connect_ap(
         self,
         ap,
@@ -180,37 +188,28 @@ class TaskMan:
 
         """
 
-        while True:
-            try:
-                data = await asyncio.wait_for(ap.reader.readline(), 0.01)
-                line = data.decode("utf-8").rstrip()
+        try:
+            async for data in ap.reader:
+                try:
+                    line = data.decode("utf-8").rstrip()
+                    for cb in self._raw_data_callbacks:
+                        cb(ap, line)
 
-                for cb in self._raw_data_callbacks:
-                    cb(ap, line)
+                    fields = process_line(ap, line)
+                    if not fields:
+                        continue
 
-                fields = process_line(ap, line)
-                if not fields:
+                    self.execute_callbacks(ap, fields)
+                except UnicodeError, ValueError:
                     continue
+        except (IOError, ConnectionError):
+            ap.connected = False
 
-                self.execute_callbacks(ap, fields)
+            self._logger.error(f"Disconnected from {ap.name}")
 
-            except (KeyboardInterrupt, IOError, ValueError, asyncio.CancelledError):
-                break
-            except (asyncio.TimeoutError, UnicodeError):
-                await asyncio.sleep(0.01)
-            except (ConnectionError, TimeoutError):
-                ap.connected = False
-                self._logger.error(f"Disconnected from {ap.name}")
-
-                # FIXME: we might be setting skip to True prematurely here. Maybe we need a flag
-                #        indicating whether the API header has been received completely for an AP.
-                self.add_task(
-                    self.connect_ap(
-                        ap, reconnect_timeout, reconnect=True, skip_api_header=True
-                    ),
-                    name=f"reconnect_{ap.name}",
-                )
-                break
+            self.reconnect_ap(ap, reconnect_timeout)
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            return
 
     async def get_next_data_line(self, ap, timeout):
         data = await asyncio.wait_for(ap.reader.readline(), timeout=timeout)

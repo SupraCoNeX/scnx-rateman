@@ -208,11 +208,12 @@ class AccessPoint:
         if not self.connected:
             raise NotConnectedException(f"{self._name}: Cannot send '{cmd}': Not Connected")
 
+        self._last_cmd = cmd
+
         if cmd[-1] != "\n":
             cmd += "\n"
 
         self._writer.write(cmd.encode("ascii"))
-        self._last_cmd = cmd
 
     def handle_error(self, error):
         self._logger.error(f"{self._name}: Error '{error}', last command='{self._last_cmd}'")
