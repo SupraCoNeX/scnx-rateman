@@ -102,6 +102,7 @@ class RateMan:
         file objects.
 
         """
+
         for _, ap in self._accesspoints.items():
             if not ap.connected:
                 continue

@@ -93,10 +93,6 @@ class AccessPoint:
         return self._reader
 
     @property
-    def writer(self) -> object:
-        return self._writer
-
-    @property
     def radios(self) -> list:
         return self._radios
   
@@ -279,8 +275,8 @@ class AccessPoint:
         if "sensitivity_control" in cfg:
             self.set_sensitivity_control(cfg["sensitivity_control"], radio)
 
-        if "disable_firmware_rate_downgrade" in cfg:
-            self.mt76_set_firmware_rate_downgrade(cfg["disable_firmware_rate_downgrade"], radio)
+        if "automatic_rate_downgrade" in cfg:
+            self.mt76_set_automatic_rate_downgrade(cfg["automatic_rate_downgrade"], radio)
 
         if apply_rc and "rate_control_algorithm" in cfg:
             rc_alg = cfg["rate_control_algorithm"]
@@ -344,10 +340,10 @@ class AccessPoint:
             )
             self.send(f"{radio};{'start' if enable else 'stop'};txs;rxs;stats")
 
-    def mt76_set_firmware_rate_downgrade(self, enable, radio="all"):
+    def mt76_set_automatic_rate_downgrade(self, enable, radio="all"):
         if radio == "all":
             for radio in self._radios:
-                self.mt76_disable_firmware_rate_downgrade(enable, radio)
+                self.mt76_set_automatic_rate_downgrade(enable, radio)
             return
 
         if radio not in self._radios or "mt76" not in self._radios[radio]["driver"]:
@@ -356,7 +352,7 @@ class AccessPoint:
         self._logger.debug(
             f"{self._name}: {radio}: {'En' if enable else 'Dis'}abling firmware rate downgrade"
         )
-        self.send(f"{radio};debugfs;mt76/force_rate_retry;{1 if enable else 0}")
+        self.send(f"{radio};debugfs;mt76/force_rate_retry;{0 if enable else 1}")
 
     def enable_manual_mode(self, radio=None) -> None:
         if not radio:
