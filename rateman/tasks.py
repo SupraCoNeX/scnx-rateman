@@ -200,7 +200,7 @@ class TaskMan:
                         continue
 
                     self.execute_callbacks(ap, fields)
-                except UnicodeError, ValueError:
+                except (UnicodeError, ValueError):
                     continue
         except (IOError, ConnectionError):
             ap.connected = False

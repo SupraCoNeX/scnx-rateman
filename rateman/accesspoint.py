@@ -55,6 +55,14 @@ class AccessPoint:
         return self._addr
 
     @property
+    def writer(self) -> asyncio.StreamWriter:
+        return self._writer
+
+    @property
+    def reader(self) -> asyncio.StreamReader:
+        return self._reader
+
+    @property
     def supp_rates(self) -> str:
         return self._supp_rates
 
