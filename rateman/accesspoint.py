@@ -18,8 +18,7 @@ import logging
 import importlib
 from .station import Station
 
-__all__ = ["AccessPoint", "NotConnectedException", "from_file", "from_strings"]
-
+__all__ = ["AccessPoint", "from_file", "from_strings"]
 
 class AccessPoint:
     def __init__(self, name, addr, rcd_port=21059, logger=None):
@@ -471,7 +470,6 @@ class AccessPoint:
 class NotConnectedException(Exception):
     def __init__(self, msg):
         super().__init__(msg)
-
 
 def from_file(file: dir, logger=None):
     def parse_ap(ap):

@@ -22,15 +22,17 @@ if __name__ == "__main__":
     asyncio.set_event_loop(loop)
 
     print("Running rateman...")
-    rateman_obj = rateman.RateMan(aps, rate_control_alg=args.algorithm, loop=loop)
+    rateman_obj = rateman.RateMan(aps, loop=loop)
 
     # add a simple print callback to see the raw incoming data
-    rateman_obj.add_raw_data_callback(lambda ap, fields: print(f"{ap.name} > '{fields}'"))
+    rateman_obj.add_raw_data_callback(
+        lambda ap, fields: print(f"{ap.name} > '{fields}'")
+    )
 
     try:
         loop.run_forever()
     except (OSError, KeyboardInterrupt):
         print("Stopping...")
     finally:
-        loop.run_until_complete(rateman.stop())
+        loop.run_until_complete(rateman_obj.stop())
         print("DONE")
