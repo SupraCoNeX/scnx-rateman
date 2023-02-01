@@ -11,40 +11,33 @@ import asyncio
 import importlib
 import csv
 from .accesspoint import AccessPoint
-from .tasks import TaskMan
 from .parsing import *
-
 
 __all__ = ["RateMan"]
 
 
 class RateMan:
-    def __init__(
-        self,
-        aps=[],
-        loop=None,
-        logger = None
-    ):
+    def __init__(self, aps=[], loop=None, logger=None):
         """
         Parameters
         ----------
         aps : list
-            List of AccessPoint objects for a give list of APs proved
-            via CLI or a .csv file.
+                List of AccessPoint objects for a give list of APs proved
+                via CLI or a .csv file.
         rate_control_alg : str, optional
-            Rate control algorithm to be executed.
-            The default is "minstrel_ht_kernel_space".
+                Rate control algorithm to be executed.
+                The default is "minstrel_ht_kernel_space".
         loop : asyncio.BaseEventLoop, optional
-            Externally existing event loop passed to RateMan meant to be
-            utilized gathering and executing asyncio tasks.
-            The default is None.
+                Externally existing event loop passed to RateMan meant to be
+                utilized gathering and executing asyncio tasks.
+                The default is None.
         """
-        
+
         if not logger:
-            self._logger = logging.getLogger('rateman')
+            self._logger = logging.getLogger("rateman")
         else:
             self._logger = logger
-        
+
         if not loop:
             self._logger.debug("Creating new event loop")
             self._loop = asyncio.new_event_loop()
@@ -54,47 +47,195 @@ class RateMan:
             self._loop = loop
             self._new_loop_created = False
 
-        self._taskman = TaskMan(self._loop, self._logger)
+        self._tasks = []
+        self._raw_data_callbacks = []
+        self._data_callbacks = {
+            "any": [],
+            "txs": [],
+            "stats": [],
+            "rxs": [],
+            "sta": [],
+            "best_rates": [],
+        }
+
         self._accesspoints = dict()
         for ap in aps:
-            self._accesspoints[ap.name] = ap
-            self._taskman.add_task(
-                self._taskman.connect_ap(ap),
+            self.add_task(
+                self.connect_ap(ap),
                 name=f"connect_{ap.name}",
             )
-
-    @property
-    def taskman(self) -> dict:
-        return self._taskman
 
     @property
     def accesspoints(self) -> dict:
         return self._accesspoints
 
-    def add_task(self, coro, name=""):
-        self._taskman.add_task(coro, name)
+    @property
+    def tasks(self) -> list:
+        return self._tasks
 
-    def connect_ap(self, ap, radio_config=None):
-        self._accesspoints[ap.name] = ap
-        return self._taskman.connect_ap(ap, radio_config=radio_config)
+    def add_task(self, coro, name=""):
+        for task in self._tasks:
+            if task.get_name() == name:
+                return
+        task = self._loop.create_task(coro, name=name)
+        task.add_done_callback(self._tasks.remove)
+        self._tasks.append(task)
+
+    async def connect_ap(
+        self, ap, timeout=5, reconnect=False, radio_config=None, skip_api_header=False
+    ):
+        """
+        Attempt to connect to the given AP after waiting timeout seconds.
+        On successful connection a data collection task is scheduled.
+
+        Parameters
+        ----------
+        rateman : RateMan
+                The rateman instance managing this task.
+        ap : AccessPoint
+                The AP to connect to.
+        timeout : float
+                How many seconds to wait before attempting the connection.
+        reconnect : bool
+                Flag indicating whether this is the first connection attempt. If set to
+                True the timeout is ignored
+        radio_config : bool
+                Flag indicating whether this is the first connection attempt. If set to
+                True the timeout is ignored
+        skip_api_header : bool
+                Flag indicating whether this is the first connection attempt. If set to
+                True the timeout is ignored
+        """
+
+        if reconnect:
+            await asyncio.sleep(timeout)
+        else:
+            self._accesspoints[ap.name] = ap
+
+        while not ap.connected:
+            try:
+                await ap.connect()
+                if not ap.connected:
+                    await asyncio.sleep(timeout)
+
+            except (KeyboardInterrupt, asyncio.CancelledError):
+                break
+
+        if not skip_api_header:
+            await asyncio.wait_for(process_header(ap), timeout=1)
+
+        ap.set_rc_info(False)
+        if radio_config:
+            for radio, cfg in radio_config.items():
+                ap.apply_radio_config(radio, cfg)
+
+        ap.set_rc_info(True)
+
+        for rc_task in ap.apply_rate_control():
+            if rc_task:
+                self.add_task(rc_task, name=f"rc_{ap.name}")
+
+        self.add_task(
+            self.collect_data(ap, reconnect_timeout=timeout),
+            name=f"collector_{ap.name}",
+        )
+
+    def reconnect_ap(self, ap, timeout, radio_config=None):
+        self.add_task(
+            self.connect_ap(
+                ap,
+                timeout,
+                reconnect=True,
+                radio_config=radio_config,
+                skip_api_header=True,
+            ),
+            name=f"reconnect_{ap.name}",
+        )
 
     def add_raw_data_callback(self, cb):
         """
-        Register a callback to be called on unvalated incoming data
+        Register a callback to be called on unvalidated incoming data
         """
-        self._taskman.add_raw_data_callback(cb)
+        if cb not in self._raw_data_callbacks:
+            self._raw_data_callbacks.append(cb)
 
     def add_data_callback(self, cb, type="any", args=None):
         """
-        Register a callback to be called on validated incoming data.
+        Register a callback to be called on incoming data.
         """
-        self._taskman.add_data_callback(cb, type, args)
+        if type not in self._data_callbacks.keys():
+            raise ValueError(type)
+
+        for (c, _) in self._data_callbacks[type]:
+            if c == cb:
+                return
+
+        self._data_callbacks[type].append((cb, args))
 
     def remove_data_callback(self, cb):
         """
-        Unregister a data callback
+        Unregister a data callback.
         """
-        self._taskman.remove_data_callback(cb)
+        for (c, a) in self._raw_data_callbacks:
+            if c == cb:
+                self._raw_data_callbacks.remove((c, a))
+                return
+
+        for _, cbs in self._data_callbacks.items():
+            for (c, a) in cbs:
+                if c == cb:
+                    cbs.remove((c, a))
+                    break
+
+    def execute_callbacks(self, ap, fields):
+        for (cb, args) in self._data_callbacks["any"]:
+            cb(ap, fields, args)
+
+        for (cb, args) in self._data_callbacks[fields[2]]:
+            cb(ap, *fields, args=args)
+
+    async def collect_data(self, ap, reconnect_timeout=10):
+        """
+        Receive data from an instance of minstrel-rcd. Reconnect if connection
+        is lost.
+
+        Parameters
+        ----------
+        rateman : RateMan
+                The rateman instance managing this task.
+        ap : AccessPoint
+                The AP to receive the data from.
+        reconnect_timeout : float
+                Seconds to wait before attempting to reconnect to a disconnected AP.
+
+        Returns
+        -------
+        None.
+
+        """
+
+        try:
+            async for data in ap.reader:
+                try:
+                    line = data.decode("utf-8").rstrip()
+                    for cb in self._raw_data_callbacks:
+                        cb(ap, line)
+
+                    fields = process_line(ap, line)
+                    if not fields:
+                        continue
+
+                    self.execute_callbacks(ap, fields)
+                except (UnicodeError, ValueError):
+                    continue
+        except (IOError, ConnectionError):
+            ap.connected = False
+
+            self._logger.error(f"Disconnected from {ap.name}")
+
+            self.reconnect_ap(ap, reconnect_timeout)
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            return
 
     async def stop(self):
         """
@@ -107,21 +248,19 @@ class RateMan:
             if not ap.connected:
                 continue
 
-            for radio in ap.radios:
-                await asyncio.sleep(0.01)
-                ap.enable_auto_mode(radio)
-
+            ap.enable_auto_mode()
+            ap.set_rc_info(False)
             ap.writer.close()
 
-        for task in self._taskman.tasks:
+        for task in self._tasks:
             self._logger.debug(f"Cancelling {task.get_name()}")
             task.cancel()
 
-        if len(self._taskman.tasks) > 0:
-            await asyncio.wait(self._taskman.tasks)
+        if len(self._tasks) > 0:
+            await asyncio.wait(self._tasks)
 
         if self._new_loop_created:
-            self._taskman.cur_loop.close()
+            self._loop.close()
 
         self._logger.debug("RateMan stopped")
 
@@ -191,7 +330,7 @@ if __name__ == "__main__":
     rateman = RateMan(aps, rate_control_alg=args.algorithm, loop=loop)
 
     # add a simple print callback to see the incoming data
-    rateman.add_data_callback(lambda ap,line,_: print(f"{ap.name}> '{line}'"))
+    rateman.add_data_callback(lambda ap, line, _: print(f"{ap.name}> '{line}'"))
 
     try:
         loop.run_forever()
