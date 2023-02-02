@@ -26,7 +26,7 @@ class Station:
         overhead_mcs,
         overhead_legacy,
         rc_alg="minstrel_ht_kernel_space",
-        rc_opts=None
+        rc_opts=None,
     ) -> None:
         """
         Parameters

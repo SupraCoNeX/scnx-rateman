@@ -11,17 +11,14 @@ This is the main processing module that provides functions to asynchronously
 monitor network status and set rates.
 
 """
-import logging
+import asyncio
 from .station import Station
 
 __all__ = [
     "process_api",
-    "parse_group_info",
     "process_line",
-    "update_pckt_count_txs",
-    "parse_sta",
-    "parse_s16",
-    "parse_s32",
+    "process_header",
+    "parse_sta"
 ]
 
 # utility function to parse signed integers from hex strings in two's complement format
@@ -47,6 +44,40 @@ def process_api(ap, fields):
         ap.sample_table = fields[5:]
 
 
+async def process_header(ap):
+    try:
+        async for data in ap.reader:
+            try:
+                line = data.decode("utf-8").rstrip()
+                fields = line.split(";")
+                if fields[0] == "*":
+                    if fields[2] == "#error":
+                        ap.handle_error(fields[3])
+                    process_api(ap, fields)
+                elif len(fields) == 5:
+                    process_phy_info(ap, fields)
+                else:
+                    return
+            except (UnicodeError, ValueError):
+                continue
+    except (IOError, ConnectionError):
+        ap.connected = False
+        ap._logger.error(f"Disconnected from {ap.name}: {e}")
+    except (asyncio.CancelledError, TimeoutError):
+        return
+
+
+async def get_next_line(ap, timeout):
+    data = await asyncio.wait_for(ap.reader.readline(), timeout=timeout)
+
+    if data == "":
+        ap.connected = False
+        self._logger.error(f"Disconnected from {ap.name}")
+        return None
+
+    return data.decode("utf-8").rstrip()
+
+
 def parse_group_info(fields):
     """
     Obtain maximum offset for a given MCS rate group available for an AP.
@@ -54,16 +85,16 @@ def parse_group_info(fields):
     Parameters
     ----------
     fields : list
-        Fields obtained by spliting a data line received from the AP
-        over the Rate Control API.
+            Fields obtained by spliting a data line received from the AP
+            over the Rate Control API.
 
     Returns
     -------
     group_idx : str
-        Index of MCS rate group.
+            Index of MCS rate group.
     max_offset : str
-        Maximum allowable offset - determines which rates are available
-        in the group for the AP.
+            Maximum allowable offset - determines which rates are available
+            in the group for the AP.
 
     """
     fields = list(filter(None, fields))
@@ -85,6 +116,7 @@ def parse_group_info(fields):
 
     return group_ind, group_info
 
+
 def process_phy_info(ap, fields):
     if len(fields) != 5 or not (fields[1] == "0" and fields[2] == "add"):
         return False
@@ -101,6 +133,7 @@ def process_phy_info(ap, fields):
 
     return True
 
+
 def process_line(ap, line):
     """
 
@@ -111,20 +144,9 @@ def process_line(ap, line):
     ap : AccessPoint object
 
     line : str
-        Trace line.
+            Trace line.
 
     """
-
-    fields = line.split(";")
-
-    if fields[0] == "*":
-        if fields[2] == "#error":
-            ap.handle_error(fields[3])
-        else:
-            process_api(ap, fields)
-        return None
-
-    process_phy_info(ap, fields)
 
     fields = validate_line(ap, line)
 
@@ -149,6 +171,22 @@ def process_line(ap, line):
         ap.remove_station(fields[4], fields[0])
 
     return fields
+
+
+def validate_line(ap, line):
+    fields = line.split(";")
+
+    if len(fields) < 3:
+        return None
+
+    # ensure monotonic timestamps
+    if not ap.update_timestamp(fields[1]):
+        return None
+
+    try:
+        return VALIDATORS[fields[2]](fields)
+    except KeyError:
+        return None
 
 
 def validate_txs(fields):
@@ -184,6 +222,7 @@ def validate_sta(fields):
     # TODO: more validation?
     return fields
 
+
 def validate_best_rates(fields):
     if len(fields) != 9:
         return None
@@ -197,24 +236,8 @@ VALIDATORS = {
     "stats": validate_rc_stats,
     "rxs": validate_rxs,
     "sta": validate_sta,
-    "best_rates": validate_best_rates
+    "best_rates": validate_best_rates,
 }
-
-
-def validate_line(ap, line):
-    fields = line.split(";")
-
-    if len(fields) < 3:
-        return None
-
-    # ensure monotonic timestamps
-    if not ap.update_timestamp(fields[1]):
-        return None
-
-    try:
-        return VALIDATORS[fields[2]](fields)
-    except KeyError:
-        return None
 
 
 def update_pckt_count_txs(ap, fields):
@@ -226,8 +249,8 @@ def update_pckt_count_txs(ap, fields):
     ap : AccessPoint object
 
     fields : list
-        Fields obtained by spliting a data line received from the AP
-        over the Rate Control API .
+            Fields obtained by spliting a data line received from the AP
+            over the Rate Control API .
 
     """
     radio = fields[0]
@@ -306,16 +329,16 @@ def parse_sta(ap, fields):
     Parameters
     ----------
     ap : Object
-        Object of rateman.AccessPoint class over which the station is associated.
+            Object of rateman.AccessPoint class over which the station is associated.
     fields : list
-        Fields contained with line separated by ';' and containing 'sta;add'
-        or 'sta;dump' strings.
+            Fields contained with line separated by ';' and containing 'sta;add'
+            or 'sta;dump' strings.
 
     Returns
     -------
     sta : Object
-        Object of rateman.Station class created after a station connects to a
-        give AP.
+            Object of rateman.Station class created after a station connects to a
+            give AP.
 
     """
     supp_rates = []

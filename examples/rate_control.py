@@ -47,13 +47,13 @@ if len(aps) == 0:
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 
-rate_control_options = { 'multi_rate_retry': 'random,random;4,1'}
+rate_control_options = {"multi_rate_retry": "random,random;4,1"}
 print("Running rateman...")
 rateman = rateman.RateMan(
-    aps, 
-    loop=loop, 
-    save_data=True, 
-    rate_control_alg=args.rc_alg, 
+    aps,
+    loop=loop,
+    save_data=True,
+    rate_control_alg=args.rc_alg,
     **rate_control_options,
 )
 

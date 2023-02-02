@@ -18,8 +18,7 @@ import logging
 import importlib
 from .station import Station
 
-__all__ = ["AccessPoint", "NotConnectedException", "from_file", "from_strings"]
-
+__all__ = ["AccessPoint", "from_file", "from_strings"]
 
 class AccessPoint:
     def __init__(self, name, addr, rcd_port=21059, logger=None):
@@ -83,18 +82,10 @@ class AccessPoint:
             if sta in info["stations"]["active"]:
                 return (
                     info["stations"]["active"]["rate_control_algorithm"],
-                    info["stations"]["active"]["rate_control_options"]
+                    info["stations"]["active"]["rate_control_options"],
                 )
 
         return None
-
-    @property
-    def airtimes(self) -> dict:
-        return self._airtimes
-
-    @airtimes.setter
-    def airtimes(self, airtimes):
-        self._airtimes = airtimes
 
     @property
     def reader(self) -> object:
@@ -103,7 +94,7 @@ class AccessPoint:
     @property
     def radios(self) -> list:
         return self._radios
-  
+
     @property
     def sample_table(self) -> list:
         return self._sample_table
@@ -112,7 +103,7 @@ class AccessPoint:
     def sample_table(self, sample_table_data):
         self._sample_table = []
         for row in sample_table_data:
-            self._sample_table.append(list(map(int,row.split(","))))
+            self._sample_table.append(list(map(int, row.split(","))))
 
     def get_stations(self, which="active") -> dict:
         if which == "all":
@@ -148,9 +139,18 @@ class AccessPoint:
 
         return None
 
-    def add_radio(self, radio: str, driver: str, rc_alg="minstrel_ht_kernel_space", rc_opts={}, cfg=None) -> None:
+    def add_radio(
+        self,
+        radio: str,
+        driver: str,
+        rc_alg="minstrel_ht_kernel_space",
+        rc_opts={},
+        cfg=None,
+    ) -> None:
         if radio not in self._radios:
-            self._logger.debug(f"{self._name}: adding radio {radio} with driver {driver}")
+            self._logger.debug(
+                f"{self._name}: adding radio {radio} with driver {driver}"
+            )
 
             self._radios[radio] = {
                 "driver": driver,
@@ -158,10 +158,7 @@ class AccessPoint:
                 "rate_control_algorithm": rc_alg,
                 "rate_control_options": rc_opts,
                 "config": cfg,
-                "stations": {
-                    "active": {},
-                    "inactive": {}
-                }
+                "stations": {"active": {}, "inactive": {}},
             }
 
     def add_interface(self, radio: str, iface: str) -> None:
@@ -214,7 +211,9 @@ class AccessPoint:
 
     def send(self, cmd: str):
         if not self.connected:
-            raise NotConnectedException(f"{self._name}: Cannot send '{cmd}': Not Connected")
+            raise NotConnectedException(
+                f"{self._name}: Cannot send '{cmd}': Not Connected"
+            )
 
         self._last_cmd = cmd
 
@@ -224,7 +223,9 @@ class AccessPoint:
         self._writer.write(cmd.encode("ascii"))
 
     def handle_error(self, error):
-        self._logger.error(f"{self._name}: Error '{error}', last command='{self._last_cmd}'")
+        self._logger.error(
+            f"{self._name}: Error '{error}', last command='{self._last_cmd}'"
+        )
 
     async def connect(self):
         try:
@@ -232,7 +233,9 @@ class AccessPoint:
                 asyncio.open_connection(self._addr, self._rcd_port), timeout=0.5
             )
 
-            self._logger.debug(f"{self._name}: Connected at {self._addr}:{self._rcd_port}")
+            self._logger.debug(
+                f"{self._name}: Connected at {self._addr}:{self._rcd_port}"
+            )
 
             self._connected = True
         except (
@@ -285,26 +288,29 @@ class AccessPoint:
             self.set_sensitivity_control(cfg["sensitivity_control"], radio)
 
         if "automatic_rate_downgrade" in cfg:
-            self.mt76_set_automatic_rate_downgrade(cfg["automatic_rate_downgrade"], radio)
+            self.mt76_set_automatic_rate_downgrade(
+                cfg["automatic_rate_downgrade"], radio
+            )
 
         if apply_rc and "rate_control_algorithm" in cfg:
             rc_alg = cfg["rate_control_algorithm"]
-            rc_opts = cfg["rate_control_options"] if "rate_control_options" in cfg else {}
+            rc_opts = (
+                cfg["rate_control_options"] if "rate_control_options" in cfg else {}
+            )
             self.apply_rate_control(radio, rc_alg, rc_opts)
 
-        
     def load_rate_control_algorithm(self, rc_alg):
         if rc_alg == "minstrel_ht_kernel_space":
             return None
-    
+
         try:
             entry_func = importlib.import_module(rc_alg).start
         except ImportError as e:
             self._logger.error(f"Importing {rc_alg} failed: {e}")
             return None
-    
+
         return entry_func
-        
+
     def apply_rate_control(self, radio="all", algorithm=None, options={}):
         if radio == "all":
             return [self.apply_rate_control(radio) for radio in self._radios]
@@ -322,7 +328,9 @@ class AccessPoint:
         rc_alg = self._radios[radio]["rate_control_algorithm"]
         rc_opts = self._radios[radio]["rate_control_options"]
 
-        self._logger.debug(f"{self._name}: {radio}: applying rate control algorithm {rc_alg}, options: {rc_opts}")
+        self._logger.debug(
+            f"{self._name}: {radio}: applying rate control algorithm {rc_alg}, options: {rc_opts}"
+        )
 
         if rc_alg == "minstrel_ht_kernel_space":
             self.enable_auto_mode(radio)
@@ -457,6 +465,7 @@ class AccessPoint:
     def add_supp_rates(self, group_ind, group_info):
         if group_ind not in self._supp_rates:
             self._supp_rates.update({group_ind: group_info})
+
 
 class NotConnectedException(Exception):
     def __init__(self, msg):
