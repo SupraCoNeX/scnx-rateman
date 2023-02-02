@@ -4,37 +4,24 @@ import sys
 from rateman.accesspoint import AccessPoint
 
 
-def parse_aps(apstrs):
-    aps = []
-
-    for apstr in apstrs:
-        fields = apstr.split(":")
-        if len(fields) < 2:
-            print(f"Invalid access point: '{apstr}'", file=sys.stderr)
-            continue
-
-        name = fields[0]
-        addr = fields[1]
-
-        try:
-            rcd_port = int(fields[2])
-        except (IndexError, ValueError):
-            rcd_port = 21059
-
-        aps.append(AccessPoint(name, addr, rcd_port))
-
-    return aps
-
-
 def setup_argparser():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument(
-        "algorithm",
+        "-rc-alg",
+        metavar="RC_ALG",
         type=str,
-        choices=["minstrel_ht_kernel_space", "minstrel_ht_user_space"],
+        choices=["minstrel_ht_kernel_space", "py_minstrel_ht", "manual_mrr_setter"],
         default="minstrel_ht_kernel_space",
         help="Rate control algorithm to run.",
     )
+
+    arg_parser.add_argument(
+        "-rc-opts",
+        metavar="RC_OPTS",
+        default="{}",
+        help="Rate control options",
+    )
+
     arg_parser.add_argument(
         "-A",
         "--ap-file",
@@ -48,7 +35,7 @@ def setup_argparser():
         metavar="AP",
         nargs="*",
         type=str,
-        help="Accesspoint to connecto to. Format: 'ID:ADDR:RCDPORT'. "
+        help="Accesspoint to connect to. Format: 'ID:ADDR:RCDPORT'. "
         + "RCDPORT is optional and defaults to 21059.",
     )
 

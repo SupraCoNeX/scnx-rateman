@@ -1,18 +1,20 @@
-#!/usr/bin/python3
+# -*- coding: UTF8 -*-
+# Copyright SupraCoNeX
+#     https://www.supraconex.org
+#
 
 import asyncio
 import sys
 import rateman
-
-from common import parse_aps, setup_argparser
+from common import setup_argparser
 
 if __name__ == "__main__":
     arg_parser = setup_argparser()
     args = arg_parser.parse_args()
-    aps = parse_aps(args.accesspoints)
+    aps = rateman.from_strings(args.accesspoints)
 
     if args.ap_file:
-        aps += rateman.get_aps_from_file(args.ap_file)
+        aps += rateman.from_file(args.ap_file)
 
     if len(aps) == 0:
         print("ERROR: No accesspoints given", file=sys.stderr)

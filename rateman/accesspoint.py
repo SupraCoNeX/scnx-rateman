@@ -20,29 +20,39 @@ from .station import Station
 
 __all__ = ["AccessPoint", "from_file", "from_strings"]
 
+
 class AccessPoint:
-    def __init__(self, name, addr, rcd_port=21059, logger=None):
+    def __init__(self, name, addr, rcd_port=21059, config=None, logger=None, loop=None):
         """
         Parameters
         ----------
         name : str
-            Name given to the AP.
+                        Name given to the AP.
         addr : int
-            IP address of the AP.
+                        IP address of the AP.
         rcd_port : int, optional
-            Port over which the Rate Control API is accessed.
-            The default is 21059.
+                        Port over which the Rate Control API is accessed.
+                        The default is 21059.
         logger : logging.Logger
-            Log
+                        Log
         """
+        if config is None:
+            config = {
+                "rc_alg": "minstrel_ht_kernel_space",
+                "rc_opts": {},
+                "sensitivity_control": False,
+            }
         self._name = name
         self._addr = addr
         self._rcd_port = rcd_port
         self._supp_rates = {}
         self._radios = {}
+        self._default_rc_alg = config["rc_alg"]
+        self._default_rc_opts = config["rc_opts"]
         self._connected = False
         self._latest_timestamp = 0
         self._logger = logger if logger else logging.getLogger()
+        self._loop = loop
         self._last_cmd = None
 
     @property
@@ -54,6 +64,38 @@ class AccessPoint:
         return self._addr
 
     @property
+    def loop(self):
+        return self._loop
+
+    @loop.setter
+    def loop(self, loop):
+        self._loop = loop
+
+    @property
+    def logger(self):
+        return self._logger
+
+    @logger.setter
+    def logger(self, logger):
+        self._logger = logger
+
+    @property
+    def default_rc_alg(self):
+        return self.default_rc_alg
+
+    @default_rc_alg.setter
+    def default_rc_alg(self, default_rc_alg):
+        self._default_rc_alg = default_rc_alg
+
+    @property
+    def default_rc_opts(self):
+        return self._default_rc_opts
+
+    @default_rc_opts.setter
+    def default_rc_opts(self, default_rc_opts):
+        self._default_rc_opts = default_rc_opts
+
+    @property
     def writer(self) -> asyncio.StreamWriter:
         return self._writer
 
@@ -62,12 +104,8 @@ class AccessPoint:
         return self._reader
 
     @property
-    def supp_rates(self) -> str:
+    def supp_rates(self) -> dict:
         return self._supp_rates
-
-    @property
-    def active_stations(self) -> dict:
-        return self.get_stations()
 
     @property
     def connected(self) -> dict:
@@ -105,16 +143,15 @@ class AccessPoint:
         for row in sample_table_data:
             self._sample_table.append(list(map(int, row.split(","))))
 
-    def get_stations(self, which="active") -> dict:
+    def get_stations(self, radio, which="active"):
         if which == "all":
-            return self.get_stations(which="active") + self.get_stations(
-                which="inactive"
+            return self.get_stations(radio, which="active").update(
+                self.get_stations(radio, which="inactive")
             )
 
         stas = {}
-        for radio in self._radios:
-            for mac, sta in self._radios[radio]["stations"][which].items():
-                stas[mac] = sta
+        for mac, sta in self._radios[radio]["stations"][which].items():
+            stas[mac] = sta
 
         return stas
 
@@ -143,14 +180,18 @@ class AccessPoint:
         self,
         radio: str,
         driver: str,
-        rc_alg="minstrel_ht_kernel_space",
-        rc_opts={},
+        rc_alg=None,
+        rc_opts=None,
         cfg=None,
     ) -> None:
         if radio not in self._radios:
             self._logger.debug(
                 f"{self._name}: adding radio {radio} with driver {driver}"
             )
+
+            if (rc_alg and rc_opts) is None:
+                rc_alg = self._default_rc_alg
+                rc_opts = self._default_rc_opts
 
             self._radios[radio] = {
                 "driver": driver,
@@ -249,24 +290,23 @@ class AccessPoint:
             )
             self._connected = False
 
-    def set_default_rate_control(self, rc_alg, rc_opts={}, radio="all"):
+    def set_default_rate_control(self, radio="all"):
         if radio == "all":
             for radio in self._radios:
-                self.set_default_rate_control(rc_alg, rc_opts, radio)
+                self.set_default_rate_control(radio)
 
             return
 
         if radio not in self._radios:
             return
 
-        self._radios[radio]["rate_control_algorithm"] = rc_alg
-        self._radios[radio]["rate_control_options"] = rc_opts
+        self._radios[radio]["rate_control_algorithm"] = self._default_rc_alg
+        self._radios[radio]["rate_control_options"] = self._default_rc_opts
 
     def apply_radio_config(self, radio="all", new_config=None, apply_rc=True):
         if radio == "all":
             for radio in self._radios:
                 self.apply_radio_config(radio, new_config)
-
             return
 
         if radio not in self._radios:
@@ -292,17 +332,7 @@ class AccessPoint:
                 cfg["automatic_rate_downgrade"], radio
             )
 
-        if apply_rc and "rate_control_algorithm" in cfg:
-            rc_alg = cfg["rate_control_algorithm"]
-            rc_opts = (
-                cfg["rate_control_options"] if "rate_control_options" in cfg else {}
-            )
-            self.apply_rate_control(radio, rc_alg, rc_opts)
-
-    def load_rate_control_algorithm(self, rc_alg):
-        if rc_alg == "minstrel_ht_kernel_space":
-            return None
-
+    def load_rc_alg(self, rc_alg):
         try:
             entry_func = importlib.import_module(rc_alg).start
         except ImportError as e:
@@ -311,9 +341,17 @@ class AccessPoint:
 
         return entry_func
 
-    def apply_rate_control(self, radio="all", algorithm=None, options={}):
+    def apply_rate_control(self, radio="all", rc_alg=None, rc_opts=None):
+
+        if (rc_alg and rc_opts) is None:
+            rc_alg = self._radios[radio]["rate_control_algorithm"]
+            rc_opts = self._radios[radio]["rate_control_options"]
+
         if radio == "all":
-            return [self.apply_rate_control(radio) for radio in self._radios]
+            return [
+                self.apply_rate_control(radio, rc_alg, rc_opts)
+                for radio in self._radios
+            ]
 
         if radio not in self._radios:
             return None
@@ -321,12 +359,9 @@ class AccessPoint:
         if not self._connected:
             raise NotConnectedException(f"{self._name}: Not Connected")
 
-        if algorithm:
-            self._radios[radio]["rate_control_algorithm"] = algorithm
-            self._radios[radio]["rate_control_options"] = options
-
-        rc_alg = self._radios[radio]["rate_control_algorithm"]
-        rc_opts = self._radios[radio]["rate_control_options"]
+        if rc_alg != self._radios[radio]["rate_control_algorithm"]:
+            self._radios[radio]["rate_control_algorithm"] = rc_alg
+            self._radios[radio]["rate_control_options"] = rc_opts
 
         self._logger.debug(
             f"{self._name}: {radio}: applying rate control algorithm {rc_alg}, options: {rc_opts}"
@@ -336,14 +371,15 @@ class AccessPoint:
             self.enable_auto_mode(radio)
             if "reset_rate_stats" in rc_opts and rc_opts["reset_rate_stats"]:
                 self.reset_rate_stats(radio)
-
             return None
         else:
-            rc = self.load_rate_control_algorithm(rc_alg)
-            if not rc:
+            rc = self.load_rc_alg(rc_alg)
+            if not self._loop:
+                self._logger.warning(
+                    f"{self._name}: {radio}: loop missing; cannot run user space rate control"
+                )
                 return None
-
-            return rc(self, self._loop, self._logger, **rc_opts)
+            return rc(self, radio, **rc_opts)
 
     def set_rc_info(self, enable, radio="all"):
         if radio == "all":
@@ -470,6 +506,7 @@ class AccessPoint:
 class NotConnectedException(Exception):
     def __init__(self, msg):
         super().__init__(msg)
+
 
 def from_file(file: dir, logger=None):
     def parse_ap(ap):

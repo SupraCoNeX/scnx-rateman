@@ -14,12 +14,7 @@ monitor network status and set rates.
 import asyncio
 from .station import Station
 
-__all__ = [
-    "process_api",
-    "process_line",
-    "process_header",
-    "parse_sta"
-]
+__all__ = ["process_api", "process_line", "process_header", "parse_sta"]
 
 # utility function to parse signed integers from hex strings in two's complement format
 def twos_complement(hexstr, bits):
@@ -257,7 +252,7 @@ def update_pckt_count_txs(ap, fields):
     mac_addr = fields[3]
 
     try:
-        sta = ap.get_stations()[mac_addr]
+        sta = ap.get_stations(radio)[mac_addr]
     except KeyError:
         return
 
