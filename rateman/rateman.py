@@ -125,13 +125,12 @@ class RateMan:
             await asyncio.wait_for(process_header(ap), timeout=1)
 
         ap.set_rc_info(False)
-        ap.set_rc_info(True)
-
         for radio in ap.radios:
+            ap.apply_system_config(radio)
             rc_task = ap.apply_rate_control(radio)
             if rc_task:
                 self.add_task(rc_task, name=f"rc_{ap.name}_{radio}")
-
+        ap.set_rc_info(True)
         self.add_task(
             self.collect_data(ap, reconnect_timeout=timeout),
             name=f"collector_{ap.name}",

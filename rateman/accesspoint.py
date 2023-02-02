@@ -303,10 +303,10 @@ class AccessPoint:
         self._radios[radio]["rate_control_algorithm"] = self._default_rc_alg
         self._radios[radio]["rate_control_options"] = self._default_rc_opts
 
-    def apply_radio_config(self, radio="all", new_config=None, apply_rc=True):
+    def apply_system_config(self, radio="all", new_config=None):
         if radio == "all":
             for radio in self._radios:
-                self.apply_radio_config(radio, new_config)
+                self.apply_system_config(radio, new_config)
             return
 
         if radio not in self._radios:
@@ -322,7 +322,7 @@ class AccessPoint:
         if not cfg:
             return
 
-        self._logger.debug(f"{self._name}: {radio}: applying config: {cfg}")
+        self._logger.debug(f"{self._name}: {radio}: applying system config: {cfg}")
 
         if "sensitivity_control" in cfg:
             self.set_sensitivity_control(cfg["sensitivity_control"], radio)
