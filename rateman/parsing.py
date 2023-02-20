@@ -49,7 +49,7 @@ async def process_header(ap):
                     if fields[2] == "#error":
                         ap.handle_error(fields[3])
                     process_api(ap, fields)
-                elif len(fields) == 5:
+                elif "0;add" in line:
                     process_phy_info(ap, fields)
                 else:
                     return
@@ -80,16 +80,16 @@ def parse_group_info(fields):
     Parameters
     ----------
     fields : list
-            Fields obtained by spliting a data line received from the AP
-            over the Rate Control API.
+                    Fields obtained by spliting a data line received from the AP
+                    over the Rate Control API.
 
     Returns
     -------
     group_idx : str
-            Index of MCS rate group.
+                    Index of MCS rate group.
     max_offset : str
-            Maximum allowable offset - determines which rates are available
-            in the group for the AP.
+                    Maximum allowable offset - determines which rates are available
+                    in the group for the AP.
 
     """
     fields = list(filter(None, fields))
@@ -113,18 +113,10 @@ def parse_group_info(fields):
 
 
 def process_phy_info(ap, fields):
-    if len(fields) != 5 or not (fields[1] == "0" and fields[2] == "add"):
-        return False
-
-    if "ath9k" in fields[3]:
-        ap.add_radio(fields[0], "ath9k")
-    elif "mt76" in fields[3]:
-        ap.add_radio(fields[0], "mt76")
-    else:
-        ap.add_radio(fields[0], fields[3])
-
-    for iface in fields[4].split(","):
-        ap.add_interface(fields[0], iface)
+    ap.add_radio(fields[0], fields[3])
+    if len(fields) > 4:
+        for iface in fields[4].split(","):
+            ap.add_interface(fields[0], iface)
 
     return True
 
@@ -139,7 +131,7 @@ def process_line(ap, line):
     ap : AccessPoint object
 
     line : str
-            Trace line.
+                    Trace line.
 
     """
 
@@ -244,8 +236,8 @@ def update_pckt_count_txs(ap, fields):
     ap : AccessPoint object
 
     fields : list
-            Fields obtained by spliting a data line received from the AP
-            over the Rate Control API .
+                    Fields obtained by spliting a data line received from the AP
+                    over the Rate Control API .
 
     """
     radio = fields[0]
@@ -324,16 +316,16 @@ def parse_sta(ap, fields):
     Parameters
     ----------
     ap : Object
-            Object of rateman.AccessPoint class over which the station is associated.
+                    Object of rateman.AccessPoint class over which the station is associated.
     fields : list
-            Fields contained with line separated by ';' and containing 'sta;add'
-            or 'sta;dump' strings.
+                    Fields contained with line separated by ';' and containing 'sta;add'
+                    or 'sta;dump' strings.
 
     Returns
     -------
     sta : Object
-            Object of rateman.Station class created after a station connects to a
-            give AP.
+                    Object of rateman.Station class created after a station connects to a
+                    give AP.
 
     """
     supp_rates = []

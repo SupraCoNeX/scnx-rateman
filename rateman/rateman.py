@@ -22,15 +22,15 @@ class RateMan:
         Parameters
         ----------
         aps : list
-                        List of AccessPoint objects for a give list of APs proved
-                        via CLI or a .csv file.
+                                        List of AccessPoint objects for a give list of APs proved
+                                        via CLI or a .csv file.
         rate_control_alg : str, optional
-                        Rate control algorithm to be executed.
-                        The default is "minstrel_ht_kernel_space".
+                                        Rate control algorithm to be executed.
+                                        The default is "minstrel_ht_kernel_space".
         loop : asyncio.BaseEventLoop, optional
-                        Externally existing event loop passed to RateMan meant to be
-                        utilized gathering and executing asyncio tasks.
-                        The default is None.
+                                        Externally existing event loop passed to RateMan meant to be
+                                        utilized gathering and executing asyncio tasks.
+                                        The default is None.
         """
 
         if not logger:
@@ -89,20 +89,20 @@ class RateMan:
         Parameters
         ----------
         rateman : RateMan
-                        The rateman instance managing this task.
+                                        The rateman instance managing this task.
         ap : AccessPoint
-                        The AP to connect to.
+                                        The AP to connect to.
         timeout : float
-                        How many seconds to wait before attempting the connection.
+                                        How many seconds to wait before attempting the connection.
         reconnect : bool
-                        Flag indicating whether this is the first connection attempt. If set to
-                        True the timeout is ignored
+                                        Flag indicating whether this is the first connection attempt. If set to
+                                        True the timeout is ignored
         radio_config : bool
-                        Flag indicating whether this is the first connection attempt. If set to
-                        True the timeout is ignored
+                                        Flag indicating whether this is the first connection attempt. If set to
+                                        True the timeout is ignored
         skip_api_header : bool
-                        Flag indicating whether this is the first connection attempt. If set to
-                        True the timeout is ignored
+                                        Flag indicating whether this is the first connection attempt. If set to
+                                        True the timeout is ignored
         """
         if not ap.loop:
             ap.loop = self._loop
@@ -122,15 +122,18 @@ class RateMan:
                 break
 
         if not skip_api_header:
-            await asyncio.wait_for(process_header(ap), timeout=1)
+            await asyncio.wait_for(process_header(ap), timeout=2)
 
         ap.set_rc_info(False)
         for radio in ap.radios:
             ap.apply_system_config(radio)
             rc_task = ap.apply_rate_control(radio)
             if rc_task:
+                ap.enable_manual_mode(radio)
                 self.add_task(rc_task, name=f"rc_{ap.name}_{radio}")
-        ap.set_rc_info(True)
+            ap.send(f"{radio};dump")
+            ap.set_rc_info(True, radio)
+
         self.add_task(
             self.collect_data(ap, reconnect_timeout=timeout),
             name=f"collector_{ap.name}",
@@ -196,11 +199,11 @@ class RateMan:
         Parameters
         ----------
         rateman : RateMan
-                        The rateman instance managing this task.
+                                        The rateman instance managing this task.
         ap : AccessPoint
-                        The AP to receive the data from.
+                                        The AP to receive the data from.
         reconnect_timeout : float
-                        Seconds to wait before attempting to reconnect to a disconnected AP.
+                                        Seconds to wait before attempting to reconnect to a disconnected AP.
 
         Returns
         -------
@@ -224,9 +227,7 @@ class RateMan:
                     continue
         except (IOError, ConnectionError):
             ap.connected = False
-
             self._logger.error(f"Disconnected from {ap.name}")
-
             self.reconnect_ap(ap, reconnect_timeout)
         except (asyncio.CancelledError, KeyboardInterrupt):
             return
@@ -237,21 +238,18 @@ class RateMan:
         file objects.
 
         """
-
         for _, ap in self._accesspoints.items():
+
             if not ap.connected:
                 continue
-
-            ap.enable_auto_mode()
             ap.set_rc_info(False)
+            ap.enable_auto_mode()
             ap.writer.close()
+            await ap.writer.wait_closed()
 
         for task in self._tasks:
             self._logger.debug(f"Cancelling {task.get_name()}")
             task.cancel()
-
-        if len(self._tasks) > 0:
-            await asyncio.wait(self._tasks)
 
         if self._new_loop_created:
             self._loop.close()

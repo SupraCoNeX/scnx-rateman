@@ -25,15 +25,15 @@ if __name__ == "__main__":
 
     for ap in aps:
         ap.default_rc_alg = args.rc_alg
-        ap.default_rc_opts = dict()
+        ap.default_rc_opts = {"filter":"EWMA"}
 
     print("Running rateman...")
     rateman_obj = rateman.RateMan(aps, loop=loop)
 
     # add a simple print callback to see the incoming data
-    rateman_obj.add_raw_data_callback(
-        lambda ap, fields: print(f"{ap.name}> '{fields}'")
-    )
+    # rateman_obj.add_raw_data_callback(
+    #     lambda ap, fields: print(f"{ap.name}> '{fields}'")
+    # )
 
     try:
         loop.run_forever()

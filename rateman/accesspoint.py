@@ -27,14 +27,14 @@ class AccessPoint:
         Parameters
         ----------
         name : str
-                        Name given to the AP.
+                                        Name given to the AP.
         addr : int
-                        IP address of the AP.
+                                        IP address of the AP.
         rcd_port : int, optional
-                        Port over which the Rate Control API is accessed.
-                        The default is 21059.
+                                        Port over which the Rate Control API is accessed.
+                                        The default is 21059.
         logger : logging.Logger
-                        Log
+                                        Log
         """
         if config is None:
             config = {
@@ -255,12 +255,9 @@ class AccessPoint:
             raise NotConnectedException(
                 f"{self._name}: Cannot send '{cmd}': Not Connected"
             )
-
         self._last_cmd = cmd
-
         if cmd[-1] != "\n":
             cmd += "\n"
-
         self._writer.write(cmd.encode("ascii"))
 
     def handle_error(self, error):
@@ -279,6 +276,7 @@ class AccessPoint:
             )
 
             self._connected = True
+
         except (
             OSError,
             asyncio.TimeoutError,
@@ -386,7 +384,8 @@ class AccessPoint:
             self._logger.debug(
                 f"{self._name}: {'En' if enable else 'Dis'}abling RC info for all radios"
             )
-            self.send(f"*;{'start' if enable else 'stop'};txs;rxs;stats")
+            for radio in self._radios:
+                self.send(f"{radio};{'start' if enable else 'stop'};txs;rxs;stats")
         elif radio in self._radios:
             self._logger.debug(
                 f"{self._name}: {radio}: {'En' if enable else 'Dis'}abling RC info"
@@ -486,13 +485,13 @@ class AccessPoint:
         mrr_rates = ["0" if mrr_rate == "00" else mrr_rate for mrr_rate in mrr_rates]
 
         if len(mrr_rates) == 1:
-            rate = int(mrr_rates[0])
-            count = int(mrr_counts[0])
+            rates = mrr_rates[0]
+            counts = mrr_counts[0]
         else:
-            rate = ",".join([str(r) for r in mrr_rates])
-            count = ",".join([str(c) for c in mrr_counts])
+            rates = ",".join([str(r) for r in mrr_rates])
+            counts = ",".join([str(c) for c in mrr_counts])
 
-        self.send(f"{radio};rates;{mac};{rate};{count}")
+        self.send(f"{radio};rates;{mac};{rates};{counts}")
 
     def set_probe_rate(self, radio, mac, rate) -> None:
         self.send(f"{radio};probe;{mac};{rate}")
