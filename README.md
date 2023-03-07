@@ -75,7 +75,7 @@ In this subsection, we provide a list of steps to communicate with the rate cont
   ```
   telnet 10.10.200.2 21059
   ```
-  Afer a connection is established, the API will print all possible command options, followed by a list of MCS groups supported by the WiFi cards in the router.
+  After a connection is established, the API will print all possible command options, followed by a list of MCS groups supported by the WiFi cards in the router.
 
 ### Monitoring tasks
 For monitoring the status of a given access point, make sure the TCP/IP connection is established. The `txs` and/or `rcs` can be received by triggering the following example commands. These commands are handled over the radio interfaces of the access point which are typically denoted as `phy0`, `phy1` and so on.
