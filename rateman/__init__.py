@@ -23,4 +23,3 @@ from .rateman import *
 from .accesspoint import *
 from .station import *
 from .parsing import *
-
