@@ -27,14 +27,14 @@ class AccessPoint:
         Parameters
         ----------
         name : str
-                                        Name given to the AP.
+                                                                        Name given to the AP.
         addr : int
-                                        IP address of the AP.
+                                                                        IP address of the AP.
         rcd_port : int, optional
-                                        Port over which the Rate Control API is accessed.
-                                        The default is 21059.
+                                                                        Port over which the Rate Control API is accessed.
+                                                                        The default is 21059.
         logger : logging.Logger
-                                        Log
+                                                                        Log
         """
         if config is None:
             config = {
@@ -217,10 +217,12 @@ class AccessPoint:
 
         return None
 
-    def add_station(self, sta: Station) -> None:
+    def add_station(self, sta: Station) -> bool:
         if sta.mac_addr not in self._radios[sta.radio]["stations"]["active"]:
             self._logger.debug(f"adding active {sta} to {sta.radio} on {self._name}")
             self._radios[sta.radio]["stations"]["active"][sta.mac_addr] = sta
+            return True
+        return False
 
     def remove_station(self, mac: str, radio: str) -> None:
         try:
@@ -259,6 +261,7 @@ class AccessPoint:
         if cmd[-1] != "\n":
             cmd += "\n"
         self._writer.write(cmd.encode("ascii"))
+        print(f"Executing command {cmd}")
 
     def handle_error(self, error):
         self._logger.error(
@@ -379,6 +382,31 @@ class AccessPoint:
                 return None
             return rc(self, radio, **rc_opts)
 
+    def apply_sta_rate_control(self, sta, rc_alg=None, rc_opts=None):
+
+        if (rc_alg and rc_opts) is None:
+            rc_alg = self._radios[sta.radio]["rate_control_algorithm"]
+            rc_opts = self._radios[sta.radio]["rate_control_options"]
+
+        self._logger.debug(
+            f"{self._name}: {sta.radio}: {sta.mac_addr}: applying rate control algorithm {rc_alg}, options: {rc_opts}"
+        )
+
+        if rc_alg == "minstrel_ht_kernel_space":
+            self.enable_auto_mode(sta.radio)
+            if "reset_rate_stats" in rc_opts and rc_opts["reset_rate_stats"]:
+                self.reset_rate_stats(radio)
+            return None
+        else:
+            self.enable_manual_mode(sta.radio)
+            rc = self.load_rc_alg(rc_alg)
+            if not self._loop:
+                self._logger.warning(
+                    f"{self._name}: {sta.radio}: {sta.mac_addr}: loop missing; cannot run user space rate control"
+                )
+                return None
+            return rc(self, sta, **rc_opts)
+
     def set_rc_info(self, enable, radio="all"):
         if radio == "all":
             self._logger.debug(
@@ -392,19 +420,36 @@ class AccessPoint:
             )
             self.send(f"{radio};{'start' if enable else 'stop'};txs;rxs;stats")
 
-    def mt76_set_automatic_rate_downgrade(self, enable, radio="all"):
+    def dump_stas(self, radio="all"):
+        if radio == "all":
+            self.send("*;dump")
+        else:
+            self.send(f"{radio};dump")
+
+    def debugfs_set(self, path, value, radio="all"):
         if radio == "all":
             for radio in self._radios:
-                self.mt76_set_automatic_rate_downgrade(enable, radio)
+                self.debugfs_set(path, value, radio=radio)
             return
 
-        if radio not in self._radios or "mt76" not in self._radios[radio]["driver"]:
+        if radio not in self._radios:
             return
 
-        self._logger.debug(
-            f"{self._name}: {radio}: {'En' if enable else 'Dis'}abling firmware rate downgrade"
-        )
-        self.send(f"{radio};debugfs;mt76/force_rate_retry;{0 if enable else 1}")
+        if not self._connected:
+            raise NotConnectedException(f"{self._name}: Not Connected")
+
+        self._logger.debug(f"{radio}: setting {path}={value}")
+        self.send(f"{radio};debugfs;{path};{value}")
+
+    def mt76_force_rate_retry(self, enable, radio="all"):
+        if radio == "all":
+            for radio in self._radios:
+                self.mt76_force_rate_retry(enable, radio)
+
+            return
+
+        if "mt76" in self._radios[radio]["driver"]:
+            self.debugfs_set("mt76/force_rate_retry", 1 if enable else 0, radio)
 
     def enable_manual_mode(self, radio=None) -> None:
         if not radio:

@@ -22,15 +22,15 @@ class RateMan:
         Parameters
         ----------
         aps : list
-                                        List of AccessPoint objects for a give list of APs proved
-                                        via CLI or a .csv file.
+                                                                        List of AccessPoint objects for a give list of APs proved
+                                                                        via CLI or a .csv file.
         rate_control_alg : str, optional
-                                        Rate control algorithm to be executed.
-                                        The default is "minstrel_ht_kernel_space".
+                                                                        Rate control algorithm to be executed.
+                                                                        The default is "minstrel_ht_kernel_space".
         loop : asyncio.BaseEventLoop, optional
-                                        Externally existing event loop passed to RateMan meant to be
-                                        utilized gathering and executing asyncio tasks.
-                                        The default is None.
+                                                                        Externally existing event loop passed to RateMan meant to be
+                                                                        utilized gathering and executing asyncio tasks.
+                                                                        The default is None.
         """
 
         if not logger:
@@ -89,20 +89,20 @@ class RateMan:
         Parameters
         ----------
         rateman : RateMan
-                                        The rateman instance managing this task.
+                                                                        The rateman instance managing this task.
         ap : AccessPoint
-                                        The AP to connect to.
+                                                                        The AP to connect to.
         timeout : float
-                                        How many seconds to wait before attempting the connection.
+                                                                        How many seconds to wait before attempting the connection.
         reconnect : bool
-                                        Flag indicating whether this is the first connection attempt. If set to
-                                        True the timeout is ignored
+                                                                        Flag indicating whether this is the first connection attempt. If set to
+                                                                        True the timeout is ignored
         radio_config : bool
-                                        Flag indicating whether this is the first connection attempt. If set to
-                                        True the timeout is ignored
+                                                                        Flag indicating whether this is the first connection attempt. If set to
+                                                                        True the timeout is ignored
         skip_api_header : bool
-                                        Flag indicating whether this is the first connection attempt. If set to
-                                        True the timeout is ignored
+                                                                        Flag indicating whether this is the first connection attempt. If set to
+                                                                        True the timeout is ignored
         """
         if not ap.loop:
             ap.loop = self._loop
@@ -127,10 +127,6 @@ class RateMan:
         ap.set_rc_info(False)
         for radio in ap.radios:
             ap.apply_system_config(radio)
-            rc_task = ap.apply_rate_control(radio)
-            if rc_task:
-                ap.enable_manual_mode(radio)
-                self.add_task(rc_task, name=f"rc_{ap.name}_{radio}")
             ap.send(f"{radio};dump")
             ap.set_rc_info(True, radio)
 
@@ -199,11 +195,11 @@ class RateMan:
         Parameters
         ----------
         rateman : RateMan
-                                        The rateman instance managing this task.
+                                                                        The rateman instance managing this task.
         ap : AccessPoint
-                                        The AP to receive the data from.
+                                                                        The AP to receive the data from.
         reconnect_timeout : float
-                                        Seconds to wait before attempting to reconnect to a disconnected AP.
+                                                                        Seconds to wait before attempting to reconnect to a disconnected AP.
 
         Returns
         -------
@@ -218,10 +214,22 @@ class RateMan:
                     for cb in self._raw_data_callbacks:
                         cb(ap, line)
 
-                    fields = process_line(ap, line)
+                    line_type, fields = process_line(ap, line)
+
                     if not fields:
                         continue
-
+                    elif line_type == "sta":
+                        if fields[3] in ["add", "dump"]:
+                            sta = parse_sta(ap.supp_rates, fields)
+                            if ap.add_station(sta):
+                                rc_task = ap.apply_sta_rate_control(sta)
+                                if rc_task:
+                                    self.add_task(
+                                        rc_task,
+                                        name=f"rc_{ap.name}_{sta.radio}_{sta.mac_addr}",
+                                    )
+                        elif fields[3] == "remove":
+                            ap.remove_station(mac=fields[4], radio=fields[0])
                     self.execute_callbacks(ap, fields)
                 except (UnicodeError, ValueError):
                     continue
@@ -239,7 +247,6 @@ class RateMan:
 
         """
         for _, ap in self._accesspoints.items():
-
             if not ap.connected:
                 continue
             ap.set_rc_info(False)

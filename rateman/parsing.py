@@ -80,16 +80,16 @@ def parse_group_info(fields):
     Parameters
     ----------
     fields : list
-                    Fields obtained by spliting a data line received from the AP
-                    over the Rate Control API.
+                                    Fields obtained by spliting a data line received from the AP
+                                    over the Rate Control API.
 
     Returns
     -------
     group_idx : str
-                    Index of MCS rate group.
+                                    Index of MCS rate group.
     max_offset : str
-                    Maximum allowable offset - determines which rates are available
-                    in the group for the AP.
+                                    Maximum allowable offset - determines which rates are available
+                                    in the group for the AP.
 
     """
     fields = list(filter(None, fields))
@@ -131,14 +131,14 @@ def process_line(ap, line):
     ap : AccessPoint object
 
     line : str
-                    Trace line.
+                                    Trace line.
 
     """
 
     fields = validate_line(ap, line)
 
     if not fields:
-        return None
+        return None, None
 
     line_type = fields[2]
 
@@ -152,12 +152,8 @@ def process_line(ap, line):
                 parse_s32(fields[4]),
                 [parse_s32(r) for r in fields[5:]],
             )
-    elif line_type == "sta" and fields[3] in ["add", "dump"]:
-        ap.add_station(parse_sta(ap, fields))
-    elif line_type == "sta" and fields[3] == "remove":
-        ap.remove_station(fields[4], fields[0])
 
-    return fields
+    return line_type, fields
 
 
 def validate_line(ap, line):
@@ -236,8 +232,8 @@ def update_pckt_count_txs(ap, fields):
     ap : AccessPoint object
 
     fields : list
-                    Fields obtained by spliting a data line received from the AP
-                    over the Rate Control API .
+                                    Fields obtained by spliting a data line received from the AP
+                                    over the Rate Control API .
 
     """
     radio = fields[0]
@@ -309,43 +305,46 @@ def update_pckt_count_txs(ap, fields):
     sta.ampdu_packets += 1
 
 
-def parse_sta(ap, fields):
+def parse_sta(supp_rates_ap, fields):
     """
 
 
     Parameters
     ----------
     ap : Object
-                    Object of rateman.AccessPoint class over which the station is associated.
+                                    Object of rateman.AccessPoint class over which the station is associated.
     fields : list
-                    Fields contained with line separated by ';' and containing 'sta;add'
-                    or 'sta;dump' strings.
+                                    Fields contained with line separated by ';' and containing 'sta;add'
+                                    or 'sta;dump' strings.
 
     Returns
     -------
     sta : Object
-                    Object of rateman.Station class created after a station connects to a
-                    give AP.
+                                    Object of rateman.Station class created after a station connects to a
+                                    give AP.
 
     """
-    supp_rates = []
+    supp_rates_sta = []
     airtimes_ns = []
+    radio = fields[0]
+    timestamp = fields[1]
+    mac_addr = fields[4]
     mcs_groups = fields[7:]
     overhead_mcs = int(fields[5], 16)
     overhead_legacy = int(fields[6], 16)
 
-    for ii, group_ind in enumerate(ap.supp_rates.keys()):
+    for ii, group_ind in enumerate(supp_rates_ap.keys()):
         mask = int(mcs_groups[ii], 16)
         for jj in range(10):
             if mask & (1 << jj):
-                supp_rates.append(f"{group_ind}{jj}")
-                airtimes_ns.append(ap.supp_rates[group_ind]["airtimes_ns"][jj])
+                supp_rates_sta.append(f"{group_ind}{jj}")
+                airtimes_ns.append(supp_rates_ap[group_ind]["airtimes_ns"][jj])
 
     sta = Station(
-        fields[0],
-        fields[1],
-        fields[4],
-        supp_rates,
+        radio,
+        timestamp,
+        mac_addr,
+        supp_rates_sta,
         airtimes_ns,
         overhead_mcs,
         overhead_legacy,
