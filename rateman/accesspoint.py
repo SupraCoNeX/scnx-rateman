@@ -261,7 +261,6 @@ class AccessPoint:
         if cmd[-1] != "\n":
             cmd += "\n"
         self._writer.write(cmd.encode("ascii"))
-        print(f"Executing command {cmd}")
 
     def handle_error(self, error):
         self._logger.error(
@@ -395,7 +394,7 @@ class AccessPoint:
         if rc_alg == "minstrel_ht_kernel_space":
             self.enable_auto_mode(sta.radio)
             if "reset_rate_stats" in rc_opts and rc_opts["reset_rate_stats"]:
-                self.reset_rate_stats(radio)
+                self.reset_rate_stats(sta.radio, sta.mac_addr)
             return None
         else:
             self.enable_manual_mode(sta.radio)
