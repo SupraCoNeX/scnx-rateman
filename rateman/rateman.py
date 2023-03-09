@@ -127,7 +127,7 @@ class RateMan:
         ap.set_rc_info(False)
         for radio in ap.radios:
             ap.apply_system_config(radio)
-            ap.send(f"{radio};dump")
+            ap.dump_stas(radio)
             ap.set_rc_info(True, radio)
 
         self.add_task(
