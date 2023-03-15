@@ -6,6 +6,7 @@
 import asyncio
 import sys
 import rateman
+import time
 from common import setup_argparser
 
 if __name__ == "__main__":
@@ -25,6 +26,7 @@ if __name__ == "__main__":
     asyncio.set_event_loop(loop)
 
     for ap in aps:
+        ap._name = f"{ap.name}-{args.rc_alg}-{round(time.time())}"
         ap.default_rc_alg = args.rc_alg
         ap.default_rc_opts = {"filter": "EWMA"}
 
