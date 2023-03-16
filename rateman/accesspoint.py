@@ -202,6 +202,8 @@ class AccessPoint:
                 "stations": {"active": {}, "inactive": {}},
             }
 
+            self.mt76_force_rate_retry(enable=False, radio=radio)
+
     def add_interface(self, radio: str, iface: str) -> None:
         if radio not in self._radios or iface in self._radios[radio]["interfaces"]:
             return
@@ -398,6 +400,7 @@ class AccessPoint:
             return None
         else:
             self.enable_manual_mode(sta.radio)
+            self.reset_rate_stats(sta.radio,sta.mac_addr)
             rc = self.load_rc_alg(rc_alg)
             if not self._loop:
                 self._logger.warning(
