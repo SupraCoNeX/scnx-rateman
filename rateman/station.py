@@ -145,10 +145,10 @@ class Station:
             Key-value pairs with rates and their corresponding stats.
 
         """
-        for rate, stats in info.items():
-            if timestamp > self._last_seen:
-                self._last_seen = timestamp
-                self._stats[rate] = stats
+        if timestamp > self._last_seen:
+            for rate, stats in info.items():
+                    self._stats[rate] = stats
+            self._last_seen = timestamp
 
     def update_rssi(self, timestamp, min_rssi, per_antenna):
         if timestamp > self._last_seen:
