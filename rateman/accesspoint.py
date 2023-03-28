@@ -288,6 +288,13 @@ class AccessPoint:
             )
             self._connected = False
 
+    async def disconnect(self):
+        if not self._writer:
+            return
+
+        self._writer.close()
+        await ap._writer.wait_closed()
+
     def set_default_rate_control(self, radio="all"):
         if radio == "all":
             for radio in self._radios:

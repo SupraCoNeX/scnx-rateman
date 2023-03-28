@@ -251,8 +251,7 @@ class RateMan:
                 continue
             ap.set_rc_info(False)
             ap.enable_auto_mode()
-            ap.writer.close()
-            await ap.writer.wait_closed()
+            await ap.disconnect()
 
         for task in self._tasks:
             self._logger.debug(f"Cancelling {task.get_name()}")
