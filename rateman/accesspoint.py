@@ -54,6 +54,14 @@ class AccessPoint:
         self._logger = logger if logger else logging.getLogger()
         self._loop = loop
         self._last_cmd = None
+        self._reader = None
+        self._writer = None
+
+    def __aiter__(self):
+        return self._reader
+
+    async def __anext__(self):
+        return self._reader.__anext__()
 
     @property
     def name(self) -> str:
@@ -96,14 +104,6 @@ class AccessPoint:
         self._default_rc_opts = default_rc_opts
 
     @property
-    def writer(self) -> asyncio.StreamWriter:
-        return self._writer
-
-    @property
-    def reader(self) -> asyncio.StreamReader:
-        return self._reader
-
-    @property
     def supp_rates(self) -> dict:
         return self._supp_rates
 
@@ -124,10 +124,6 @@ class AccessPoint:
                 )
 
         return None
-
-    @property
-    def reader(self) -> object:
-        return self._reader
 
     @property
     def radios(self) -> list:

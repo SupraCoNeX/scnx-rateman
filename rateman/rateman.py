@@ -208,7 +208,7 @@ class RateMan:
         """
 
         try:
-            async for data in ap.reader:
+            async for data in ap:
                 try:
                     line = data.decode("utf-8").rstrip()
                     for cb in self._raw_data_callbacks:
