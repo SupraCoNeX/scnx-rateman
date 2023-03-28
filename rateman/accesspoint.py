@@ -27,14 +27,13 @@ class AccessPoint:
         Parameters
         ----------
         name : str
-                                                                        Name given to the AP.
+            Name given to the AP.
         addr : int
-                                                                        IP address of the AP.
+            IP address of the AP.
         rcd_port : int, optional
-                                                                        Port over which the Rate Control API is accessed.
-                                                                        The default is 21059.
+            Port over which the Rate Control API is accessed. Defaults to 21059
         logger : logging.Logger
-                                                                        Log
+            Log
         """
         if config is None:
             config = {
