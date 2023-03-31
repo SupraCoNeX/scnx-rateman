@@ -41,7 +41,7 @@ def process_api(ap, fields):
 
 async def process_header(ap):
     try:
-        async for data in ap.reader:
+        async for data in ap:
             try:
                 line = data.decode("utf-8").rstrip()
                 fields = line.split(";")
@@ -63,7 +63,7 @@ async def process_header(ap):
 
 
 async def get_next_line(ap, timeout):
-    data = await asyncio.wait_for(ap.reader.readline(), timeout=timeout)
+    data = await asyncio.wait_for(await anext(ap), timeout=timeout)
 
     if data == "":
         ap.connected = False

@@ -85,43 +85,34 @@ class RateMan:
         if name in self._tasks:
             self._tasks.remove(name)
 
-    async def connect_ap(self, ap, timeout=5, reconnect=False, skip_api_header=False):
+    async def connect_ap(self, ap, delay=None, skip_api_header=False):
         """
-        Attempt to connect to the given AP after waiting timeout seconds.
+        Attempt to connect to the given AP after waiting delay seconds.
         On successful connection a data collection task is scheduled.
 
         Parameters
         ----------
-        rateman : RateMan
-                                                                        The rateman instance managing this task.
         ap : AccessPoint
-                                                                        The AP to connect to.
-        timeout : float
-                                                                        How many seconds to wait before attempting the connection.
-        reconnect : bool
-                                                                        Flag indicating whether this is the first connection attempt. If set to
-                                                                        True the timeout is ignored
-        radio_config : bool
-                                                                        Flag indicating whether this is the first connection attempt. If set to
-                                                                        True the timeout is ignored
+            The AP to connect to.
+        delay : float
+            How many seconds to wait before attempting the connection.
         skip_api_header : bool
-                                                                        Flag indicating whether this is the first connection attempt. If set to
-                                                                        True the timeout is ignored
+            If set to True, the API info header will be ignored during the
+            connection process.
         """
         if not ap.loop:
             ap.loop = self._loop
 
-        if reconnect:
-            await asyncio.sleep(timeout)
-        else:
-            self._accesspoints[ap.name] = ap
+        if delay:
+            await asyncio.sleep(delay)
+
+        self._accesspoints[ap.name] = ap
 
         while not ap.connected:
             try:
                 await ap.connect()
                 if not ap.connected:
-                    await asyncio.sleep(timeout)
-
+                    await asyncio.sleep(1)
             except (KeyboardInterrupt, asyncio.CancelledError):
                 break
 
@@ -135,17 +126,13 @@ class RateMan:
             ap.set_rc_info(True, radio)
 
         self.add_task(
-            self.collect_data(ap, reconnect_timeout=timeout),
-            name=f"collector_{ap.name}",
+            self.rcd_connection(ap, reconnect_timeout=5),
+            name=f"rcd_{ap.name}",
         )
 
-    def reconnect_ap(self, ap, timeout):
+    def reconnect_ap(self, ap, delay):
         self.add_task(
-            self.connect_ap(
-                ap,
-                timeout,
-                reconnect=True,
-            ),
+            self.connect_ap(ap, delay=delay),
             name=f"reconnect_{ap.name}",
         )
 
@@ -191,20 +178,17 @@ class RateMan:
         for (cb, args) in self._data_callbacks[fields[2]]:
             cb(ap, *fields, args=args)
 
-    async def collect_data(self, ap, reconnect_timeout=10):
+    async def rcd_connection(self, ap, reconnect_timeout=10):
         """
         Receive data from an instance of minstrel-rcd. Reconnect if connection
         is lost.
 
         Parameters
         ----------
-        rateman : RateMan
-                                                                        The rateman instance managing this task.
         ap : AccessPoint
-                                                                        The AP to receive the data from.
-        reconnect_timeout : float
-                                                                        Seconds to wait before attempting to reconnect to a disconnected AP.
-
+            The AP to receive the data from.
+        reconnect_delay : float
+            Seconds to wait before attempting to reconnect to a disconnected AP.
         Returns
         -------
         None.
@@ -212,7 +196,7 @@ class RateMan:
         """
 
         try:
-            async for data in ap.reader:
+            async for data in ap:
                 try:
                     line = data.decode("utf-8").rstrip()
                     for cb in self._raw_data_callbacks:
@@ -250,8 +234,8 @@ class RateMan:
 
     async def stop(self):
         """
-        Gracefully stop all asyncio tasks created and executed by RateMan and close all
-        file objects.
+        Gracefully stop all asyncio tasks created and executed by RateMan and
+        close all file objects.
 
         """
         for _, ap in self._accesspoints.items():
@@ -259,8 +243,7 @@ class RateMan:
                 continue
             ap.set_rc_info(False)
             ap.enable_auto_mode()
-            ap.writer.close()
-            await ap.writer.wait_closed()
+            await ap.disconnect()
 
         for task in self._tasks:
             self._logger.debug(f"Cancelling {task.get_name()}")

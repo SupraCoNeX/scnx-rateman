@@ -27,14 +27,13 @@ class AccessPoint:
         Parameters
         ----------
         name : str
-                                                                        Name given to the AP.
+            Name given to the AP.
         addr : int
-                                                                        IP address of the AP.
+            IP address of the AP.
         rcd_port : int, optional
-                                                                        Port over which the Rate Control API is accessed.
-                                                                        The default is 21059.
+            Port over which the Rate Control API is accessed. Defaults to 21059
         logger : logging.Logger
-                                                                        Log
+            Log
         """
         if config is None:
             config = {
@@ -54,6 +53,14 @@ class AccessPoint:
         self._logger = logger if logger else logging.getLogger()
         self._loop = loop
         self._last_cmd = None
+        self._reader = None
+        self._writer = None
+
+    def __aiter__(self):
+        return self._reader
+
+    async def __anext__(self):
+        return self._reader.__anext__()
 
     @property
     def name(self) -> str:
@@ -96,14 +103,6 @@ class AccessPoint:
         self._default_rc_opts = default_rc_opts
 
     @property
-    def writer(self) -> asyncio.StreamWriter:
-        return self._writer
-
-    @property
-    def reader(self) -> asyncio.StreamReader:
-        return self._reader
-
-    @property
     def supp_rates(self) -> dict:
         return self._supp_rates
 
@@ -124,10 +123,6 @@ class AccessPoint:
                 )
 
         return None
-
-    @property
-    def reader(self) -> object:
-        return self._reader
 
     @property
     def radios(self) -> list:
@@ -291,6 +286,13 @@ class AccessPoint:
                 f"Failed to connect to {self._name} at {self._addr}:{self._rcd_port}: {e}"
             )
             self._connected = False
+
+    async def disconnect(self):
+        if not self._writer:
+            return
+
+        self._writer.close()
+        await ap._writer.wait_closed()
 
     def set_default_rate_control(self, radio="all"):
         if radio == "all":
