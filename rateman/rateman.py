@@ -81,6 +81,10 @@ class RateMan:
         task.add_done_callback(self._tasks.remove)
         self._tasks.append(task)
 
+    def remove_task(self, name):
+        if name in self._tasks:
+            self._tasks.remove(name)
+
     async def connect_ap(self, ap, timeout=5, reconnect=False, skip_api_header=False):
         """
         Attempt to connect to the given AP after waiting timeout seconds.
@@ -229,7 +233,11 @@ class RateMan:
                                         name=f"rc_{ap.name}_{sta.radio}_{sta.mac_addr}",
                                     )
                         elif fields[3] == "remove":
+                            self.remove_task(
+                                name=f"rc_{ap.name}_{fields[0]}_{fields[4]}",
+                            )
                             ap.remove_station(mac=fields[4], radio=fields[0])
+
                     self.execute_callbacks(ap, fields)
                 except (UnicodeError, ValueError):
                     continue
