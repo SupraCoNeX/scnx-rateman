@@ -292,7 +292,7 @@ class AccessPoint:
             return
 
         self._writer.close()
-        await ap._writer.wait_closed()
+        await self._writer.wait_closed()
 
     def set_default_rate_control(self, radio="all"):
         if radio == "all":
