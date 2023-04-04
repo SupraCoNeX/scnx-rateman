@@ -197,7 +197,6 @@ class AccessPoint:
                 "stations": {"active": {}, "inactive": {}},
             }
 
-            self.mt76_force_rate_retry(enable=False, radio=radio)
 
     def add_interface(self, radio: str, iface: str) -> None:
         if radio not in self._radios or iface in self._radios[radio]["interfaces"]:
@@ -440,10 +439,10 @@ class AccessPoint:
         self._logger.debug(f"{radio}: setting {path}={value}")
         self.send(f"{radio};debugfs;{path};{value}")
 
-    def mt76_force_rate_retry(self, enable, radio="all"):
+    def mt76_set_automatic_rate_downgrade(self, enable, radio="all"):
         if radio == "all":
             for radio in self._radios:
-                self.mt76_force_rate_retry(enable, radio)
+                self.mt76_set_automatic_rate_downgrade(enable, radio)
 
             return
 
