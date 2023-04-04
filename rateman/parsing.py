@@ -16,6 +16,7 @@ from .station import Station
 
 __all__ = ["process_api", "process_line", "process_header", "parse_sta"]
 
+
 # utility function to parse signed integers from hex strings in two's complement format
 def twos_complement(hexstr, bits):
     val = int(hexstr, 16)

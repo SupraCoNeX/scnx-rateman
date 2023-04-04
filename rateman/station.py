@@ -147,7 +147,7 @@ class Station:
         """
         if timestamp > self._last_seen:
             for rate, stats in info.items():
-                    self._stats[rate] = stats
+                self._stats[rate] = stats
             self._last_seen = timestamp
 
     def update_rssi(self, timestamp, min_rssi, per_antenna):

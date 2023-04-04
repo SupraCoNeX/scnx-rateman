@@ -121,7 +121,6 @@ class RateMan:
 
         ap.set_rc_info(False)
         for radio in ap.radios:
-            ap.apply_system_config(radio)
             ap.dump_stas(radio)
             ap.set_rc_info(True, radio)
 
@@ -150,7 +149,7 @@ class RateMan:
         if type not in self._data_callbacks.keys():
             raise ValueError(type)
 
-        for (c, _) in self._data_callbacks[type]:
+        for c, _ in self._data_callbacks[type]:
             if c == cb:
                 return
 
@@ -160,22 +159,22 @@ class RateMan:
         """
         Unregister a data callback.
         """
-        for (c, a) in self._raw_data_callbacks:
+        for c, a in self._raw_data_callbacks:
             if c == cb:
                 self._raw_data_callbacks.remove((c, a))
                 return
 
         for _, cbs in self._data_callbacks.items():
-            for (c, a) in cbs:
+            for c, a in cbs:
                 if c == cb:
                     cbs.remove((c, a))
                     break
 
     def execute_callbacks(self, ap, fields):
-        for (cb, args) in self._data_callbacks["any"]:
+        for cb, args in self._data_callbacks["any"]:
             cb(ap, fields, args)
 
-        for (cb, args) in self._data_callbacks[fields[2]]:
+        for cb, args in self._data_callbacks[fields[2]]:
             cb(ap, *fields, args=args)
 
     async def rcd_connection(self, ap, reconnect_timeout=10):
@@ -217,6 +216,7 @@ class RateMan:
                                         name=f"rc_{ap.name}_{sta.radio}_{sta.mac_addr}",
                                     )
                         elif fields[3] == "remove":
+                            # TODO add proper cancellation/completion and removal of rate control task
                             self.remove_task(
                                 name=f"rc_{ap.name}_{fields[0]}_{fields[4]}",
                             )

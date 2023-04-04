@@ -115,7 +115,7 @@ class AccessPoint:
         self._connected = connection_status
 
     def get_sta_rate_control(self, sta):
-        for (radio, info) in self._radios.items():
+        for radio, info in self._radios.items():
             if sta in info["stations"]["active"]:
                 return (
                     info["stations"]["active"]["rate_control_algorithm"],
@@ -345,7 +345,17 @@ class AccessPoint:
 
         return entry_func
 
-    def apply_rate_control(self, radio="all", rc_alg=None, rc_opts=None):
+    def apply_radio_rate_control(self, radio="all", new_config=None):
+        rc_alg = (
+            new_config["rate_control_algorithm"]
+            if "rate_control_algorithm" in new_config
+            else None
+        )
+        rc_opts = (
+            new_config["rate_control_options"]
+            if "rate_control_options" in new_config
+            else None
+        )
 
         if (rc_alg and rc_opts) is None:
             rc_alg = self._radios[radio]["rate_control_algorithm"]
@@ -353,7 +363,7 @@ class AccessPoint:
 
         if radio == "all":
             return [
-                self.apply_rate_control(radio, rc_alg, rc_opts)
+                self.apply_radio_rate_control(radio, new_config)
                 for radio in self._radios
             ]
 
@@ -371,22 +381,7 @@ class AccessPoint:
             f"{self._name}: {radio}: applying rate control algorithm {rc_alg}, options: {rc_opts}"
         )
 
-        if rc_alg == "minstrel_ht_kernel_space":
-            self.enable_auto_mode(radio)
-            if "reset_rate_stats" in rc_opts and rc_opts["reset_rate_stats"]:
-                self.reset_rate_stats(radio)
-            return None
-        else:
-            rc = self.load_rc_alg(rc_alg)
-            if not self._loop:
-                self._logger.warning(
-                    f"{self._name}: {radio}: loop missing; cannot run user space rate control"
-                )
-                return None
-            return rc(self, radio, **rc_opts)
-
     def apply_sta_rate_control(self, sta, rc_alg=None, rc_opts=None):
-
         if (rc_alg and rc_opts) is None:
             rc_alg = self._radios[sta.radio]["rate_control_algorithm"]
             rc_opts = self._radios[sta.radio]["rate_control_options"]
@@ -402,7 +397,7 @@ class AccessPoint:
             return None
         else:
             self.enable_manual_mode(sta.radio)
-            self.reset_rate_stats(sta.radio,sta.mac_addr)
+            self.reset_rate_stats(sta.radio, sta.mac_addr)
             rc = self.load_rc_alg(rc_alg)
             if not self._loop:
                 self._logger.warning(
