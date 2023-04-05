@@ -22,15 +22,12 @@ class RateMan:
         Parameters
         ----------
         aps : list
-                                                                        List of AccessPoint objects for a give list of APs proved
-                                                                        via CLI or a .csv file.
-        rate_control_alg : str, optional
-                                                                        Rate control algorithm to be executed.
-                                                                        The default is "minstrel_ht_kernel_space".
+            List of AccessPoint object to connect to.
         loop : asyncio.BaseEventLoop, optional
-                                                                        Externally existing event loop passed to RateMan meant to be
-                                                                        utilized gathering and executing asyncio tasks.
-                                                                        The default is None.
+            The event loop to execute on. A new loop will be created if none is
+            provided.
+        logger : logging.Logger
+            The logger to use. A new one will be created if none is provided.
         """
 
         if not logger:
@@ -135,21 +132,31 @@ class RateMan:
             name=f"reconnect_{ap.name}",
         )
 
-    def add_raw_data_callback(self, cb):
+    def add_raw_data_callback(self, cb, context=None):
         """
-        Register a callback to be called on unvalidated incoming data
+        Register a callback to be called on unvalidated incoming data.
         """
-        if cb not in self._raw_data_callbacks:
-            self._raw_data_callbacks.append(cb)
+        if (cb, context) not in self._raw_data_callbacks:
+            self._raw_data_callbacks.append((cb, context))
 
-    def add_data_callback(self, cb, type="any", args=None):
+    def add_data_callback(self, cb, type="any", context=None):
         """
         Register a callback to be called on incoming data.
+
+        Parameters
+        ----------
+        cb : Callable
+            The callback function.
+        type : str
+            Which data to call the callback on. Valid options: _any, txs, stats,
+            rxs, sta, best_rates,_ or _sample_rates_.
+        context : object
+            Additional arguments to be passed to the callback on invocation.
         """
         if type not in self._data_callbacks.keys():
             raise ValueError(type)
 
-        for c, _ in self._data_callbacks[type]:
+        for (c, _) in self._data_callbacks[type]:
             if c == cb:
                 return
 
@@ -159,23 +166,23 @@ class RateMan:
         """
         Unregister a data callback.
         """
-        for c, a in self._raw_data_callbacks:
+        for (c, ctx) in self._raw_data_callbacks:
             if c == cb:
-                self._raw_data_callbacks.remove((c, a))
+                self._raw_data_callbacks.remove((c, ctx))
                 return
 
         for _, cbs in self._data_callbacks.items():
-            for c, a in cbs:
+            for (c, ctx) in cbs:
                 if c == cb:
-                    cbs.remove((c, a))
+                    cbs.remove((c, ctx))
                     break
 
     def execute_callbacks(self, ap, fields):
-        for cb, args in self._data_callbacks["any"]:
-            cb(ap, fields, args)
+        for (cb, ctx) in self._data_callbacks["any"]:
+            cb(ap, fields, context=ctx)
 
-        for cb, args in self._data_callbacks[fields[2]]:
-            cb(ap, *fields, args=args)
+        for (cb, ctx) in self._data_callbacks[fields[2]]:
+            cb(ap, *fields, context=ctx)
 
     async def rcd_connection(self, ap, reconnect_timeout=10):
         """
@@ -198,8 +205,8 @@ class RateMan:
             async for data in ap:
                 try:
                     line = data.decode("utf-8").rstrip()
-                    for cb in self._raw_data_callbacks:
-                        cb(ap, line)
+                    for (cb, ctx) in self._raw_data_callbacks:
+                        cb(ap, line, context=ctx)
 
                     line_type, fields = process_line(ap, line)
 
