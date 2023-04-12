@@ -116,7 +116,6 @@ class RateMan:
         if not skip_api_header:
             await asyncio.wait_for(process_header(ap), timeout=2)
 
-        ap.set_rc_info(False)
         for radio in ap.radios:
             ap.apply_system_config(radio)
             ap.dump_stas(radio)
