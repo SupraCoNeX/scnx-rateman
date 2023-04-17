@@ -103,7 +103,7 @@ class AccessPoint:
         self._default_rc_opts = default_rc_opts
 
     @property
-    def supp_rates(self) -> dict:
+    def supported_rates(self) -> dict:
         return self._supp_rates
 
     @property
@@ -179,10 +179,11 @@ class AccessPoint:
         rc_opts=None,
         cfg=None,
     ) -> None:
+        self._logger.debug(
+            f"{self._name}: adding radio '{radio}', driver={driver}"
+        )
+
         if radio not in self._radios:
-            self._logger.debug(
-                f"{self._name}: adding radio {radio} with driver {driver}"
-            )
 
             if (rc_alg and rc_opts) is None:
                 rc_alg = self._default_rc_alg
@@ -202,7 +203,7 @@ class AccessPoint:
         if radio not in self._radios or iface in self._radios[radio]["interfaces"]:
             return
 
-        self._logger.debug(f"{self._name}: adding interface {iface} to radio {radio}")
+        self._logger.debug(f"{self._name}:{radio}: adding interface '{iface}'")
 
         self._radios[radio]["interfaces"].append(iface)
 
@@ -250,9 +251,7 @@ class AccessPoint:
 
     def send(self, cmd: str):
         if not self.connected:
-            raise NotConnectedException(
-                f"{self._name}: Cannot send '{cmd}': Not Connected"
-            )
+            raise NotConnectedException(f"{self._name}: Cannot send '{cmd}': Not Connected")
         self._last_cmd = cmd
         if cmd[-1] != "\n":
             cmd += "\n"
@@ -325,7 +324,7 @@ class AccessPoint:
         if not cfg:
             return
 
-        self._logger.debug(f"{self._name}: {radio}: applying system config: {cfg}")
+        self._logger.debug(f"{self._name}:{radio}: applying system config: {cfg}")
 
         if "sensitivity_control" in cfg:
             self.set_sensitivity_control(cfg["sensitivity_control"], radio)
@@ -377,7 +376,7 @@ class AccessPoint:
             self._radios[radio]["rate_control_options"] = rc_opts
 
         self._logger.debug(
-            f"{self._name}: {radio}: applying rate control algorithm {rc_alg}, options: {rc_opts}"
+            f"{self._name}:{radio}: applying rate control algorithm {rc_alg}, options: {rc_opts}"
         )
 
     def apply_sta_rate_control(self, sta, rc_alg=None, rc_opts=None):
@@ -386,7 +385,8 @@ class AccessPoint:
             rc_opts = self._radios[sta.radio]["rate_control_options"]
 
         self._logger.debug(
-            f"{self._name}: {sta.radio}: {sta.mac_addr}: applying rate control algorithm {rc_alg}, options: {rc_opts}"
+            f"{self._name}:{sta.radio}:{sta.mac_addr}: "
+            f"applying rate control algorithm {rc_alg}, options: {rc_opts}"
         )
 
         if rc_alg == "minstrel_ht_kernel_space":
@@ -400,7 +400,8 @@ class AccessPoint:
             rc = self.load_rc_alg(rc_alg)
             if not self._loop:
                 self._logger.warning(
-                    f"{self._name}: {sta.radio}: {sta.mac_addr}: loop missing; cannot run user space rate control"
+                    f"{self._name}:{sta.radio}:{sta.mac_addr}: "
+                    "cannot run user space rate control: loop missing"
                 )
                 return None
             return rc(self, sta, **rc_opts)
@@ -414,7 +415,7 @@ class AccessPoint:
                 self.send(f"{radio};{'start' if enable else 'stop'};txs;rxs;stats")
         elif radio in self._radios:
             self._logger.debug(
-                f"{self._name}: {radio}: {'En' if enable else 'Dis'}abling RC info"
+                f"{self._name}:{radio}: {'En' if enable else 'Dis'}abling RC info"
             )
             self.send(f"{radio};{'start' if enable else 'stop'};txs;rxs;stats")
 
@@ -433,10 +434,7 @@ class AccessPoint:
         if radio not in self._radios:
             return
 
-        if not self._connected:
-            raise NotConnectedException(f"{self._name}: Not Connected")
-
-        self._logger.debug(f"{radio}: setting {path}={value}")
+        self._logger.debug(f"{radio}:debugfs: setting {path}={value}")
         self.send(f"{radio};debugfs;{path};{value}")
 
     def mt76_set_automatic_rate_downgrade(self, enable, radio="all"):
@@ -469,8 +467,7 @@ class AccessPoint:
         if radio not in self._radios:
             return
 
-        if not self._connected:
-            raise NotConnectedException(f"{self._name}: Not Connected")
+        self._logger.debug(f"{self._name}:{radio}: Enabling auto mode")
 
         self._logger.debug(f"{self._name}: {radio}: Enabling auto mode")
         self.send(f"{radio};auto")
@@ -486,7 +483,7 @@ class AccessPoint:
             return
 
         self._logger.debug(
-            f"{self._name}: {radio}: "
+            f"{self._name}:{radio}: "
             f"{'En' if enable else 'Dis'}abling hardware sensitivity control"
         )
 
@@ -507,17 +504,14 @@ class AccessPoint:
         if radio not in self._radios:
             return
 
-        if not self._connected:
-            raise NotConnectedException(f"{self._name}: Not Connected")
-
         if sta:
             if sta in self._radios[radio]["stations"]["active"]:
                 self._logger.debug(
-                    f"{self._name}: {radio}: Resetting rate statistics for {sta}"
+                    f"{self._name}:{radio}:{sta}: Resetting rate statistics"
                 )
                 self.send(f"{radio};reset_stats;{sta}")
         else:
-            self._logger.debug(f"{self._name}: {radio}: Resetting rate statistics")
+            self._logger.debug(f"{self._name}:{radio}: Resetting rate statistics")
             self.send(f"{radio};reset_stats")
 
     def set_rate(self, radio, mac, mrr_rates, mrr_counts) -> None:
