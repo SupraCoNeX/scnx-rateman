@@ -266,16 +266,12 @@ class AccessPoint:
             self._logger.debug(f"{self._name}: Connected at {self._addr}:{self._rcd_port}")
             self._connected = True
 
-        except (
-            OSError,
-            asyncio.TimeoutError,
-            asyncio.CancelledError,
-            ConnectionError,
-        ) as e:
+        except (OSError, asyncio.TimeoutError, ConnectionError) as e:
             self._logger.error(
                 f"{self._name}: Failed to connect at {self._addr}:{self._rcd_port}: {e}"
             )
             self._connected = False
+            raise e
 
     async def disconnect(self):
         if not self._writer:
