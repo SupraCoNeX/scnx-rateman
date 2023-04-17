@@ -15,7 +15,6 @@ import csv
 import sys
 import os
 import logging
-import importlib
 from .station import Station
 
 __all__ = ["AccessPoint", "from_file", "from_strings"]
@@ -329,19 +328,8 @@ class AccessPoint:
         if "sensitivity_control" in cfg:
             self.set_sensitivity_control(cfg["sensitivity_control"], radio)
 
-        if "automatic_rate_downgrade" in cfg:
-            self.mt76_set_automatic_rate_downgrade(
-                cfg["automatic_rate_downgrade"], radio
-            )
-
-    def load_rc_alg(self, rc_alg):
-        try:
-            entry_func = importlib.import_module(rc_alg).start
-        except ImportError as e:
-            self._logger.error(f"Importing {rc_alg} failed: {e}")
-            return None
-
-        return entry_func
+        if "mt76_force_rate_retry" in cfg:
+            self.mt76_force_rate_retry(cfg["mt76_force_rate_retry"], radio)
 
     def apply_radio_rate_control(self, radio="all", new_config=None):
         rc_alg = (

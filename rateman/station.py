@@ -11,7 +11,10 @@ A Station object is created at instance a station connects to a given AP.
 
 """
 
+import asyncio
 import logging
+
+from . import rate_control
 
 __all__ = ["Station"]
 
@@ -144,6 +147,38 @@ class Station:
     @property
     def rate_control(self):
         return (self._rate_control_algorithm, self._rate_control_options)
+
+    def stop_rate_control(self):
+        if self._rc:
+            self._rc.cancel()
+            try:
+                self._loop.run_until_complete(self._rc)
+            except:
+                pass
+
+        self._rc = None
+        self._rate_control_algorithm = None
+        self._rate_control_options = None
+
+    def set_rate_control(self, rc_alg, rc_opts):
+        self.stop_rate_control()
+
+        if rc_alg == "minstrel_ht_kernel_space":
+            self._rate_control_algorithm = rc_alg
+            self._rate_control_options = rc_opts
+            return None
+        else:
+            try:
+                rc = rate_control.load(rc_alg)
+            except Exception as e:
+                self._log.error(f"Failed to load rate control algorithm '{rc_alg}': {e}")
+                return None
+
+            self._rate_control_algorithm = rc_alg
+            self._rate_control_options = rc_opts
+            self._rc = rc
+
+            return rc(self._accesspoint, self, **rc_opts)
 
     def lowest_supp_rate(self):
         return self._supp_rates[0]
