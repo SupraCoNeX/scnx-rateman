@@ -34,19 +34,11 @@ class AccessPoint:
         logger : logging.Logger
             Log
         """
-        if config is None:
-            config = {
-                "rc_alg": "minstrel_ht_kernel_space",
-                "rc_opts": {},
-                "sensitivity_control": False,
-            }
         self._name = name
         self._addr = addr
         self._rcd_port = rcd_port
         self._supp_rates = {}
         self._radios = {}
-        self._default_rc_alg = config["rc_alg"] if "rc_alg" in config else "minstrel_ht_kernel_space"
-        self._default_rc_opts = config["rc_opts"] if "rc_opts" in config else None
         self._connected = False
         self._latest_timestamp = 0
         self._logger = logger if logger else logging.getLogger()
@@ -85,21 +77,29 @@ class AccessPoint:
     def logger(self, logger):
         self._logger = logger
 
-    @property
-    def default_rc_alg(self):
-        return self._default_rc_alg
+    def get_default_rc(self, radio):
+        try:
+            rc_alg = self._radios[radio]["default_rate_control_algorithm"]
+            rc_opts = self._radios[radio]["default_rate_control_options"]
+            return (rc_alg, rc_opts)
+        except KeyError:
+            return (None, None)
 
-    @default_rc_alg.setter
-    def default_rc_alg(self, default_rc_alg):
-        self._default_rc_alg = default_rc_alg
+    def set_default_rc(self, rc_alg, rc_opts, radio="all"):
+        if radio == "all":
+            for radio in self._radios:
+                self.set_default_rc(rc_alg, rc_opts, radio=radio)
+            return
 
-    @property
-    def default_rc_opts(self):
-        return self._default_rc_opts
+        self._logger.info(
+            f"{self._name}:{radio}: Set default rc algorithm '{rc_alg}', options={rc_opts}"
+        )
 
-    @default_rc_opts.setter
-    def default_rc_opts(self, default_rc_opts):
-        self._default_rc_opts = default_rc_opts
+        if radio not in self._radios:
+            self._radios[radio] = {}
+
+        self._radios[radio]["default_rate_control_algorithm"] = rc_alg
+        self._radios[radio]["default_rate_control_options"] = rc_opts
 
     @property
     def supported_rates(self) -> dict:
@@ -180,8 +180,7 @@ class AccessPoint:
                 rc_alg = self._radios[radio]["default_rate_control_algorithm"]
                 rc_opts = self._radios[radio]["default_rate_control_options"]
             else:
-                rc_alg = self._default_rc_alg
-                rc_opts = self._default_rc_opts
+                rc_alg, rc_opts = self.get_default_rc(radio)
 
         self._radios[radio].update({
             "driver": driver,
@@ -429,7 +428,7 @@ class AccessPoint:
 
         # switch all other stations of the same radio to minstrel_ht_kernel_space
         for sta in [s for _,s in stas.items()]:
-            sta.set_rate_control("minstrel_ht_kernel_space", {})
+            sta.start_rate_control("minstrel_ht_kernel_space", {})
 
         self.send(f"{radio};auto")
         self._radios[radio]["mode"] = "auto"
