@@ -459,7 +459,7 @@ class AccessPoint:
         elif self._radios[radio]["driver"] == "mt76":
             self.send(f"{radio};debugfs;mt76/scs;{val}")
 
-    def reset_rate_stats(self, radio="all", sta=None) -> None:
+    def reset_kernel_rate_stats(self, radio="all", sta="all") -> None:
         if radio == "all":
             for radio in self._radios:
                 self.reset_rate_stats(radio)
@@ -469,15 +469,12 @@ class AccessPoint:
         if radio not in self._radios:
             return
 
-        if sta:
-            if sta in self._radios[radio]["stations"]["active"]:
-                self._logger.debug(
-                    f"{self._name}:{radio}:{sta}: Resetting rate statistics"
-                )
-                self.send(f"{radio};reset_stats;{sta}")
-        else:
-            self._logger.debug(f"{self._name}:{radio}: Resetting rate statistics")
+        if sta == "all":
+            self._logger.debug(f"{self._name}:{radio}: Resetting in-kernel rate statistics")
             self.send(f"{radio};reset_stats")
+        elif sta in self._radios[radio]["stations"]["active"]:
+            self._logger.debug(f"{self._name}:{radio}:{sta}: Resetting in-kernel rate statistics")
+            self.send(f"{radio};reset_stats;{sta}")
 
     def set_rate(self, radio, mac, mrr_rates, mrr_counts) -> None:
         if len(mrr_rates) != len(mrr_counts):
