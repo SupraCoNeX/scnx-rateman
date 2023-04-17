@@ -264,10 +264,7 @@ class AccessPoint:
                 asyncio.open_connection(self._addr, self._rcd_port), timeout=0.5
             )
 
-            self._logger.debug(
-                f"{self._name}: Connected at {self._addr}:{self._rcd_port}"
-            )
-
+            self._logger.debug(f"{self._name}: Connected at {self._addr}:{self._rcd_port}")
             self._connected = True
 
         except (
@@ -277,7 +274,7 @@ class AccessPoint:
             ConnectionError,
         ) as e:
             self._logger.error(
-                f"Failed to connect to {self._name} at {self._addr}:{self._rcd_port}: {e}"
+                f"{self._name}: Failed to connect at {self._addr}:{self._rcd_port}: {e}"
             )
             self._connected = False
 
