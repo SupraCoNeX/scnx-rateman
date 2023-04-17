@@ -113,16 +113,6 @@ class AccessPoint:
     def connected(self, connection_status):
         self._connected = connection_status
 
-    def get_sta_rate_control(self, sta):
-        for radio, info in self._radios.items():
-            if sta in info["stations"]["active"]:
-                return (
-                    info["stations"]["active"]["rate_control_algorithm"],
-                    info["stations"]["active"]["rate_control_options"],
-                )
-
-        return None
-
     @property
     def radios(self) -> list:
         return self._radios
