@@ -45,8 +45,8 @@ class AccessPoint:
         self._rcd_port = rcd_port
         self._supp_rates = {}
         self._radios = {}
-        self._default_rc_alg = config["rc_alg"]
-        self._default_rc_opts = config["rc_opts"]
+        self._default_rc_alg = config["rc_alg"] if "rc_alg" in config else "minstrel_ht_kernel_space"
+        self._default_rc_opts = config["rc_opts"] if "rc_opts" in config else None
         self._connected = False
         self._latest_timestamp = 0
         self._logger = logger if logger else logging.getLogger()
@@ -87,7 +87,7 @@ class AccessPoint:
 
     @property
     def default_rc_alg(self):
-        return self.default_rc_alg
+        return self._default_rc_alg
 
     @default_rc_alg.setter
     def default_rc_alg(self, default_rc_alg):
@@ -183,23 +183,28 @@ class AccessPoint:
         )
 
         if radio not in self._radios:
+            self.radios[radio] = {}
 
-            if (rc_alg and rc_opts) is None:
+        if (rc_alg and rc_opts) is None:
+            if "default_rate_control_algorithm" in self._radios[radio]:
+                rc_alg = self._radios[radio]["default_rate_control_algorithm"]
+                rc_opts = self._radios[radio]["default_rate_control_options"]
+            else:
                 rc_alg = self._default_rc_alg
                 rc_opts = self._default_rc_opts
 
-            self._radios[radio] = {
-                "driver": driver,
-                "interfaces": [],
-                "rate_control_algorithm": rc_alg,
-                "rate_control_options": rc_opts,
-                "config": cfg,
-                "stations": {"active": {}, "inactive": {}},
-            }
-
+        self._radios[radio].update({
+            "driver": driver,
+            "interfaces": [],
+            "mode": "unknown",
+            "rate_control_algorithm": rc_alg,
+            "rate_control_options": rc_opts,
+            "config": cfg,
+            "stations": {"active": {}, "inactive": {}},
+        })
 
     def add_interface(self, radio: str, iface: str) -> None:
-        if radio not in self._radios or iface in self._radios[radio]["interfaces"]:
+        if radio in self._radios and iface in self._radios[radio]["interfaces"]:
             return
 
         self._logger.debug(f"{self._name}:{radio}: adding interface '{iface}'")
@@ -215,19 +220,23 @@ class AccessPoint:
 
     def add_station(self, sta: Station) -> bool:
         if sta.mac_addr not in self._radios[sta.radio]["stations"]["active"]:
-            self._logger.debug(f"adding active {sta} to {sta.radio} on {self._name}")
+            self._logger.debug(f"{self._name}:{sta.radio}: Adding active {sta}")
             self._radios[sta.radio]["stations"]["active"][sta.mac_addr] = sta
+            sta.accesspoint = self
             return True
         return False
 
     def remove_station(self, mac: str, radio: str) -> None:
         try:
             sta = self._radios[radio]["stations"]["active"].pop(mac)
-            sta.radio = None
-            self._radios[radio]["stations"]["inactive"][mac] = sta
-            self._logger.debug(f"removing {sta}")
-        except KeyError as e:
-            pass
+        except KeyError:
+            return None
+
+        sta.radio = None
+        sta.accesspoint = None
+        self._radios[radio]["stations"]["inactive"][mac] = sta
+        self._logger.debug(f"Removed {sta}")
+        return sta
 
     def update_timestamp(self, timestamp_str):
         try:
@@ -291,10 +300,10 @@ class AccessPoint:
         self._writer.close()
         await self._writer.wait_closed()
 
-    def set_default_rate_control(self, radio="all"):
+    def apply_default_rate_control(self, radio="all"):
         if radio == "all":
             for radio in self._radios:
-                self.set_default_rate_control(radio)
+                self.apply_default_rate_control(radio)
 
             return
 
@@ -303,6 +312,33 @@ class AccessPoint:
 
         self._radios[radio]["rate_control_algorithm"] = self._default_rc_alg
         self._radios[radio]["rate_control_options"] = self._default_rc_opts
+
+    def set_radio_default_rate_control(self, rc_alg, rc_opts, radio="all"):
+        if radio == "all":
+            for radio in self._radios:
+                self.set_radio_default_rate_control(rc_alg, rc_opts, radio)
+            return
+
+        self._logger.info(
+            f"{self._name}:{radio}: set default rate control '{rc_alg}', options={rc_opts}"
+        )
+
+        if radio not in self._radios:
+            self._radios[radio] = {
+                "driver": None,
+                "interfaces": [],
+                "rate_control_algorithm": None,
+                "rate_control_options": {},
+                "config": None,
+                "stations": {"active": {}, "inactive": {}},
+                "default_rate_control_algorithm": rc_alg,
+                "default_rate_control_options": rc_opts
+            }
+        else:
+            self._radios[radio].update({
+                "default_rate_control_algorithm": rc_alg,
+                "default_rate_control_options": rc_opts
+            })
 
     def apply_system_config(self, radio="all", new_config=None):
         if radio == "all":
@@ -369,8 +405,8 @@ class AccessPoint:
 
     def apply_sta_rate_control(self, sta, rc_alg=None, rc_opts=None):
         if (rc_alg and rc_opts) is None:
-            rc_alg = self._radios[sta.radio]["rate_control_algorithm"]
-            rc_opts = self._radios[sta.radio]["rate_control_options"]
+            rc_alg = self._radios[sta.radio]["default_rate_control_algorithm"]
+            rc_opts = self._radios[sta.radio]["default_rate_control_options"]
 
         self._logger.debug(
             f"{self._name}:{sta.radio}:{sta.mac_addr}: "
