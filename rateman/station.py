@@ -160,8 +160,10 @@ class Station:
         self._rate_control_algorithm = None
         self._rate_control_options = None
 
-    def set_rate_control(self, rc_alg, rc_opts):
+    def start_rate_control(self, rc_alg, rc_opts):
         self.stop_rate_control()
+
+        self._log.info(f"{self}: Set rate control algorithm '{rc_alg}'")
 
         if rc_alg == "minstrel_ht_kernel_space":
             self._rate_control_algorithm = rc_alg
@@ -176,9 +178,12 @@ class Station:
 
             self._rate_control_algorithm = rc_alg
             self._rate_control_options = rc_opts
-            self._rc = rc
+            self._rc = self._loop.create_task(
+                rc(self._accesspoint, self, logger=self._log, **rc_opts),
+                name=f"rc_{self._accesspoint.name}_{self._radio}_{self._mac_addr}_{rc_alg}"
+            )
 
-            return rc(self._accesspoint, self, **rc_opts)
+            return self._rc
 
     def lowest_supp_rate(self):
         return self._supp_rates[0]
