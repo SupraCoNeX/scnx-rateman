@@ -11,6 +11,7 @@ A Station object is created at instance a station connects to a given AP.
 
 """
 
+import logging
 
 __all__ = ["Station"]
 
@@ -18,6 +19,7 @@ __all__ = ["Station"]
 class Station:
     def __init__(
         self,
+        ap,
         radio,
         timestamp,
         mac_addr,
@@ -27,6 +29,7 @@ class Station:
         overhead_legacy,
         rc_alg="minstrel_ht_kernel_space",
         rc_opts=None,
+        logger=None
     ) -> None:
         """
         Parameters
@@ -41,6 +44,8 @@ class Station:
             Timestamp in hex at which the station connected to the AP.
         """
 
+        self._accesspoint = ap
+        self._loop = ap.loop
         self._radio = radio
         self._mac_addr = mac_addr
         self._supp_rates = supp_rates
@@ -57,10 +62,20 @@ class Station:
         self._rssi_vals = []
         self._rate_control_algorithm = rc_alg
         self._rate_control_options = rc_opts
+        self._rc = None
+        self._log = logger if logger else logging.getLogger()
 
     @property
     def last_seen(self) -> str:
         return self._last_seen
+
+    @property
+    def accesspoint(self):
+        return self._accesspoint
+
+    @accesspoint.setter
+    def accesspoint(self, ap):
+        self._accesspoint = ap
 
     @property
     def radio(self) -> str:

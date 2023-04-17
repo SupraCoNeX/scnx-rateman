@@ -306,7 +306,7 @@ def update_pckt_count_txs(ap, fields):
     sta.ampdu_packets += 1
 
 
-def parse_sta(supp_rates_ap, fields):
+def parse_sta(ap, fields):
     """
 
 
@@ -325,7 +325,7 @@ def parse_sta(supp_rates_ap, fields):
                                     give AP.
 
     """
-    supp_rates_sta = []
+    supported_rates = []
     airtimes_ns = []
     radio = fields[0]
     timestamp = fields[1]
@@ -334,18 +334,19 @@ def parse_sta(supp_rates_ap, fields):
     overhead_mcs = int(fields[5], 16)
     overhead_legacy = int(fields[6], 16)
 
-    for ii, group_ind in enumerate(supp_rates_ap.keys()):
-        mask = int(mcs_groups[ii], 16)
-        for jj in range(10):
-            if mask & (1 << jj):
-                supp_rates_sta.append(f"{group_ind}{jj}")
-                airtimes_ns.append(supp_rates_ap[group_ind]["airtimes_ns"][jj])
+    for i, grp_idx in enumerate(ap.supported_rates):
+        mask = int(mcs_groups[i], 16)
+        for ofs in range(10):
+            if mask & (1 << ofs):
+                supported_rates.append(f"{grp_idx}{ofs}")
+                airtimes_ns.append(ap.supported_rates[grp_idx]["airtimes_ns"][ofs])
 
     sta = Station(
+        ap,
         radio,
         timestamp,
         mac_addr,
-        supp_rates_sta,
+        supported_rates,
         airtimes_ns,
         overhead_mcs,
         overhead_legacy,
