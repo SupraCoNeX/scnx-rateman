@@ -220,21 +220,19 @@ class RateMan:
                         continue
                     elif line_type == "sta":
                         if fields[3] in ["add", "dump"]:
-                            sta = parse_sta(ap.supp_rates, fields)
+                            sta = parse_sta(ap, fields)
                             if ap.add_station(sta):
-                                rc_task = ap.apply_sta_rate_control(sta)
-                                if rc_task:
-                                    self.add_task(
-                                        rc_task,
-                                        name=f"rc_{ap.name}_{sta.radio}_{sta.mac_addr}",
-                                    )
-                        elif fields[3] == "remove":
-                            # TODO add proper cancellation/completion and removal of rate control task
-                            self.remove_task(
-                                name=f"rc_{ap.name}_{fields[0]}_{fields[4]}",
-                            )
-                            ap.remove_station(mac=fields[4], radio=fields[0])
+                                rc_alg = ap.default_rc_alg
+                                rc_opts = ap._default_rc_opts
+                                rc = sta.set_rate_control(rc_alg, rc_opts)
+                                if rc:
+                                    rc_name = f"rc_{ap.name}_{sta.radio}_{sta.mac_addr}_{rc_alg}"
+                                    self.add_task(rc, name=rc_name)
 
+                        elif fields[3] == "remove":
+                            sta = ap.remove_station(mac=fields[4], radio=fields[0])
+                            if sta:
+                                sta.stop_rate_control()
                     self.execute_callbacks(ap, fields)
                 except (UnicodeError, ValueError):
                     continue
