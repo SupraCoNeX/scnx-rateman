@@ -478,8 +478,7 @@ class AccessPoint:
 
     def set_rate(self, radio, mac, mrr_rates, mrr_counts) -> None:
         if len(mrr_rates) != len(mrr_counts):
-            print("Error: The number of rate and counts do not match!")
-            return
+            raise ValueError("The number of rates and counts must be identical!")
 
         mrr_rates = ["0" if mrr_rate == "00" else mrr_rate for mrr_rate in mrr_rates]
 
