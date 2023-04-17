@@ -117,7 +117,7 @@ class RateMan:
                 await ap.connect()
                 if not ap.connected:
                     await asyncio.sleep(1)
-            except (KeyboardInterrupt, asyncio.CancelledError):
+            except asyncio.CancelledError:
                 break
 
         if not skip_api_header:
