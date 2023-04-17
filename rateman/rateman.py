@@ -83,7 +83,6 @@ class RateMan:
             if task.get_name() == name:
                 return
         task = self._loop.create_task(coro, name=name)
-        task.add_done_callback(self._tasks.remove)
         self._tasks.append(task)
 
     def remove_task(self, name):
@@ -243,8 +242,8 @@ class RateMan:
             ap.connected = False
             self._logger.error(f"Disconnected from {ap.name}")
             self.reconnect_ap(ap, reconnect_timeout)
-        except (asyncio.CancelledError, KeyboardInterrupt):
-            return
+        except asyncio.CancelledError as e:
+            raise e
 
     async def stop(self):
         """
@@ -252,6 +251,18 @@ class RateMan:
         close all file objects.
 
         """
+        self._logger.debug("Stopping RateMan")
+
+        for task in self._tasks:
+            self._logger.debug(f"Cancelling task '{task.get_name()}'")
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        self._logger.debug(f"Disconnecting APs")
+
         for _, ap in self._accesspoints.items():
             if not ap.connected:
                 continue
@@ -259,15 +270,10 @@ class RateMan:
             ap.enable_auto_mode()
             await ap.disconnect()
 
-        for task in self._tasks:
-            self._logger.debug(f"Cancelling {task.get_name()}")
-            task.cancel()
-
         if self._new_loop_created:
             self._loop.close()
 
         self._logger.debug("RateMan stopped")
-
 
 if __name__ == "__main__":
 
