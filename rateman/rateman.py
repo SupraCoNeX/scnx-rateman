@@ -70,6 +70,14 @@ class RateMan:
     def tasks(self) -> list:
         return self._tasks
 
+    def get_sta(self, mac):
+        for ap in self._accesspoints:
+            sta = ap.get_sta(mac)
+            if sta:
+                return sta
+
+        return None
+
     def add_task(self, coro, name=""):
         for task in self._tasks:
             if task.get_name() == name:
