@@ -256,9 +256,7 @@ class AccessPoint:
         self._writer.write(cmd.encode("ascii"))
 
     def handle_error(self, error):
-        self._logger.error(
-            f"{self._name}: Error '{error}', last command='{self._last_cmd}'"
-        )
+        self._logger.error(f"{self._name}: Error '{error}', last command='{self._last_cmd}'")
 
     async def connect(self):
         try:
@@ -356,69 +354,6 @@ class AccessPoint:
 
         if "mt76_force_rate_retry" in cfg:
             self.mt76_force_rate_retry(cfg["mt76_force_rate_retry"], radio)
-
-    def apply_radio_rate_control(self, radio="all", new_config=None):
-        rc_alg = (
-            new_config["rate_control_algorithm"]
-            if "rate_control_algorithm" in new_config
-            else None
-        )
-        rc_opts = (
-            new_config["rate_control_options"]
-            if "rate_control_options" in new_config
-            else None
-        )
-
-        if (rc_alg and rc_opts) is None:
-            rc_alg = self._radios[radio]["rate_control_algorithm"]
-            rc_opts = self._radios[radio]["rate_control_options"]
-
-        if radio == "all":
-            return [
-                self.apply_radio_rate_control(radio, new_config)
-                for radio in self._radios
-            ]
-
-        if radio not in self._radios:
-            return None
-
-        if not self._connected:
-            raise NotConnectedException(f"{self._name}: Not Connected")
-
-        if rc_alg != self._radios[radio]["rate_control_algorithm"]:
-            self._radios[radio]["rate_control_algorithm"] = rc_alg
-            self._radios[radio]["rate_control_options"] = rc_opts
-
-        self._logger.debug(
-            f"{self._name}:{radio}: applying rate control algorithm {rc_alg}, options: {rc_opts}"
-        )
-
-    def apply_sta_rate_control(self, sta, rc_alg=None, rc_opts=None):
-        if (rc_alg and rc_opts) is None:
-            rc_alg = self._radios[sta.radio]["default_rate_control_algorithm"]
-            rc_opts = self._radios[sta.radio]["default_rate_control_options"]
-
-        self._logger.debug(
-            f"{self._name}:{sta.radio}:{sta.mac_addr}: "
-            f"applying rate control algorithm {rc_alg}, options: {rc_opts}"
-        )
-
-        if rc_alg == "minstrel_ht_kernel_space":
-            self.enable_auto_mode(sta.radio)
-            if "reset_rate_stats" in rc_opts and rc_opts["reset_rate_stats"]:
-                self.reset_rate_stats(sta.radio, sta.mac_addr)
-            return None
-        else:
-            self.enable_manual_mode(sta.radio)
-            self.reset_rate_stats(sta.radio, sta.mac_addr)
-            rc = self.load_rc_alg(rc_alg)
-            if not self._loop:
-                self._logger.warning(
-                    f"{self._name}:{sta.radio}:{sta.mac_addr}: "
-                    "cannot run user space rate control: loop missing"
-                )
-                return None
-            return rc(self, sta, **rc_opts)
 
     def set_rc_info(self, enable, radio="all"):
         if radio == "all":
