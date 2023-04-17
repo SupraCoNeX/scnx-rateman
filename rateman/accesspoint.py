@@ -442,8 +442,12 @@ class AccessPoint:
 
             return
 
-        self._logger.debug(f"{self._name}: {radio}: Enabling manual mode")
+        if radio not in self._radios or self._radios[radio]["mode"] == "manual":
+            return
+
+        self._logger.debug(f"{self._name}:{radio}: Enabling manual mode")
         self.send(f"{radio};manual")
+        self._radios[radio]["mode"] = "manual"
 
     def enable_auto_mode(self, radio="all") -> None:
         if radio == "all":
@@ -452,13 +456,25 @@ class AccessPoint:
 
             return
 
-        if radio not in self._radios:
+        if radio not in self._radios or self._radios[radio]["mode"] == "auto":
             return
 
         self._logger.debug(f"{self._name}:{radio}: Enabling auto mode")
 
-        self._logger.debug(f"{self._name}: {radio}: Enabling auto mode")
+        # Warn about stations whose user space RC will be affected by switching this radio to auto
+        stas = self._radios[radio]["stations"]["active"]
+        if len(stas) != 0:
+            self._logger.warning(
+                f"{self._name}:{radio}: Associated stations' rate control will "
+                f"become 'minstrel_ht_kernel_space': {','.join(stas)}"
+            )
+
+        # switch all other stations of the same radio to minstrel_ht_kernel_space
+        for sta in [s for _,s in stas.items()]:
+            sta.set_rate_control("minstrel_ht_kernel_space", {})
+
         self.send(f"{radio};auto")
+        self._radios[radio]["mode"] = "auto"
 
     def set_sensitivity_control(self, enable: bool, radio="all") -> None:
         if radio == "all":
