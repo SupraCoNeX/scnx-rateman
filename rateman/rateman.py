@@ -82,6 +82,9 @@ class RateMan:
         for task in self._tasks:
             if task.get_name() == name:
                 return
+
+        self._logger.debug(f"starting task '{name}'")
+
         task = self._loop.create_task(coro, name=name)
         self._tasks.append(task)
 
@@ -220,14 +223,10 @@ class RateMan:
                         continue
                     elif line_type == "sta":
                         if fields[3] in ["add", "dump"]:
-                            sta = parse_sta(ap, fields)
+                            sta = parse_sta(ap, fields, self._logger)
                             if ap.add_station(sta):
-                                rc_alg = ap.default_rc_alg
-                                rc_opts = ap._default_rc_opts
-                                rc = sta.set_rate_control(rc_alg, rc_opts)
-                                if rc:
-                                    rc_name = f"rc_{ap.name}_{sta.radio}_{sta.mac_addr}_{rc_alg}"
-                                    self.add_task(rc, name=rc_name)
+                                rc_alg, rc_opts = ap.get_default_rc(sta.radio)
+                                sta.start_rate_control(rc_alg, rc_opts)
 
                         elif fields[3] == "remove":
                             sta = ap.remove_station(mac=fields[4], radio=fields[0])
