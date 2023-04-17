@@ -166,7 +166,7 @@ class RateMan:
             if c == cb:
                 return
 
-        self._data_callbacks[type].append((cb, args))
+        self._data_callbacks[type].append((cb, context))
 
     def remove_data_callback(self, cb):
         """
