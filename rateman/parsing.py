@@ -306,7 +306,7 @@ def update_pckt_count_txs(ap, fields):
     sta.ampdu_packets += 1
 
 
-def parse_sta(ap, fields):
+def parse_sta(ap, fields, logger):
     """
 
 
@@ -350,6 +350,7 @@ def parse_sta(ap, fields):
         airtimes_ns,
         overhead_mcs,
         overhead_legacy,
+        logger=logger
     )
 
     return sta
