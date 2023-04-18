@@ -280,46 +280,6 @@ class AccessPoint:
         self._writer.close()
         await self._writer.wait_closed()
 
-    def apply_default_rate_control(self, radio="all"):
-        if radio == "all":
-            for radio in self._radios:
-                self.apply_default_rate_control(radio)
-
-            return
-
-        if radio not in self._radios:
-            return
-
-        self._radios[radio]["rate_control_algorithm"] = self._default_rc_alg
-        self._radios[radio]["rate_control_options"] = self._default_rc_opts
-
-    def set_radio_default_rate_control(self, rc_alg, rc_opts, radio="all"):
-        if radio == "all":
-            for radio in self._radios:
-                self.set_radio_default_rate_control(rc_alg, rc_opts, radio)
-            return
-
-        self._logger.info(
-            f"{self._name}:{radio}: set default rate control '{rc_alg}', options={rc_opts}"
-        )
-
-        if radio not in self._radios:
-            self._radios[radio] = {
-                "driver": None,
-                "interfaces": [],
-                "rate_control_algorithm": None,
-                "rate_control_options": {},
-                "config": None,
-                "stations": {"active": {}, "inactive": {}},
-                "default_rate_control_algorithm": rc_alg,
-                "default_rate_control_options": rc_opts
-            }
-        else:
-            self._radios[radio].update({
-                "default_rate_control_algorithm": rc_alg,
-                "default_rate_control_options": rc_opts
-            })
-
     def apply_system_config(self, radio="all", new_config=None):
         if radio == "all":
             for radio in self._radios:
