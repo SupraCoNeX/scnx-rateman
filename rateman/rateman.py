@@ -226,7 +226,8 @@ class RateMan:
                             sta = parse_sta(ap, fields, self._logger)
                             if ap.add_station(sta):
                                 rc_alg, rc_opts = ap.get_default_rc(sta.radio)
-                                sta.start_rate_control(rc_alg, rc_opts)
+                                if rc_alg:
+                                    sta.start_rate_control(rc_alg, rc_opts)
 
                         elif fields[3] == "remove":
                             sta = ap.remove_station(mac=fields[4], radio=fields[0])

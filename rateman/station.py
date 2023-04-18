@@ -148,7 +148,7 @@ class Station:
     def rate_control(self):
         return (self._rate_control_algorithm, self._rate_control_options)
 
-    def stop_rate_control(self):
+    def stop_rate_control(self) -> str:
         if self._rc:
             self._rc.cancel()
             try:
@@ -156,18 +156,29 @@ class Station:
             except:
                 pass
 
+        rc_alg = self._rate_control_algorithm
+
         self._rc = None
         self._rate_control_algorithm = None
         self._rate_control_options = None
 
+        return rc_alg
+
     def start_rate_control(self, rc_alg, rc_opts):
-        self.stop_rate_control()
+        if self._rate_control_algorithm == rc_alg and self._rate_control_options == rc_opts:
+            return
+
+        old_rc_alg = self.stop_rate_control()
 
         self._log.info(f"{self}: Set rate control algorithm '{rc_alg}'")
 
         if rc_alg == "minstrel_ht_kernel_space":
             self._rate_control_algorithm = rc_alg
             self._rate_control_options = rc_opts
+
+            if old_rc_alg != "minstrel_ht_kernel_space":
+                self._accesspoint.enable_auto_mode(radio=self._radio)
+
             return None
         else:
             try:
@@ -178,6 +189,10 @@ class Station:
 
             self._rate_control_algorithm = rc_alg
             self._rate_control_options = rc_opts
+
+            if not old_rc_alg or old_rc_alg == "minstrel_ht_kernel_space":
+                self._accesspoint.enable_manual_mode(radio=self._radio)
+
             self._rc = self._loop.create_task(
                 rc(self._accesspoint, self, logger=self._log, **rc_opts),
                 name=f"rc_{self._accesspoint.name}_{self._radio}_{self._mac_addr}_{rc_alg}"

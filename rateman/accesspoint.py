@@ -375,15 +375,19 @@ class AccessPoint:
         self._logger.debug(f"{self._name}:{radio}: Enabling auto mode")
 
         # Warn about stations whose user space RC will be affected by switching this radio to auto
-        stas = self._radios[radio]["stations"]["active"]
+        stas = [
+            sta for _,sta in self._radios[radio]["stations"]["active"].items()
+            if sta.rate_control[0] != "minstrel_ht_kernel_space"
+        ]
+
         if len(stas) != 0:
             self._logger.warning(
                 f"{self._name}:{radio}: Associated stations' rate control will "
-                f"become 'minstrel_ht_kernel_space': {','.join(stas)}"
+                f"become 'minstrel_ht_kernel_space': {','.join([str(s) for s in stas])}"
             )
 
         # switch all other stations of the same radio to minstrel_ht_kernel_space
-        for sta in [s for _,s in stas.items()]:
+        for sta in stas:
             sta.start_rate_control("minstrel_ht_kernel_space", {})
 
         self.send(f"{radio};auto")
