@@ -15,6 +15,7 @@ import asyncio
 import logging
 
 from . import rate_control
+from .exception import RateControlError, RateControlConfigError
 
 __all__ = ["Station"]
 
@@ -148,7 +149,18 @@ class Station:
     def rate_control(self):
         return (self._rate_control_algorithm, self._rate_control_options)
 
-    def stop_rate_control(self) -> str:
+    def __repr__(self):
+        return f"STA[{self._mac_addr}]"
+
+    def stop_rate_control(self):
+        if not self._rate_control_algorithm:
+            return
+
+        self._log.info(
+            f"{self}: Stop rate control algorithm '{self._rate_control_algorithm}', "
+            f"options={self._rate_control_options}"
+        )
+
         if self._rc:
             self._rc.cancel()
             try:
@@ -156,49 +168,65 @@ class Station:
             except:
                 pass
 
-        rc_alg = self._rate_control_algorithm
-
         self._rc = None
         self._rate_control_algorithm = None
         self._rate_control_options = None
 
-        return rc_alg
-
+    # TODO: only handle user space rc in this function?
     def start_rate_control(self, rc_alg, rc_opts):
+        """
+        Put this STA under the given rate control algorithm. 
+        '''
+        Parameters
+        ----------
+        rc_alg : str
+            The name of the rate control algorithm
+        rc_opts : dict
+            Configuration options specific to the rate control algorithm
+
+        This function will raise a rateman.RateControlError if there is an error loading the rate
+        control algorithm. It will also raise a rateman.RateControlConfigError if the configuration
+        of the AP's radio does not permit the rate control algorithm to run, e.g. because the radio
+        is not in the required mode (auto/manual).
+        """
+
         if self._rate_control_algorithm == rc_alg and self._rate_control_options == rc_opts:
             return
 
-        old_rc_alg = self.stop_rate_control()
-
-        self._log.info(f"{self}: Set rate control algorithm '{rc_alg}'")
+        ap = self._accesspoint
 
         if rc_alg == "minstrel_ht_kernel_space":
-            self._rate_control_algorithm = rc_alg
-            self._rate_control_options = rc_opts
+            if ap.get_radio_mode(self._radio) == "manual":
+                raise RateControlConfigError(self, rc_alg, f"{self._radio} not in auto mode")
 
-            if old_rc_alg != "minstrel_ht_kernel_space":
-                self._accesspoint.enable_auto_mode(radio=self._radio)
-
-            return None
-        else:
-            try:
-                rc = rate_control.load(rc_alg)
-            except Exception as e:
-                self._log.error(f"Failed to load rate control algorithm '{rc_alg}': {e}")
-                return None
+            self._log.info(f"{self}: Start rate control algorithm '{rc_alg}', options={rc_opts}")
 
             self._rate_control_algorithm = rc_alg
             self._rate_control_options = rc_opts
+            return
 
-            if not old_rc_alg or old_rc_alg == "minstrel_ht_kernel_space":
-                self._accesspoint.enable_manual_mode(radio=self._radio)
+        elif ap.get_radio_mode(self._radio) == "auto":
+            raise RateControlConfigError(self, rc_alg, f"PHY '{self._radio}' not in manual mode")
 
-            self._rc = self._loop.create_task(
-                rc(self._accesspoint, self, logger=self._log, **rc_opts),
-                name=f"rc_{self._accesspoint.name}_{self._radio}_{self._mac_addr}_{rc_alg}"
+        elif self._rate_control_algorithm != None:
+            raise RateControlConfigError(
+                self,
+                rc_alg,
+                f"Rate control algorithm '{self._rate_control_algorithm}' must be stopped first"
             )
 
-            return self._rc
+        self._log.info(f"{self}: Start rate control algorithm '{rc_alg}', options={rc_opts}")
+    
+        rc = rate_control.load(rc_alg)
+
+        self._rate_control_algorithm = rc_alg
+        self._rate_control_options = rc_opts
+        self._rc = self._loop.create_task(
+            rc(self._accesspoint, self, logger=self._log, **rc_opts),
+            name=f"rc_{self._accesspoint.name}_{self._radio}_{self._mac_addr}_{rc_alg}"
+        )
+
+        return self._rc
 
     def lowest_supp_rate(self):
         return self._supp_rates[0]

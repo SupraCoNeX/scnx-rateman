@@ -39,29 +39,45 @@ def process_api(ap, fields):
     elif line_type == "sample_table":
         ap.sample_table = fields[5:]
 
+def process_phy_info(ap, fields):
+    ap.add_radio(fields[0], fields[3])
+    if len(fields) > 4:
+        for iface in fields[4].split(","):
+            ap.add_interface(fields[0], iface)
+
+    return True
+
+def process_sta_info(ap, fields):
+    # TODO: handle sta;update
+    if fields[3] in ["add", "dump"]:
+        sta = parse_sta(ap, fields)
+        ap.add_station(sta)
+
+        rc_alg, rc_opts = ap.get_default_rc(sta.radio)
+        if rc_alg:
+            sta.start_rate_control(rc_alg, rc_opts)
+
+    elif fields[3] == "remove":
+        sta = ap.remove_station(mac=fields[4], radio=fields[0])
+        if sta:
+            sta.stop_rate_control()
+
 
 async def process_header(ap):
     try:
-        async for data in ap:
-            try:
-                line = data.decode("utf-8").rstrip()
-                fields = line.split(";")
-                if fields[0] == "*":
-                    if fields[2] == "#error":
-                        ap.handle_error(fields[3])
-                    process_api(ap, fields)
-                elif "0;add" in line:
-                    process_phy_info(ap, fields)
-                else:
-                    return
-            except (UnicodeError, ValueError):
-                continue
-    except (IOError, ConnectionError):
-        ap.connected = False
-        ap._logger.error(f"Disconnected from {ap.name}: {e}")
-    except (asyncio.CancelledError, TimeoutError):
-        return
-
+        async for line in ap.api_info():
+            fields = line.split(";")
+            if fields[0] == "*":
+                if fields[2] == "#error":
+                    ap.handle_error(fields[3])
+                process_api(ap, fields)
+            elif "0;add" in line:
+                process_phy_info(ap, fields)
+            else:
+                process_sta_info(ap, fields)
+    except asyncio.CancelledError:
+        await ap.stop_task()
+        await ap.disconnect()
 
 async def get_next_line(ap, timeout):
     data = await asyncio.wait_for(await anext(ap), timeout=timeout)
@@ -111,16 +127,6 @@ def parse_group_info(fields):
     }
 
     return group_ind, group_info
-
-
-def process_phy_info(ap, fields):
-    ap.add_radio(fields[0], fields[3])
-    if len(fields) > 4:
-        for iface in fields[4].split(","):
-            ap.add_interface(fields[0], iface)
-
-    return True
-
 
 def process_line(ap, line):
     """
@@ -240,9 +246,13 @@ def update_pckt_count_txs(ap, fields):
     radio = fields[0]
     mac_addr = fields[3]
 
-    try:
-        sta = ap.get_stations(radio)[mac_addr]
-    except KeyError:
+    sta = None
+    for s in ap.get_stations(radio):
+        if s.mac_addr == mac_addr:
+            sta = s
+            break
+
+    if not sta:
         return
 
     timestamp = fields[1]
@@ -306,7 +316,7 @@ def update_pckt_count_txs(ap, fields):
     sta.ampdu_packets += 1
 
 
-def parse_sta(ap, fields, logger):
+def parse_sta(ap, fields):
     """
 
 
@@ -341,7 +351,7 @@ def parse_sta(ap, fields, logger):
                 supported_rates.append(f"{grp_idx}{ofs}")
                 airtimes_ns.append(ap.supported_rates[grp_idx]["airtimes_ns"][ofs])
 
-    sta = Station(
+    return Station(
         ap,
         radio,
         timestamp,
@@ -350,7 +360,5 @@ def parse_sta(ap, fields, logger):
         airtimes_ns,
         overhead_mcs,
         overhead_legacy,
-        logger=logger
+        logger=ap.logger
     )
-
-    return sta

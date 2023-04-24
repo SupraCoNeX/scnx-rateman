@@ -17,12 +17,10 @@ __all__ = ["RateMan"]
 
 
 class RateMan:
-    def __init__(self, aps=[], loop=None, logger=None):
+    def __init__(self, loop=None, logger=None):
         """
         Parameters
         ----------
-        aps : list
-            List of AccessPoint object to connect to.
         loop : asyncio.BaseEventLoop, optional
             The event loop to execute on. A new loop will be created if none is
             provided.
@@ -56,11 +54,6 @@ class RateMan:
         }
 
         self._accesspoints = dict()
-        for ap in aps:
-            self.add_task(
-                self.connect_ap(ap),
-                name=f"connect_{ap.name}",
-            )
 
     @property
     def accesspoints(self) -> dict:
@@ -91,6 +84,47 @@ class RateMan:
     def remove_task(self, name):
         if name in self._tasks:
             self._tasks.remove(name)
+
+    def add_accesspoint(self, ap, connect=False):
+        mac = ap._addr
+
+        if mac in self._accesspoints:
+            return
+
+        self._accesspoints[mac] = ap
+
+    async def initialize(self, timeout=5):
+        # connect to APs
+        tasks = [
+            ap.start_task(ap.connect(), name=f"connect_{ap.name}")
+            for _,ap in self._accesspoints.items()
+        ]
+        _,pending = await asyncio.wait(tasks, timeout=timeout)
+
+        if len(pending) != 0:
+            for task in pending:
+                task.cancel()
+            await asyncio.wait(pending)
+
+        # parse info header
+        tasks = [
+            ap.start_task(process_header(ap), name=f"parse_api_info_{ap.name}")
+            for _,ap in self._accesspoints.items() if ap.connected
+        ]
+        _,pending = await asyncio.wait(tasks, timeout=timeout)
+        if len(pending) != 0:
+            for task in pending:
+                task.cancel()
+            await asyncio.wait(pending)
+
+        for _,ap in self._accesspoints.items():
+            if not ap.connected:
+                self._logger.warning(f"Connection to {ap} could not be established")
+            else:
+                ap.start_task(
+                    self.rcd_connection(ap, reconnect_timeout=5),
+                    name=f"rcd_{ap.name}"
+                )
 
     async def connect_ap(self, ap, delay=None, skip_api_header=False):
         """
@@ -210,32 +244,29 @@ class RateMan:
 
         """
 
+        self._logger.debug(f"Starting RC data collection from {ap}")
+        ap.set_rc_info(True)
+
         try:
-            async for data in ap:
-                try:
-                    line = data.decode("utf-8").rstrip()
-                    for (cb, ctx) in self._raw_data_callbacks:
-                        cb(ap, line, context=ctx)
+            async for line in ap.rc_data():
+                print(line)
+                for (cb, ctx) in self._raw_data_callbacks:
+                    cb(ap, line, context=ctx)
 
-                    line_type, fields = process_line(ap, line)
+                line_type, fields = process_line(ap, line)
 
-                    if not fields:
-                        continue
-                    elif line_type == "sta":
-                        if fields[3] in ["add", "dump"]:
-                            sta = parse_sta(ap, fields, self._logger)
-                            if ap.add_station(sta):
-                                rc_alg, rc_opts = ap.get_default_rc(sta.radio)
-                                if rc_alg:
-                                    sta.start_rate_control(rc_alg, rc_opts)
-
-                        elif fields[3] == "remove":
-                            sta = ap.remove_station(mac=fields[4], radio=fields[0])
-                            if sta:
-                                sta.stop_rate_control()
-                    self.execute_callbacks(ap, fields)
-                except (UnicodeError, ValueError):
+                if not fields:
                     continue
+
+                if line_type == "sta":
+                    # TODO: handle sta;update
+                    if fields[3] in ["add", "dump"]:
+                        ap.add_station(parse_sta(ap, fields))
+                    elif fields[3] == "remove":
+                        sta = ap.remove_station(mac=fields[4], radio=fields[0])
+                        if sta:
+                            sta.stop_rate_control()
+                self.execute_callbacks(ap, fields)
         except (IOError, ConnectionError):
             ap.connected = False
             self._logger.error(f"Disconnected from {ap.name}")
@@ -264,8 +295,14 @@ class RateMan:
         for _, ap in self._accesspoints.items():
             if not ap.connected:
                 continue
+
             ap.set_rc_info(False)
-            ap.enable_auto_mode()
+            for radio in ap.radios:
+                for sta in ap.get_stations(radio):
+                    sta.stop_rate_control()
+
+                ap.enable_auto_mode(radio)
+
             await ap.disconnect()
 
         if self._new_loop_created:

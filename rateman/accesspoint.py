@@ -16,6 +16,7 @@ import sys
 import os
 import logging
 from .station import Station
+from .exception import RadioConfigError
 
 __all__ = ["AccessPoint", "from_file", "from_strings"]
 
@@ -46,12 +47,53 @@ class AccessPoint:
         self._last_cmd = None
         self._reader = None
         self._writer = None
+        self._task = None
+        self._first_non_header_line = None
 
-    def __aiter__(self):
-        return self._reader
+    async def api_info(self, timeout=0.5):
+        it = aiter(self._reader)
+        while True:
+            try:
+                # TODO: as soon as we support python 3.11 this should be done with a async with asyncio.timeout()
+                t = self._loop.create_task(anext(it))
+                await asyncio.wait_for(t, timeout)
+                line = t.result().decode("utf-8").rstrip()
 
-    async def __anext__(self):
-        return self._reader.__anext__()
+                if line.startswith("*") or ";0;add" in line or "sta;dump" in line:
+                    yield line
+                else:
+                    self._first_non_header_line = line
+                    return
+            except UnicodeError:
+                continue
+            except asyncio.TimeoutError:
+                return
+
+        # async for data in self._reader:
+        #     try:
+        #         line = data.decode("utf-8").rstrip()
+        #         if line.startswith("*") or ";0;add" in line or "sta;dump" in line:
+        #             yield line
+        #         else:
+        #             self._first_non_header_line = line
+        #             raise StopAsyncIteration
+        #     except UnicodeError:
+        #         continue
+
+    async def rc_data(self):
+        if self._first_non_header_line:
+                line = self._first_non_header_line
+                self._first_non_header_line = None
+                yield line
+
+        async for data in self._reader:
+            try:
+                yield data.decode("utf-8").rstrip()
+            except UnicodeError:
+                continue
+
+    def __repr__(self):
+        return f"{self._name}"
 
     @property
     def name(self) -> str:
@@ -91,7 +133,7 @@ class AccessPoint:
                 self.set_default_rc(rc_alg, rc_opts, radio=radio)
             return
 
-        self._logger.info(
+        self._logger.debug(
             f"{self._name}:{radio}: Set default rc algorithm '{rc_alg}', options={rc_opts}"
         )
 
@@ -133,11 +175,7 @@ class AccessPoint:
                 self.get_stations(radio, which="inactive")
             )
 
-        stas = {}
-        for mac, sta in self._radios[radio]["stations"][which].items():
-            stas[mac] = sta
-
-        return stas
+        return [sta for _,sta in self._radios[radio]["stations"][which].items()]
 
     def _get_sta(self, mac, radio, state):
         try:
@@ -160,6 +198,9 @@ class AccessPoint:
 
         return None
 
+    def get_radio_mode(self, radio):
+        return self._radios[radio]["mode"]
+
     def add_radio(
         self,
         radio: str,
@@ -168,26 +209,21 @@ class AccessPoint:
         rc_opts=None,
         cfg=None,
     ) -> None:
-        self._logger.debug(
-            f"{self._name}: adding radio '{radio}', driver={driver}"
-        )
+        self._logger.debug(f"{self._name}: adding radio '{radio}', driver={driver}")
 
         if radio not in self._radios:
             self.radios[radio] = {}
 
         if (rc_alg and rc_opts) is None:
-            if "default_rate_control_algorithm" in self._radios[radio]:
-                rc_alg = self._radios[radio]["default_rate_control_algorithm"]
-                rc_opts = self._radios[radio]["default_rate_control_options"]
-            else:
-                rc_alg, rc_opts = self.get_default_rc(radio)
+            rc_alg, rc_opts = self.get_default_rc(radio)
+            if not rc_alg:
+                self._radios[radio]["default_rate_control_algorithm"] = "minstrel_ht_kernel_space"
+                self._radios[radio]["default_rate_control_options"] = {}                
 
         self._radios[radio].update({
             "driver": driver,
             "interfaces": [],
-            "mode": "unknown",
-            "rate_control_algorithm": rc_alg,
-            "rate_control_options": rc_opts,
+            "mode": "auto", # FIXME: minstrel-rcd should tell us which mode the phy is in
             "config": cfg,
             "stations": {"active": {}, "inactive": {}},
         })
@@ -209,11 +245,10 @@ class AccessPoint:
 
     def add_station(self, sta: Station) -> bool:
         if sta.mac_addr not in self._radios[sta.radio]["stations"]["active"]:
-            self._logger.debug(f"{self._name}:{sta.radio}: Adding active {sta}")
+            self._logger.debug(f"{self._name}:{sta.radio}: Adding {sta}")
+
             self._radios[sta.radio]["stations"]["active"][sta.mac_addr] = sta
             sta.accesspoint = self
-            return True
-        return False
 
     def remove_station(self, mac: str, radio: str) -> None:
         try:
@@ -257,21 +292,50 @@ class AccessPoint:
     def handle_error(self, error):
         self._logger.error(f"{self._name}: Error '{error}', last command='{self._last_cmd}'")
 
-    async def connect(self):
-        try:
-            self._reader, self._writer = await asyncio.wait_for(
-                asyncio.open_connection(self._addr, self._rcd_port), timeout=0.5
+    def start_task(self, coro, name):
+        if self._task and not self._task.done():
+            raise Exception(
+                f"{self._name}: Cannot start '{name}': '{self._task.get_name()}' is not done"
             )
 
-            self._logger.debug(f"{self._name}: Connected at {self._addr}:{self._rcd_port}")
+        self._task = self._loop.create_task(coro, name=name)
+        return self._task
+
+    async def stop_task(self):
+        if not self._task:
+            return None
+
+        self._task.cancel()
+        await self._task
+        t = self._task
+        self._task = None
+        return t
+
+    async def connect(self, dump_stas=True, enable_manual_mode=True):
+        if self._connected:
+            return
+
+        try:
+            r, w = await asyncio.open_connection(self._addr, self._rcd_port)
+            self._reader = r
+            self._writer = w
             self._connected = True
 
-        except (OSError, asyncio.TimeoutError, ConnectionError) as e:
+            # immediately send dump sta command so sta info can be parsed with api_info and phy info
+            if dump_stas:
+                self.dump_stas()
+        except asyncio.CancelledError:
+            self._task = None
+            self._connected = False
+            return
+        except Exception as e:
             self._logger.error(
                 f"{self._name}: Failed to connect at {self._addr}:{self._rcd_port}: {e}"
             )
             self._connected = False
             raise e
+
+        self._logger.debug(f"{self._name}: Connected at {self._addr}:{self._rcd_port}")
 
     async def disconnect(self):
         if not self._writer:
@@ -279,6 +343,7 @@ class AccessPoint:
 
         self._writer.close()
         await self._writer.wait_closed()
+        self._writer = None
 
     def apply_system_config(self, radio="all", new_config=None):
         if radio == "all":
@@ -348,8 +413,8 @@ class AccessPoint:
         if "mt76" in self._radios[radio]["driver"]:
             self.debugfs_set("mt76/force_rate_retry", 1 if enable else 0, radio)
 
-    def enable_manual_mode(self, radio=None) -> None:
-        if not radio:
+    def enable_manual_mode(self, radio="all") -> None:
+        if radio == "all":
             for radio in self._radios:
                 self.enable_manual_mode(radio=radio)
 
@@ -372,26 +437,25 @@ class AccessPoint:
         if radio not in self._radios or self._radios[radio]["mode"] == "auto":
             return
 
-        self._logger.debug(f"{self._name}:{radio}: Enabling auto mode")
-
-        # Warn about stations whose user space RC will be affected by switching this radio to auto
-        stas = [
-            sta for _,sta in self._radios[radio]["stations"]["active"].items()
-            if sta.rate_control[0] != "minstrel_ht_kernel_space"
+        stas_with_manual_rc = [
+            sta for sta in self.get_stations(radio)
+            if (sta.rate_control[0] and sta.rate_control[0] != "minstrel_ht_kernel_space")
         ]
 
-        if len(stas) != 0:
-            self._logger.warning(
-                f"{self._name}:{radio}: Associated stations' rate control will "
-                f"become 'minstrel_ht_kernel_space': {','.join([str(s) for s in stas])}"
+        if len(stas_with_manual_rc) != 0:
+            raise RadioConfigError(
+                self, radio,
+                f"Cannot enable auto mode because of STAs with manual RC: "
+                f"{', '.join([str(s) for s in stas_with_manual_rc])}"
             )
 
-        # switch all other stations of the same radio to minstrel_ht_kernel_space
-        for sta in stas:
-            sta.start_rate_control("minstrel_ht_kernel_space", {})
+        self._logger.debug(f"{self._name}:{radio}: Enabling auto mode")
 
         self.send(f"{radio};auto")
         self._radios[radio]["mode"] = "auto"
+
+        for sta in self.get_stations(radio):
+            sta.start_rate_control("minstrel_ht_kernel_space", {})
 
     def set_sensitivity_control(self, enable: bool, radio="all") -> None:
         if radio == "all":
