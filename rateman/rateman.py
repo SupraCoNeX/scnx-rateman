@@ -249,7 +249,6 @@ class RateMan:
 
         try:
             async for line in ap.rc_data():
-                print(line)
                 for (cb, ctx) in self._raw_data_callbacks:
                     cb(ap, line, context=ctx)
 
