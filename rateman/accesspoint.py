@@ -123,7 +123,7 @@ class AccessPoint:
         try:
             rc_alg = self._radios[radio]["default_rate_control_algorithm"]
             rc_opts = self._radios[radio]["default_rate_control_options"]
-            return (rc_alg, rc_opts)
+            return rc_alg, rc_opts
         except KeyError:
             return (None, None)
 
@@ -403,10 +403,10 @@ class AccessPoint:
         self._logger.debug(f"{radio}:debugfs: setting {path}={value}")
         self.send(f"{radio};debugfs;{path};{value}")
 
-    def mt76_set_automatic_rate_downgrade(self, enable, radio="all"):
+    def mt76_force_rate_retry(self, enable, radio="all"):
         if radio == "all":
             for radio in self._radios:
-                self.mt76_set_automatic_rate_downgrade(enable, radio)
+                self.mt76_force_rate_retry(enable, radio)
 
             return
 
@@ -434,8 +434,8 @@ class AccessPoint:
 
             return
 
-        if radio not in self._radios or self._radios[radio]["mode"] == "auto":
-            return
+        # if radio not in self._radios or self._radios[radio]["mode"] == "auto":
+        #     return
 
         stas_with_manual_rc = [
             sta for sta in self.get_stations(radio)
@@ -454,8 +454,10 @@ class AccessPoint:
         self.send(f"{radio};auto")
         self._radios[radio]["mode"] = "auto"
 
-        for sta in self.get_stations(radio):
-            sta.start_rate_control("minstrel_ht_kernel_space", {})
+        rc_alg, rc_opts = self.get_default_rc(radio)
+        if rc_alg == "minstrel_ht_kernel_space":
+            for sta in self.get_stations(radio):
+                sta.start_rate_control(rc_alg, rc_opts)
 
     def set_sensitivity_control(self, enable: bool, radio="all") -> None:
         if radio == "all":
