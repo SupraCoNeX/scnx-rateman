@@ -434,8 +434,8 @@ class AccessPoint:
 
             return
 
-        # if radio not in self._radios or self._radios[radio]["mode"] == "auto":
-        #     return
+        if radio not in self._radios or self._radios[radio]["mode"] == "auto":
+            return
 
         stas_with_manual_rc = [
             sta for sta in self.get_stations(radio)
@@ -454,10 +454,8 @@ class AccessPoint:
         self.send(f"{radio};auto")
         self._radios[radio]["mode"] = "auto"
 
-        rc_alg, rc_opts = self.get_default_rc(radio)
-        if rc_alg == "minstrel_ht_kernel_space":
-            for sta in self.get_stations(radio):
-                sta.start_rate_control(rc_alg, rc_opts)
+        for sta in self.get_stations(radio):
+            sta.start_rate_control("minstrel_ht_kernel_space", {})
 
     def set_sensitivity_control(self, enable: bool, radio="all") -> None:
         if radio == "all":
