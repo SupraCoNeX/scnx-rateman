@@ -123,7 +123,7 @@ class AccessPoint:
         try:
             rc_alg = self._radios[radio]["default_rate_control_algorithm"]
             rc_opts = self._radios[radio]["default_rate_control_options"]
-            return rc_alg, rc_opts
+            return (rc_alg, rc_opts)
         except KeyError:
             return (None, None)
 
@@ -515,7 +515,6 @@ class AccessPoint:
 
     def set_probe_rate(self, radio, mac, rate) -> None:
         self.send(f"{radio};probe;{mac};{rate}")
-        self._logger.debug(f"{radio};probe;{mac};{rate}\n")
 
     def add_supp_rates(self, group_ind, group_info):
         if group_ind not in self._supp_rates:

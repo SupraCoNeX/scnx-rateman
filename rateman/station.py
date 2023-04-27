@@ -130,7 +130,7 @@ class Station:
         return self._overhead_legacy
 
     @property
-    def supp_rates(self) -> list:
+    def supported_rates(self) -> list:
         return self._supp_rates
 
     @property
@@ -149,6 +149,10 @@ class Station:
     def rate_control(self):
         return (self._rate_control_algorithm, self._rate_control_options)
 
+    @property
+    def logger(self) -> logging.Logger:
+        return self._log
+
     def __repr__(self):
         return f"STA[{self._mac_addr}]"
 
@@ -156,7 +160,7 @@ class Station:
         if not self._rate_control_algorithm:
             return
 
-        self._log.info(
+        self._log.debug(
             f"{self}: Stop rate control algorithm '{self._rate_control_algorithm}', "
             f"options={self._rate_control_options}"
         )
@@ -199,7 +203,7 @@ class Station:
             if ap.get_radio_mode(self._radio) == "manual":
                 raise RateControlConfigError(self, rc_alg, f"{self._radio} not in auto mode")
 
-            self._log.info(f"{self}: Start rate control algorithm '{rc_alg}', options={rc_opts}")
+            self._log.debug(f"{self}: Start rate control algorithm '{rc_alg}', options={rc_opts}")
 
             self._rate_control_algorithm = rc_alg
             self._rate_control_options = rc_opts
@@ -215,7 +219,7 @@ class Station:
                 f"Rate control algorithm '{self._rate_control_algorithm}' must be stopped first"
             )
 
-        self._log.info(f"{self}: Start rate control algorithm '{rc_alg}', options={rc_opts}")
+        self._log.debug(f"{self}: Start rate control algorithm '{rc_alg}', options={rc_opts}")
     
         rc = rate_control.load(rc_alg)
 
