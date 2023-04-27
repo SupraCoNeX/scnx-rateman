@@ -205,8 +205,8 @@ class Station:
             self._rate_control_options = rc_opts
             return
 
-        # elif ap.get_radio_mode(self._radio) == "auto":
-        #     raise RateControlConfigError(self, rc_alg, f"PHY '{self._radio}' not in manual mode")
+        elif ap.get_radio_mode(self._radio) == "auto":
+            raise RateControlConfigError(self, rc_alg, f"PHY '{self._radio}' not in manual mode")
 
         elif self._rate_control_algorithm != None:
             raise RateControlConfigError(

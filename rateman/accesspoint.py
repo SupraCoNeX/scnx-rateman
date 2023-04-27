@@ -378,12 +378,12 @@ class AccessPoint:
                 f"{self._name}: {'En' if enable else 'Dis'}abling RC info for all radios"
             )
             for radio in self._radios:
-                self.send(f"{radio};{'start' if enable else 'stop'};txs;rxs;stats")
+                self.send(f"{radio};{'start;txs;rxs;stats' if enable else 'stop'}")
         elif radio in self._radios:
             self._logger.debug(
                 f"{self._name}:{radio}: {'En' if enable else 'Dis'}abling RC info"
             )
-            self.send(f"{radio};{'start' if enable else 'stop'};txs;rxs;stats")
+            self.send(f"{radio};{'start;txs;rxs;stats' if enable else 'stop'}")
 
     def dump_stas(self, radio="all"):
         if radio == "all":
