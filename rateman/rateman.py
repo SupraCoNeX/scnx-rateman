@@ -264,7 +264,7 @@ class RateMan:
                     elif fields[3] == "remove":
                         sta = ap.remove_station(mac=fields[4], radio=fields[0])
                         if sta:
-                            sta.stop_rate_control()
+                            await sta.stop_rate_control()
                 self.execute_callbacks(ap, fields)
         except (IOError, ConnectionError):
             ap.connected = False
@@ -298,7 +298,7 @@ class RateMan:
             ap.set_rc_info(False)
             for radio in ap.radios:
                 for sta in ap.get_stations(radio):
-                    sta.stop_rate_control()
+                    await sta.stop_rate_control()
 
                 ap.enable_auto_mode(radio)
 

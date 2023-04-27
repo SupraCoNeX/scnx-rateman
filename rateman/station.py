@@ -156,7 +156,7 @@ class Station:
     def __repr__(self):
         return f"STA[{self._mac_addr}]"
 
-    def stop_rate_control(self):
+    async def stop_rate_control(self):
         if not self._rate_control_algorithm:
             return
 
@@ -168,8 +168,8 @@ class Station:
         if self._rc:
             self._rc.cancel()
             try:
-                self._loop.run_until_complete(self._rc)
-            except:
+                await self._rc
+            except asyncio.CancelledError:
                 pass
 
         self._rc = None

@@ -47,7 +47,7 @@ def process_phy_info(ap, fields):
 
     return True
 
-def process_sta_info(ap, fields):
+async def process_sta_info(ap, fields):
     # TODO: handle sta;update
     if fields[3] in ["add", "dump"]:
         sta = parse_sta(ap, fields)
@@ -60,8 +60,7 @@ def process_sta_info(ap, fields):
     elif fields[3] == "remove":
         sta = ap.remove_station(mac=fields[4], radio=fields[0])
         if sta:
-            sta.stop_rate_control()
-
+            await sta.stop_rate_control()
 
 async def process_header(ap):
     try:
@@ -74,7 +73,7 @@ async def process_header(ap):
             elif "0;add" in line:
                 process_phy_info(ap, fields)
             else:
-                process_sta_info(ap, fields)
+                await process_sta_info(ap, fields)
     except asyncio.CancelledError:
         await ap.stop_task()
         await ap.disconnect()
