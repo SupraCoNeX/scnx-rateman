@@ -344,6 +344,7 @@ class AccessPoint:
         self._writer.close()
         await self._writer.wait_closed()
         self._writer = None
+        self._connected = False
 
     def apply_system_config(self, radio="all", new_config=None):
         if radio == "all":
