@@ -58,27 +58,27 @@ _Note: `mp` stands for `phy0` or `phy1`. `mi` stands for a station (MAC address)
 
 ### How to setup a connection to `minstrel-rcd`?
 
-In this subsection, we provide a list of steps to communicate with the rate control API, monitor default rate control algorithm and perform MCS rate setting on your router. In this example, the router IP address is 10.10.200.2
+In this subsection, we provide a list of steps to communicate with the rate control API, monitor default rate control algorithm, and perform MCS rate setting on your router. In this example, the router IP address is 10.10.200.2
 
   1. In terminal T1, connect to router via a SSH connection
   ```
   ssh root@10.10.200.2
   ```
   
-  2. In terminal T1, enable `minstrel-rcd`. This opens a connection for other programmes to use the rate control API.
+  2. In terminal T1, enable `minstrel-rcd`. This opens a socket for other programmes to use the rate control API.
   ```
   minstrel-rcd -h 0.0.0.0 &
   ``` 
   We can use this connection to access directories containing specific information relevant to rate control.
   
-  3. In another terminal (T2), start a TCP/IP connection via tool like telnet to communicate with the rate control API via minstrel-rcd. Minstrel-rcd operates over a designated port, in our case it is 21059.
+  3. In another terminal (T2), start a TCP/IP connection via a tool like telnet to communicate with the rate control API through `minstrel-rcd`. The `minstrel-rcd` operates on a dedicated port, in our case it is 21059.
   ```
   telnet 10.10.200.2 21059
   ```
-  On connection, the API will print all possible command options followed by a list of MCS gups available for the given router. 
+  After a connection is established, the API will print all possible command options, followed by a list of MCS groups supported by the WiFi cards in the router.
 
 ### Monitoring tasks
-For monitoring the status of a given access point, make sure the TCP/IP connection is established. The `txs` and/or `rcs` can be received by triggering the following example commands. These commands are handled over the radio interfaces of the access point which are typically denoted as `phy0`, `phy1` and so on. 
+For monitoring the status of a given access point, make sure the TCP/IP connection is established. The `txs` and/or `rcs` can be received by triggering the following example commands. These commands are handled over the radio interfaces of the access point which are typically denoted as `phy0`, `phy1` and so on.
 
 
 #### To trigger receiving the `txs`, run:
