@@ -214,6 +214,14 @@ def validate_best_rates(fields):
     # TODO: more validation?
     return fields
 
+def validate_sample_rates(fields):
+    if len(fields) != 19:
+        return None
+
+    # TODO: more validation?
+    return fields
+
+
 
 VALIDATORS = {
     "txs": validate_txs,
@@ -221,6 +229,7 @@ VALIDATORS = {
     "rxs": validate_rxs,
     "sta": validate_sta,
     "best_rates": validate_best_rates,
+    "sample_rates": validate_sample_rates
 }
 
 
