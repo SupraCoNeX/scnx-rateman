@@ -85,7 +85,7 @@ class RateMan:
         if name in self._tasks:
             self._tasks.remove(name)
 
-    def add_accesspoint(self, ap, connect=False):
+    def add_accesspoint(self, ap):
         mac = ap._addr
 
         if mac in self._accesspoints:
@@ -236,7 +236,7 @@ class RateMan:
         ----------
         ap : AccessPoint
             The AP to receive the data from.
-        reconnect_delay : float
+        reconnect_timeout : float
             Seconds to wait before attempting to reconnect to a disconnected AP.
         Returns
         -------

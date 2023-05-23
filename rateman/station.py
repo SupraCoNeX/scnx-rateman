@@ -43,7 +43,7 @@ class Station:
         mac_addr : str
             MAC address of the station.
         supp_rates : list
-            List of MCS rates supported by the station.
+            MCS rates supported by the station.
         timestamp : str
             Timestamp in hex at which the station connected to the AP.
         """
@@ -61,7 +61,7 @@ class Station:
         self._ampdu_packets = 0
         self._ampdu_len = 0
         self._avg_ampdu_len = 0
-        self._stats = {}
+        self._stats = dict.fromkeys(supp_rates, {"attempts": 0, "success": 0, "timestamp": timestamp})
         self._rssi = 1
         self._rssi_vals = []
         self._rate_control_algorithm = rc_alg

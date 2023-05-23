@@ -16,7 +16,7 @@ import sys
 import os
 import logging
 from .station import Station
-from .exception import RadioConfigError
+from .exception import RadioConfigError, AccessPointNotConnectedError
 
 __all__ = ["AccessPoint", "from_file", "from_strings"]
 
@@ -68,17 +68,6 @@ class AccessPoint:
                 continue
             except asyncio.TimeoutError:
                 return
-
-        # async for data in self._reader:
-        #     try:
-        #         line = data.decode("utf-8").rstrip()
-        #         if line.startswith("*") or ";0;add" in line or "sta;dump" in line:
-        #             yield line
-        #         else:
-        #             self._first_non_header_line = line
-        #             raise StopAsyncIteration
-        #     except UnicodeError:
-        #         continue
 
     async def rc_data(self):
         if self._first_non_header_line:
@@ -250,7 +239,7 @@ class AccessPoint:
             self._radios[sta.radio]["stations"]["active"][sta.mac_addr] = sta
             sta.accesspoint = self
 
-    def remove_station(self, mac: str, radio: str) -> None:
+    def remove_station(self, mac: str, radio: str) -> rateman.Station:
         try:
             sta = self._radios[radio]["stations"]["active"].pop(mac)
         except KeyError:
@@ -259,7 +248,7 @@ class AccessPoint:
         sta.radio = None
         sta.accesspoint = None
         self._radios[radio]["stations"]["inactive"][mac] = sta
-        self._logger.debug(f"Removed {sta}")
+        self._logger.debug(f"{self._name}:{sta.radio}: Removed {sta}")
         return sta
 
     def update_timestamp(self, timestamp_str):
@@ -283,7 +272,7 @@ class AccessPoint:
 
     def send(self, cmd: str):
         if not self.connected:
-            raise NotConnectedException(f"{self._name}: Cannot send '{cmd}': Not Connected")
+            raise AccessPointNotConnectedError(self, f"Cannot send '{cmd}'")
         self._last_cmd = cmd
         if cmd[-1] != "\n":
             cmd += "\n"
@@ -356,7 +345,7 @@ class AccessPoint:
             return
 
         if not self._connected:
-            raise NotConnectedException(f"{self._name}: Not Connected")
+            raise AccessPointNotConnectedError(self, "Cannot apply system config")
 
         if new_config:
             self._radios[radio]["config"] = new_config
@@ -401,7 +390,7 @@ class AccessPoint:
         if radio not in self._radios:
             return
 
-        self._logger.debug(f"{radio}:debugfs: setting {path}={value}")
+        self._logger.debug(f"{self._name}:{radio}: debugfs: setting {path}={value}")
         self.send(f"{radio};debugfs;{path};{value}")
 
     def mt76_force_rate_retry(self, enable, radio="all"):
@@ -519,10 +508,6 @@ class AccessPoint:
         if group_ind not in self._supp_rates:
             self._supp_rates.update({group_ind: group_info})
 
-
-class NotConnectedException(Exception):
-    def __init__(self, msg):
-        super().__init__(msg)
 
 
 def from_file(file: dir, logger=None):
