@@ -298,7 +298,7 @@ class AccessPoint:
         self._task = None
         return t
 
-    async def connect(self, dump_stas=True, enable_manual_mode=True):
+    async def connect(self, dump_stas=True):
         if self._connected:
             return
 

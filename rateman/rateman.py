@@ -80,101 +80,70 @@ class RateMan:
         self._logger.debug(f"starting task '{name}'")
 
         task = self._loop.create_task(coro, name=name)
+        task.add_done_callback(self.remove_task)
         self._tasks.append(task)
+        return task
 
-    def remove_task(self, name):
-        if name in self._tasks:
-            self._tasks.remove(name)
+    def remove_task(self, task):
+        if task in self._tasks:
+            self._tasks.remove(task)
 
     def add_accesspoint(self, ap):
-        mac = ap._addr
-
-        if mac in self._accesspoints:
+        if ap._addr in self._accesspoints:
             return
 
-        self._accesspoints[mac] = ap
+        self._accesspoints[ap._addr] = ap
 
-    async def initialize(self, timeout=5):
-        # connect to APs
-        tasks = [
-            ap.start_task(ap.connect(), name=f"connect_{ap.name}")
-            for _,ap in self._accesspoints.items()
-        ]
-        _,pending = await asyncio.wait(tasks, timeout=timeout)
-
-        if len(pending) != 0:
-            for task in pending:
-                task.cancel()
-            await asyncio.wait(pending)
-
-        # parse info header
-        tasks = [
-            ap.start_task(process_header(ap), name=f"parse_api_info_{ap.name}")
-            for _,ap in self._accesspoints.items() if ap.connected
-        ]
-        _,pending = await asyncio.wait(tasks, timeout=timeout)
-        if len(pending) != 0:
-            for task in pending:
-                task.cancel()
-            await asyncio.wait(pending)
-
-        for _,ap in self._accesspoints.items():
-            if not ap.connected:
-                self._logger.warning(f"Connection to {ap} could not be established")
-            else:
-                ap.start_task(
-                    self.rcd_connection(ap, reconnect_timeout=5),
-                    name=f"rcd_{ap.name}"
-                )
-
-    async def connect_ap(self, ap, delay=None, skip_api_header=False):
-        """
-        Attempt to connect to the given AP after waiting delay seconds.
-        On successful connection a data collection task is scheduled.
-
-        Parameters
-        ----------
-        ap : AccessPoint
-            The AP to connect to.
-        delay : float
-            How many seconds to wait before attempting the connection.
-        skip_api_header : bool
-            If set to True, the API info header will be ignored during the
-            connection process.
-        """
         if not ap.loop:
             ap.loop = self._loop
 
+    async def initialize(self, timeout=5):
+        """
+        Establish connections to acess points and process the information they
+        provide. When this function returns, rateman has created representations
+        of the accesspoints' radios, their state and capabilities, virtual
+        interfaces, and connected stations.
+
+        Parameters
+        ----------
+        timeout : int
+            The timeout for the connection attempt. This is also the time that rateman will wait
+            before making a new connection attempt.
+        """
+
+        await asyncio.wait([
+            self.add_task(self.connect_ap(ap, timeout=timeout))
+            for _,ap in self._accesspoints.items()
+        ])
+
+        for _,ap in self._accesspoints.items():
+            if not ap.connected:
+                self._logger.warning(
+                    f"Connection to {ap} could not be established. Retrying in {timeout}s"
+                )
+
+    async def connect_ap(self, ap, timeout=5):
+        try:
+            async with asyncio.timeout(timeout):
+                await ap.start_task(ap.connect(), f"connect_{ap.name}")
+                if not ap.connected:
+                    return
+
+                await ap.start_task(process_header(ap), f"parse_api_info_{ap.name}")
+                ap.start_task(self.rcd_connection(ap), f"rcd_{ap.name}")
+        except (IOError, ConnectionError, asyncio.TimeoutError):
+            ap.connected = False
+            await self.reconnect_ap(ap, timeout)
+        except asyncio.CancelledError as e:
+            if ap.connected:
+                await ap.disconnect()
+            raise e
+
+    async def reconnect_ap(self, ap, delay):
         if delay:
             await asyncio.sleep(delay)
 
-        self._accesspoints[ap.name] = ap
-
-        while not ap.connected:
-            try:
-                await ap.connect()
-                if not ap.connected:
-                    await asyncio.sleep(1)
-            except asyncio.CancelledError:
-                break
-
-        if not skip_api_header:
-            await asyncio.wait_for(process_header(ap), timeout=2)
-
-        for radio in ap.radios:
-            ap.dump_stas(radio)
-            ap.set_rc_info(True, radio)
-
-        self.add_task(
-            self.rcd_connection(ap, reconnect_timeout=5),
-            name=f"rcd_{ap.name}",
-        )
-
-    def reconnect_ap(self, ap, delay):
-        self.add_task(
-            self.connect_ap(ap, delay=delay),
-            name=f"reconnect_{ap.name}",
-        )
+        self.add_task(self.connect_ap(ap), name=f"reconnect_{ap.name}")
 
     def add_raw_data_callback(self, cb, context=None):
         """
@@ -270,7 +239,7 @@ class RateMan:
         except (IOError, ConnectionError):
             ap.connected = False
             self._logger.error(f"Disconnected from {ap.name}")
-            self.reconnect_ap(ap, reconnect_timeout)
+            await self.reconnect_ap(ap, reconnect_timeout)
         except asyncio.CancelledError as e:
             raise e
 
