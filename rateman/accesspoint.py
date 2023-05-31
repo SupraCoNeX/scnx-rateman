@@ -54,10 +54,8 @@ class AccessPoint:
         it = aiter(self._reader)
         while True:
             try:
-                # TODO: as soon as we support python 3.11 this should be done with a async with asyncio.timeout()
-                t = self._loop.create_task(anext(it))
-                await asyncio.wait_for(t, timeout)
-                line = t.result().decode("utf-8").rstrip()
+                async with asyncio.timeout(timeout):
+                    line = (await anext(it)).decode("utf-8").rstrip()
 
                 if line.startswith("*") or ";0;add" in line or "sta;dump" in line:
                     yield line
