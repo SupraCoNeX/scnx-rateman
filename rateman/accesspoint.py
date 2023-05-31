@@ -237,7 +237,7 @@ class AccessPoint:
             self._radios[sta.radio]["stations"]["active"][sta.mac_addr] = sta
             sta.accesspoint = self
 
-    def remove_station(self, mac: str, radio: str) -> rateman.Station:
+    def remove_station(self, mac: str, radio: str) -> Station:
         try:
             sta = self._radios[radio]["stations"]["active"].pop(mac)
         except KeyError:
