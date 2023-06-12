@@ -149,7 +149,7 @@ def process_line(ap, line):
     line_type = fields[2]
 
     if line_type == "txs":
-        update_pckt_count_txs(ap, fields)
+        update_pkt_cnt(ap, fields[3], radio=fields[0])
     elif line_type == "rxs":
         sta = ap.get_sta(fields[3], radio=fields[0])
         if sta:
@@ -237,33 +237,12 @@ VALIDATORS = {
     "sample_rates": validate_sample_rates
 }
 
-
-def update_pckt_count_txs(ap, fields):
-    """
-    Update packet transmission attempt and success counts for a given station.
-
-    Parameters
-    ----------
-    ap : AccessPoint object
-
-    fields : list
-                                    Fields obtained by spliting a data line received from the AP
-                                    over the Rate Control API .
-
-    """
-    radio = fields[0]
-    mac_addr = fields[3]
-
-    sta = None
-    for s in ap.get_stations(radio):
-        if s.mac_addr == mac_addr:
-            sta = s
-            break
-
+def update_pkt_cnt(ap, macaddr: str, radio: str) -> None:
+    sta = ap.get_sta(macaddr, radio=radio)
     if not sta:
         return
 
-    timestamp = fields[1]
+    timestamp = int(fields[1], 16)
     num_frames = int(fields[4], 16)
     num_ack = int(fields[5], 16)
     probe_flag = int(fields[6], 16)

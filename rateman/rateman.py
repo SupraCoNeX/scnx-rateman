@@ -112,7 +112,7 @@ class RateMan:
         """
 
         await asyncio.wait([
-            self.add_task(self.connect_ap(ap, timeout=timeout))
+            self.add_task(self.connect_ap(ap, timeout=timeout), name=f"connect_{ap.name}")
             for _,ap in self._accesspoints.items()
         ])
 
@@ -154,7 +154,7 @@ class RateMan:
 
     def add_data_callback(self, cb, type="any", context=None):
         """
-        Register a callback to be called on incoming data.
+        Register a callback to be called on incoming event data
 
         Parameters
         ----------
@@ -197,21 +197,17 @@ class RateMan:
         for (cb, ctx) in self._data_callbacks[fields[2]]:
             cb(ap, *fields, context=ctx)
 
-    async def rcd_connection(self, ap, reconnect_timeout=10):
+    async def rcd_connection(self, ap, reconnect_timeout=10.0):
         """
         Receive data from an instance of minstrel-rcd. Reconnect if connection
         is lost.
 
         Parameters
         ----------
-        ap : AccessPoint
-            The AP to receive the data from.
+        ap : rateman.accesspoint.AccessPoint
+            The access point from which the data should be received
         reconnect_timeout : float
             Seconds to wait before attempting to reconnect to a disconnected AP.
-        Returns
-        -------
-        None.
-
         """
 
         self._logger.debug(f"Starting RC data collection from {ap}")
@@ -245,9 +241,9 @@ class RateMan:
 
     async def stop(self):
         """
-        Gracefully stop all asyncio tasks created and executed by RateMan and
-        close all file objects.
-
+        Stop all running tasks and disconnect from all accesspoints. Kernel rate
+        control will be enabled for all of the access points' stations prior to
+        disconnection.
         """
         self._logger.debug("Stopping RateMan")
 
@@ -278,78 +274,3 @@ class RateMan:
             self._loop.close()
 
         self._logger.debug("RateMan stopped")
-
-if __name__ == "__main__":
-
-    def parse_aps(apstrs):
-        aps = []
-
-        for apstr in apstrs:
-            fields = apstr.split(":")
-            if len(fields) < 2:
-                print(f"Inval access point: '{apstr}'", file=sys.stderr)
-                continue
-
-            name = fields[0]
-            addr = fields[1]
-
-            try:
-                rcd_port = int(fields[2])
-            except (IndexError, ValueError):
-                rcd_port = 21059
-
-            aps.append(AccessPoint(name, addr, rcd_port))
-
-        return aps
-
-    # Exec: python rateman.py minstrel_ht_user_space AP1:192.168.23.4 AP2:192.46.34.23 -A ../../demo/sample_ap_lists/local_test.csv
-    arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument(
-        "algorithm",
-        type=str,
-        choices=["minstrel_ht_kernel_space", "minstrel_ht_user_space"],
-        default="minstrel_ht_kernel_space",
-        help="Rate control algorithm to run.",
-    )
-    arg_parser.add_argument(
-        "-A",
-        "--ap-file",
-        metavar="AP_FILE",
-        type=str,
-        help="Path to a csv file where each line contains information about an access point "
-        + "in the format: NAME,ADDR,RCDPORT.",
-    )
-    arg_parser.add_argument(
-        "accesspoints",
-        metavar="AP",
-        nargs="*",
-        type=str,
-        help="Accesspoint to connecto to. Format: 'NAME:ADDR:RCDPORT'. "
-        + "RCDPORT is optional and defaults to 21059.",
-    )
-    args = arg_parser.parse_args()
-    aps = parse_aps(args.accesspoints)
-
-    if args.ap_file:
-        aps += accesspoint.from_file(args.ap_file)
-
-    if len(aps) == 0:
-        print("ERROR: No accesspoints given", file=sys.stderr)
-        sys.exit(1)
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    print("Running rateman...")
-    rateman = RateMan(aps, loop=loop)
-
-    # add a simple print callback to see the incoming data
-    rateman.add_data_callback(lambda ap, line, _: print(f"{ap.name}> '{line}'"))
-
-    try:
-        loop.run_forever()
-    except (OSError, KeyboardInterrupt):
-        print("Stopping...")
-    finally:
-        loop.run_until_complete(rateman.stop())
-        print("DONE")

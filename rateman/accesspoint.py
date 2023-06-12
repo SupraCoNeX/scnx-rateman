@@ -15,7 +15,7 @@ import csv
 import sys
 import os
 import logging
-from .station import Station
+
 from .exception import RadioConfigError, AccessPointNotConnectedError
 
 __all__ = ["AccessPoint", "from_file", "from_strings"]
@@ -185,18 +185,12 @@ class AccessPoint:
 
         return None
 
-    def get_radio_mode(self, radio):
-        return self._radios[radio]["mode"]
-
-    def add_radio(
-        self,
-        radio: str,
-        driver: str,
-        rc_alg=None,
-        rc_opts=None,
-        cfg=None,
-    ) -> None:
-        self._logger.debug(f"{self._name}: adding radio '{radio}', driver={driver}")
+    def add_radio(self, radio: str, driver: str, ifaces: list, tpc: dict, rc_alg=None, rc_opts=None,
+                  cfg=None) -> None:
+        self._logger.debug(
+            f"{self._name}: adding radio '{radio}', driver={driver}, "
+            f"interfaces={','.join(ifaces)}, tpc={tpc}"
+        )
 
         if radio not in self._radios:
             self.radios[radio] = {}
@@ -230,14 +224,13 @@ class AccessPoint:
 
         return None
 
-    def add_station(self, sta: Station) -> bool:
+    def add_station(self, sta) -> bool:
         if sta.mac_addr not in self._radios[sta.radio]["stations"]["active"]:
             self._logger.debug(f"{self._name}:{sta.radio}: Adding {sta}")
 
             self._radios[sta.radio]["stations"]["active"][sta.mac_addr] = sta
-            sta.accesspoint = self
 
-    def remove_station(self, mac: str, radio: str) -> Station:
+    def remove_station(self, mac: str, radio: str):
         try:
             sta = self._radios[radio]["stations"]["active"].pop(mac)
         except KeyError:
@@ -400,50 +393,6 @@ class AccessPoint:
 
         if "mt76" in self._radios[radio]["driver"]:
             self.debugfs_set("mt76/force_rate_retry", 1 if enable else 0, radio)
-
-    def enable_manual_mode(self, radio="all") -> None:
-        if radio == "all":
-            for radio in self._radios:
-                self.enable_manual_mode(radio=radio)
-
-            return
-
-        if radio not in self._radios or self._radios[radio]["mode"] == "manual":
-            return
-
-        self._logger.debug(f"{self._name}:{radio}: Enabling manual mode")
-        self.send(f"{radio};manual")
-        self._radios[radio]["mode"] = "manual"
-
-    def enable_auto_mode(self, radio="all") -> None:
-        if radio == "all":
-            for radio in self._radios:
-                self.enable_auto_mode(radio=radio)
-
-            return
-
-        if radio not in self._radios or self._radios[radio]["mode"] == "auto":
-            return
-
-        stas_with_manual_rc = [
-            sta for sta in self.get_stations(radio)
-            if (sta.rate_control[0] and sta.rate_control[0] != "minstrel_ht_kernel_space")
-        ]
-
-        if len(stas_with_manual_rc) != 0:
-            raise RadioConfigError(
-                self, radio,
-                f"Cannot enable auto mode because of STAs with manual RC: "
-                f"{', '.join([str(s) for s in stas_with_manual_rc])}"
-            )
-
-        self._logger.debug(f"{self._name}:{radio}: Enabling auto mode")
-
-        self.send(f"{radio};auto")
-        self._radios[radio]["mode"] = "auto"
-
-        for sta in self.get_stations(radio):
-            sta.start_rate_control("minstrel_ht_kernel_space", {})
 
     def set_sensitivity_control(self, enable: bool, radio="all") -> None:
         if radio == "all":
