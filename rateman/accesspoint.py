@@ -203,19 +203,11 @@ class AccessPoint:
 
         self._radios[radio].update({
             "driver": driver,
-            "interfaces": [],
-            "mode": "auto", # FIXME: minstrel-rcd should tell us which mode the phy is in
+            "interfaces": ifaces,
+            "tpc": tpc,
             "config": cfg,
             "stations": {"active": {}, "inactive": {}},
         })
-
-    def add_interface(self, radio: str, iface: str) -> None:
-        if radio in self._radios and iface in self._radios[radio]["interfaces"]:
-            return
-
-        self._logger.debug(f"{self._name}:{radio}: adding interface '{iface}'")
-
-        self._radios[radio]["interfaces"].append(iface)
 
     def radio_for_interface(self, iface: str) -> str:
         for radio in self._radios:
@@ -261,13 +253,18 @@ class AccessPoint:
 
         return False
 
-    def send(self, cmd: str):
+    def send(self, radio: str, cmd: str):
         if not self.connected:
             raise AccessPointNotConnectedError(self, f"Cannot send '{cmd}'")
+
+        if radio != "*" and radio not in self._radios:
+            raise ValueError(f"{self}: Unknown radio '{radio}'")
+
         self._last_cmd = cmd
         if cmd[-1] != "\n":
             cmd += "\n"
-        self._writer.write(cmd.encode("ascii"))
+
+        self._writer.write(f"{radio};{cmd}".encode("ascii"))
 
     def handle_error(self, error):
         self._logger.error(f"{self._name}: Error '{error}', last command='{self._last_cmd}'")
@@ -358,19 +355,15 @@ class AccessPoint:
             self._logger.debug(
                 f"{self._name}: {'En' if enable else 'Dis'}abling RC info for all radios"
             )
-            for radio in self._radios:
-                self.send(f"{radio};{'start;txs;rxs;stats' if enable else 'stop'}")
+            self.send("*", "start;txs;rxs;stats" if enable else "stop")
         elif radio in self._radios:
-            self._logger.debug(
-                f"{self._name}:{radio}: {'En' if enable else 'Dis'}abling RC info"
-            )
-            self.send(f"{radio};{'start;txs;rxs;stats' if enable else 'stop'}")
+            self._logger.debug(f"{self._name}:{radio}: {'En' if enable else 'Dis'}abling RC info")
+            self.send(radio, "start;txs;rxs;stats" if enable else "stop")
 
     def dump_stas(self, radio="all"):
         if radio == "all":
-            self.send("*;dump")
-        else:
-            self.send(f"{radio};dump")
+            radio = "*"
+        self.send(radio, "dump")
 
     def debugfs_set(self, path, value, radio="all"):
         if radio == "all":
@@ -382,7 +375,7 @@ class AccessPoint:
             return
 
         self._logger.debug(f"{self._name}:{radio}: debugfs: setting {path}={value}")
-        self.send(f"{radio};debugfs;{path};{value}")
+        self.send(radio, f"debugfs;{path};{value}")
 
     def mt76_force_rate_retry(self, enable, radio="all"):
         if radio == "all":
@@ -412,50 +405,58 @@ class AccessPoint:
         val = 1 if enable else 0
 
         if self._radios[radio]["driver"] == "ath9k":
-            self.send(f"{radio};debugfs;ath9k/ani;{val}")
+            self.send(radio, f"debugfs;ath9k/ani;{val}")
         elif self._radios[radio]["driver"] == "mt76":
-            self.send(f"{radio};debugfs;mt76/scs;{val}")
+            self.send(radio, f"debugfs;mt76/scs;{val}")
 
     def reset_kernel_rate_stats(self, radio="all", sta="all") -> None:
-        if radio == "all":
-            for radio in self._radios:
-                self.reset_rate_stats(radio)
-
-            return
-
-        if radio not in self._radios:
+        if radio in ["*", "all"]:
+            radio = "*"
+        elif radio not in self._radios:
             return
 
         if sta == "all":
             self._logger.debug(f"{self._name}:{radio}: Resetting in-kernel rate statistics")
-            self.send(f"{radio};reset_stats")
+            self.send(radio, f"reset_stats")
         elif sta in self._radios[radio]["stations"]["active"]:
             self._logger.debug(f"{self._name}:{radio}:{sta}: Resetting in-kernel rate statistics")
-            self.send(f"{radio};reset_stats;{sta}")
-
-    def set_rate(self, radio, mac, mrr_rates, mrr_counts) -> None:
-        if len(mrr_rates) != len(mrr_counts):
-            raise ValueError("The number of rates and counts must be identical!")
-
-        mrr_rates = ["0" if mrr_rate == "00" else mrr_rate for mrr_rate in mrr_rates]
-
-        if len(mrr_rates) == 1:
-            rates = mrr_rates[0]
-            counts = mrr_counts[0]
-        else:
-            rates = ",".join([str(r) for r in mrr_rates])
-            counts = ",".join([str(c) for c in mrr_counts])
-
-        self.send(f"{radio};rates;{mac};{rates};{counts}")
-
-    def set_probe_rate(self, radio, mac, rate) -> None:
-        self.send(f"{radio};probe;{mac};{rate}")
+            self.send(radio, f"reset_stats;{sta}")
 
     def add_supp_rates(self, group_ind, group_info):
         if group_ind not in self._supp_rates:
             self._supp_rates.update({group_ind: group_info})
 
+    def _set_all_stations_mode(self, radio, which, mode):
+        if mode not in ["manual", "auto"]:
+            raise ValueError(f"Invalid mode '{mode}', must be either 'manual' or 'auto'")
 
+        self._logger.debug(f"{self._name}:{radio}: Setting {which} for all stations to {mode}")
+
+        self.send(radio, f"{which};all;{mode}")
+
+        if radio == "*":
+            for r in self._radios:
+                for sta in self.get_stations(r):
+                    if which == "rc_mode":
+                        sta._rc_mode = mode
+                    else:
+                        sta._tpc_mode = mode
+        else:
+            for sta in self.get_stations(radio):
+                if which == "rc_mode":
+                    sta._rc_mode = mode
+                else:
+                    sta._tpc_mode = mode
+
+    def set_all_stations_rc_mode(self, mode: str, radio="*") -> None:
+        self._set_all_stations_mode(radio, "rc_mode", mode)
+
+    def set_all_stations_tpc_mode(self, mode: str, radio="*") -> None:
+        self._set_all_stations_mode(radio, "tpc_mode", mode)
+
+    def enable_tprc_echo(self, enable: bool, radio="*") -> None:
+        action = "start" if enable else "stop"
+        self.send(radio, f"{action};tprc_echo")
 
 def from_file(file: dir, logger=None):
     def parse_ap(ap):

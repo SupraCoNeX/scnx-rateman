@@ -10,7 +10,6 @@ import logging
 import asyncio
 import importlib
 import csv
-from .accesspoint import AccessPoint
 from .parsing import *
 
 __all__ = ["RateMan"]
@@ -266,7 +265,8 @@ class RateMan:
                 for sta in ap.get_stations(radio):
                     await sta.stop_rate_control()
 
-                ap.enable_auto_mode(radio)
+            ap.set_all_stations_rc_mode("auto")
+            ap.set_all_stations_tpc_mode("auto")
 
             await ap.disconnect()
 
