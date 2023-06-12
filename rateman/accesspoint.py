@@ -314,12 +314,17 @@ class AccessPoint:
 
         self._logger.debug(f"{self._name}: Connected at {self._addr}:{self._rcd_port}")
 
-    async def disconnect(self):
+    async def disconnect(self, timeout=3.0):
         if not self._writer:
             return
 
         self._writer.close()
-        await self._writer.wait_closed()
+        try:
+            async with asyncio.timeout(timeout):
+                await self._writer.wait_closed()
+        except asyncio.TimeoutError:
+            self._logger.warning(f"{self._name}: did not disconnect within {timeout}s")
+
         self._writer = None
         self._connected = False
 
