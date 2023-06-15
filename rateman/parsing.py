@@ -180,9 +180,6 @@ async def process_line(ap, line):
 COMMANDS = [
     "start",
     "stop",
-    "auto",
-    "manual",
-    "rates", # TODO: this is deprecated and should be removed soon
     "set_rates",
     "set_power",
     "set_rates_power",

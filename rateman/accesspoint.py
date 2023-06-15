@@ -216,6 +216,9 @@ class AccessPoint:
 
         return None
 
+    def get_txpowers(self, radio: str) -> list:
+        return self._radios[radio]["tpc"]["txpowers"]
+
     def add_station(self, sta) -> bool:
         if sta.mac_addr not in self._radios[sta.radio]["stations"]["active"]:
             self._logger.debug(f"{self._name}:{sta.radio}: Adding {sta}")

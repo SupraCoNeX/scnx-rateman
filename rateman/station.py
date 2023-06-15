@@ -68,7 +68,13 @@ class Station:
         self._ampdu_packets = 0
         self._ampdu_len = 0
         self._avg_ampdu_len = 0
-        self._stats = dict.fromkeys(supp_rates, {"attempts": 0, "success": 0, "timestamp": timestamp})
+        self._stats = dict.fromkeys(
+            supp_rates,
+            dict.fromkeys(
+                [-1] + ap.get_txpowers(radio),
+                {"attempts": 0, "success": 0, "timestamp": timestamp}
+            )
+        )
         self._rssi = 1
         self._rssi_vals = []
         self._rate_control_algorithm = rc_alg
@@ -245,11 +251,23 @@ class Station:
     def lowest_supp_rate(self):
         return self._supp_rates[0]
 
+    def reset_rate_stats(self, rate):
+        if rate in self._stats:
+            for txpwr in self._stats[rate]:
+                self._stats[rate][txpwr] = {
+                    "attempts": 0,
+                    "success": 0,
+                    "timestamp": 0
+                }
+
     def update_rate_stats(self, timestamp: int, rate: str, txpwr: int, atmpts: int, succ: int):
         if timestamp < self._last_seen:
             return
 
         self._last_seen = timestamp
+
+        if not txpwr:
+            txpwr = -1
 
         if rate not in self._stats:
             self._stats[rate] = {}
@@ -258,9 +276,19 @@ class Station:
                 "success": 0
             }
 
+        if txpwr not in self._stats[rate]:
+            return
+
         self._stats[rate][txpwr]["attempts"] += atmpts
         self._stats[rate][txpwr]["success"] += succ
 
+        # If the station is not in manual TPC mode, i.e., the driver decides on TX power, we
+        # also update the counters for the TX power index -1, which is the index to set for letting
+        # the driver make the transmit power decision. This is done because user space rate control
+        # algorithms that do not set TX power will fetch the
+        if self._tpc_mode == "auto":
+            self._stats[rate][-1]["attempts"] += atmpts
+            self._stats[rate][-1]["success"] += succ
 
     def update_rssi(self, timestamp, min_rssi, per_antenna):
         if timestamp > self._last_seen:
