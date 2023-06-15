@@ -329,6 +329,15 @@ class AccessPoint:
         if not self._writer:
             return
 
+        for radio in self._radios:
+            for sta in self.get_stations(radio):
+                rc_alg,_ = sta.rate_control
+                if rc_alg != "minstrel_ht_kernel_space":
+                    self._logger.warning(
+                        f"Disconnecting from {self} will leave {sta} without rate control"
+                    )
+                    await sta.stop_rate_control()
+
         self._writer.close()
         try:
             async with asyncio.timeout(timeout):
