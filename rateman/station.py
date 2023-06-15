@@ -216,7 +216,7 @@ class Station:
 
             self._rate_control_algorithm = rc_alg
             self._rate_control_options = rc_opts
-            return
+            return None
 
         elif self._rc_mode == "auto":
             raise RateControlConfigError(self, rc_alg, "Not in manual rate control mode")
@@ -241,6 +241,7 @@ class Station:
 
         return self._rc
 
+    @property
     def lowest_supp_rate(self):
         return self._supp_rates[0]
 
@@ -284,7 +285,7 @@ class Station:
         mode = "manual" if enable else "auto"
         self._accesspoint.send(self._radio, f"rc_mode;{self._mac_addr};{mode}")
         self._rc_mode = mode
-        self._log.debug(f"{self._name}: set rc_mode={mode}")
+        self._log.debug(f"{self}: set rc_mode={mode}")
 
     def set_manual_tpc_mode(self, enable: bool) -> None:
         if enable == self._tpc_mode == "manual":
@@ -293,7 +294,7 @@ class Station:
         mode = "manual" if enable else "auto"
         self._accesspoint.send(self._radio, f"tpc_mode;{self._mac_addr};{mode}")
         self._tpc_mode = mode
-        self._log.debug(f"{self._name}: set tpc_mode={mode}")
+        self._log.debug(f"{self}: set tpc_mode={mode}")
 
     def set_rates(self, rates: list, counts: list) -> None:
         if len(rates) != len(counts):

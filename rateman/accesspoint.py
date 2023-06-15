@@ -67,7 +67,7 @@ class AccessPoint:
             except asyncio.TimeoutError:
                 return
 
-    async def rc_data(self):
+    async def events(self):
         if self._first_non_header_line:
                 line = self._first_non_header_line
                 self._first_non_header_line = None
@@ -80,7 +80,7 @@ class AccessPoint:
                 continue
 
     def __repr__(self):
-        return f"{self._name}"
+        return f"AP[name={self._name}, addr={self._addr}:{self._rcd_port}]"
 
     @property
     def name(self) -> str:
@@ -183,7 +183,7 @@ class AccessPoint:
             sta = self._get_sta(mac, radio, "active")
             return sta if sta else self._get_sta(mac, radio, "inactive")
 
-        return None
+        return self._get_sta(mac, radio, state)
 
     def add_radio(self, radio: str, driver: str, ifaces: list, tpc: dict, rc_alg=None, rc_opts=None,
                   cfg=None) -> None:
@@ -283,12 +283,16 @@ class AccessPoint:
             return None
 
         self._task.cancel()
-        await self._task
+        try:
+            await self._task
+        except asyncio.CancelledError:
+            pass
+
         t = self._task
         self._task = None
         return t
 
-    async def connect(self, dump_stas=True):
+    async def connect(self, dump_stas=True, events_mask={"*": ["txs", "rxs", "stats"]}):
         if self._connected:
             return
 
@@ -301,10 +305,14 @@ class AccessPoint:
             # immediately send dump sta command so sta info can be parsed with api_info and phy info
             if dump_stas:
                 self.dump_stas()
-        except asyncio.CancelledError:
+
+            for radio, events in events_mask.items():
+                self.enable_events(events, radio=radio)
+
+        except asyncio.CancelledError as e:
             self._task = None
             self._connected = False
-            return
+            raise e
         except Exception as e:
             self._logger.error(
                 f"{self._name}: Failed to connect at {self._addr}:{self._rcd_port}: {e}"
@@ -327,6 +335,8 @@ class AccessPoint:
 
         self._writer = None
         self._connected = False
+
+        self._logger.debug(f"{self}: disconnected")
 
     def apply_system_config(self, radio="all", new_config=None):
         if radio == "all":
@@ -355,15 +365,17 @@ class AccessPoint:
         if "mt76_force_rate_retry" in cfg:
             self.mt76_force_rate_retry(cfg["mt76_force_rate_retry"], radio)
 
-    def set_rc_info(self, enable, radio="all"):
+    def enable_events(self, events: list, radio="all"):
         if radio == "all":
-            self._logger.debug(
-                f"{self._name}: {'En' if enable else 'Dis'}abling RC info for all radios"
-            )
-            self.send("*", "start;txs;rxs;stats" if enable else "stop")
-        elif radio in self._radios:
-            self._logger.debug(f"{self._name}:{radio}: {'En' if enable else 'Dis'}abling RC info")
-            self.send(radio, "start;txs;rxs;stats" if enable else "stop")
+            radio = "*"
+
+        self.send(radio, "start;" + ";".join(events))
+
+    def disable_events(self, events: list, radio="all"):
+        if radio == "all":
+            radio = "*"
+
+        self.send(radio, "stop;" + ";".join(events))
 
     def dump_stas(self, radio="all"):
         if radio == "all":
@@ -493,7 +505,7 @@ def from_strings(ap_strs, logger=None):
         addr = fields[1]
 
         try:
-            rcd_port = int(fields[3])
+            rcd_port = int(fields[2])
         except (IndexError, ValueError):
             rcd_port = 21059
 

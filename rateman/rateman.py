@@ -10,6 +10,7 @@ import logging
 import asyncio
 import importlib
 import csv
+
 from .parsing import *
 
 __all__ = ["RateMan"]
@@ -20,7 +21,7 @@ class RateMan:
         """
         Parameters
         ----------
-        loop : asyncio.BaseEventLoop, optional
+        loop : asyncio.BaseEventLoop
             The event loop to execute on. A new loop will be created if none is
             provided.
         logger : logging.Logger
@@ -118,7 +119,7 @@ class RateMan:
         for _,ap in self._accesspoints.items():
             if not ap.connected:
                 self._logger.warning(
-                    f"Connection to {ap} could not be established. Retrying in {timeout}s"
+                    f"Connection to {ap} could not be established during initialization."
                 )
 
     async def connect_ap(self, ap, timeout=5):
@@ -146,14 +147,14 @@ class RateMan:
 
     def add_raw_data_callback(self, cb, context=None):
         """
-        Register a callback to be called on unvalidated incoming data.
+        Register a callback to be called on unvalidated incoming event data.
         """
         if (cb, context) not in self._raw_data_callbacks:
             self._raw_data_callbacks.append((cb, context))
 
     def add_data_callback(self, cb, type="any", context=None):
         """
-        Register a callback to be called on incoming event data
+        Register a callback to be called on incoming event data.
 
         Parameters
         ----------
@@ -163,7 +164,7 @@ class RateMan:
             Which data to call the callback on. Valid options: _any, txs, stats,
             rxs, sta, best_rates,_ or _sample_rates_.
         context : object
-            Additional arguments to be passed to the callback on invocation.
+            Additional arguments to be passed to the callback function.
         """
         if type not in self._data_callbacks.keys():
             raise ValueError(type)
@@ -193,48 +194,32 @@ class RateMan:
         for (cb, ctx) in self._data_callbacks["any"]:
             cb(ap, fields, context=ctx)
 
-        for (cb, ctx) in self._data_callbacks[fields[2]]:
-            cb(ap, *fields, context=ctx)
+        try:
+            for (cb, ctx) in self._data_callbacks[fields[2]]:
+                cb(ap, *fields, context=ctx)
+        except KeyError:
+            return
 
     async def rcd_connection(self, ap, reconnect_timeout=10.0):
         """
-        Receive data from an instance of minstrel-rcd. Reconnect if connection
-        is lost.
+        Receive data from an instance of minstrel-rcd, update internal state
+        accordingly, and execute callbacks.
 
         Parameters
         ----------
         ap : rateman.accesspoint.AccessPoint
-            The access point from which the data should be received
-        reconnect_timeout : float
-            Seconds to wait before attempting to reconnect to a disconnected AP.
+            The access point
         """
-
-        self._logger.debug(f"Starting RC data collection from {ap}")
-        ap.set_rc_info(True)
-
         try:
-            async for line in ap.rc_data():
+            async for line in ap.events():
                 for (cb, ctx) in self._raw_data_callbacks:
                     cb(ap, line, context=ctx)
 
-                line_type, fields = process_line(ap, line)
-
+                fields = await process_line(ap, line)
                 if not fields:
                     continue
 
-                if line_type == "sta":
-                    # TODO: handle sta;update
-                    if fields[3] in ["add", "dump"]:
-                        ap.add_station(parse_sta(ap, fields))
-                    elif fields[3] == "remove":
-                        sta = ap.remove_station(mac=fields[4], radio=fields[0])
-                        if sta:
-                            await sta.stop_rate_control()
                 self.execute_callbacks(ap, fields)
-        except (IOError, ConnectionError):
-            ap.connected = False
-            self._logger.error(f"Disconnected from {ap.name}")
-            await self.reconnect_ap(ap, reconnect_timeout)
         except asyncio.CancelledError as e:
             raise e
 
@@ -254,19 +239,25 @@ class RateMan:
             except asyncio.CancelledError:
                 pass
 
-        self._logger.debug(f"Disconnecting APs")
-
         for _, ap in self._accesspoints.items():
             if not ap.connected:
                 continue
 
-            ap.set_rc_info(False)
+            await ap.stop_task()
+            ap.disable_events(["txs", "rxs", "stats"], radio="all")
+
+            stas = []
             for radio in ap.radios:
-                for sta in ap.get_stations(radio):
-                    await sta.stop_rate_control()
+                stas += ap.get_stations(radio)
+
+            for sta in stas:
+                await sta.stop_rate_control()
 
             ap.set_all_stations_rc_mode("auto")
             ap.set_all_stations_tpc_mode("auto")
+
+            for sta in stas:
+                sta.start_rate_control("minstrel_ht_kernel_space", {})
 
             await ap.disconnect()
 

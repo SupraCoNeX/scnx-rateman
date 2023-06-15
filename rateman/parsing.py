@@ -38,15 +38,13 @@ def process_api(ap, fields):
     if len(fields) < 4:
         return
 
-    line_type = fields[2]
-
-    if line_type == "orca_version":
-        check_orca_version(ap, int(fields[3]))
-    if line_type == "group":
-        group_ind, group_info = parse_group_info(fields)
-        ap.add_supp_rates(group_ind, group_info)
-    elif line_type == "sample_table":
-        ap.sample_table = fields[5:]
+    match fields[2]:
+        case "orca_version":
+            check_orca_version(ap, int(fields[3]))
+        case "group":
+            ap.add_supp_rates(*parse_group_info(fields))
+        case "sample_table":
+            ap.sample_table = fields[5:]
 
 def parse_tpc_range_block(blk: list) -> list:
     fields = blk.split(",")
@@ -109,20 +107,16 @@ async def process_sta_info(ap, fields):
             await sta.stop_rate_control()
 
 async def process_header(ap):
-    try:
-        async for line in ap.api_info():
-            fields = line.split(";")
-            if fields[0] == "*":
-                if fields[2] == "#error":
-                    ap.handle_error(fields[3])
-                process_api(ap, fields)
-            elif "0;add" in line:
-                process_phy_info(ap, fields)
-            else:
-                await process_sta_info(ap, fields)
-    except asyncio.CancelledError:
-        await ap.stop_task()
-        await ap.disconnect()
+    async for line in ap.api_info():
+        fields = line.split(";")
+        if fields[0] == "*":
+            if fields[2] == "#error":
+                ap.handle_error(fields[3])
+            process_api(ap, fields)
+        elif "0;add" in line:
+            process_phy_info(ap, fields)
+        else:
+            await process_sta_info(ap, fields)
 
 async def get_next_line(ap, timeout):
     data = await asyncio.wait_for(await anext(ap), timeout=timeout)
@@ -136,24 +130,6 @@ async def get_next_line(ap, timeout):
 
 
 def parse_group_info(fields):
-    """
-    Obtain maximum offset for a given MCS rate group available for an AP.
-
-    Parameters
-    ----------
-    fields : list
-                                    Fields obtained by spliting a data line received from the AP
-                                    over the Rate Control API.
-
-    Returns
-    -------
-    group_idx : str
-                                    Index of MCS rate group.
-    max_offset : str
-                                    Maximum allowable offset - determines which rates are available
-                                    in the group for the AP.
-
-    """
     fields = list(filter(None, fields))
     group_ind = fields[3]
 
@@ -173,39 +149,33 @@ def parse_group_info(fields):
 
     return group_ind, group_info
 
-def process_line(ap, line):
-    """
-
-    Execute respective functions based on the trace line received from the AP.
-
-    Parameters
-    ----------
-    ap : AccessPoint object
-
-    line : str
-                                    Trace line.
-
-    """
-
+async def process_line(ap, line):
     fields = validate_line(ap, line)
 
     if not fields:
-        return None, None
+        return None
 
-    line_type = fields[2]
+    match fields[2]:
+        case "txs":
+            update_rate_stats(ap, fields)
+        case "rxs":
+            sta = ap.get_sta(fields[3], radio=fields[0])
+            if sta:
+                sta.update_rssi(
+                    int(fields[1], 16),
+                    parse_s32(fields[4]),
+                    [parse_s32(r) for r in fields[5:]],
+                )
+        case "sta":
+            # TODO: handle sta;update
+            if fields[3] in ["add", "dump"]:
+                ap.add_station(parse_sta(ap, fields))
+            elif fields[3] == "remove":
+                sta = ap.remove_station(mac=fields[4], radio=fields[0])
+                if sta:
+                    await sta.stop_rate_control()
 
-    if line_type == "txs":
-        update_pkt_cnt(ap, fields[3], radio=fields[0])
-    elif line_type == "rxs":
-        sta = ap.get_sta(fields[3], radio=fields[0])
-        if sta:
-            sta.update_rssi(
-                int(fields[1], 16),
-                parse_s32(fields[4]),
-                [parse_s32(r) for r in fields[5:]],
-            )
-
-    return line_type, fields
+    return fields
 
 COMMANDS = [
     "start",
@@ -243,7 +213,7 @@ STA_UPDATE_REGEX = re.compile(
     base_regex("sta;update") + ";" + PHY_REGEX + r"(;(manual|auto)){2}(;[0-9a-f]{1,3}){44}"
 )
 STA_REMOVE_REGEX = re.compile(base_regex("sta;remove") + r";.*")
-CMD_ECHO_REGEX = re.compile(";".join([PHY_REGEX, TIMESTAMP_REGEX]) + ";(" + "|".join(COMMANDS) + ")")
+CMD_ECHO_REGEX = re.compile(";".join([PHY_REGEX, TIMESTAMP_REGEX]) + ";(" + "|".join(COMMANDS) + ");.*")
 
 def validate_line(ap, line: str) -> list:
     fields = line.split(";")
@@ -258,8 +228,7 @@ def validate_line(ap, line: str) -> list:
     try:
         return VALIDATORS[fields[2]](line, fields)
     except KeyError:
-        return None
-
+        return fields if CMD_ECHO_REGEX.fullmatch(line) else None
 
 def validate_txs(line: str, fields: list) -> list:
     return fields if TXS_REGEX.fullmatch(line) else None
@@ -296,8 +265,8 @@ VALIDATORS = {
     "sample_rates": validate_sample_rates
 }
 
-def update_pkt_cnt(ap, macaddr: str, radio: str) -> None:
-    sta = ap.get_sta(macaddr, radio=radio)
+def update_rate_stats(ap, fields: list) -> None:
+    sta = ap.get_sta(fields[3], radio=fields[0])
     if not sta:
         return
 
@@ -309,10 +278,10 @@ def update_pkt_cnt(ap, macaddr: str, radio: str) -> None:
     counts = [int(c, 16) if c != "" else None for (_,c,_) in mrr]
     txpwr = [int(t, 16) if t != "" else None for (_,_,t) in mrr]
 
-    attempts = [num_frames * c if c else 0 for c in counts]
+    attempts = [(num_frames * c) if c else 0 for c in counts]
 
     suc_rate_ind = 3
-    for i, atmpt in enumerate(atmpts):
+    for i, atmpt in enumerate(attempts):
         if atmpt == 0:
             suc_rate_ind = i - 1
             break
@@ -322,14 +291,14 @@ def update_pkt_cnt(ap, macaddr: str, radio: str) -> None:
 
     succ = [0, 0, 0, 0]
     succ[suc_rate_ind] = num_ack
-    rates = [f"0{rate}" if len(rate) == 1 else rate for rate in rates]
+    rates = [f"0{rate}" if rate and (len(rate) == 1) else rate for rate in rates]
     info = {}
 
     for i, rate in enumerate(rates):
         if not rate:
             break
 
-        sta.update_rate_stats(timestamp, rate, attempts[i], succ[i], txpwr[i])
+        sta.update_rate_stats(timestamp, rate, txpwr[i], attempts[i], succ[i])
 
     if num_frames > 1:
         sta.ampdu_enabled = True
