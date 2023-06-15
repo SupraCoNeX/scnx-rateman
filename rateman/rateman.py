@@ -111,10 +111,11 @@ class RateMan:
             before making a new connection attempt.
         """
 
-        await asyncio.wait([
-            self.add_task(self.connect_ap(ap, timeout=timeout), name=f"connect_{ap.name}")
+        tasks = [
+            ap.start_task(self.ap_connection(ap, timeout=timeout), name=f"rcd_{ap.name}")
             for _,ap in self._accesspoints.items()
-        ])
+        ]
+        await asyncio.wait(tasks, timeout=timeout)
 
         for _,ap in self._accesspoints.items():
             if not ap.connected:
@@ -122,28 +123,33 @@ class RateMan:
                     f"Connection to {ap} could not be established during initialization."
                 )
 
-    async def connect_ap(self, ap, timeout=5):
-        try:
-            async with asyncio.timeout(timeout):
-                await ap.start_task(ap.connect(), f"connect_{ap.name}")
-                if not ap.connected:
-                    return
+    async def ap_connection(self, ap, timeout=5):
+        """
+        The coroutine managing the connection to the given accesspoint.
 
-                await ap.start_task(process_header(ap), f"parse_api_info_{ap.name}")
-                ap.start_task(self.rcd_connection(ap), f"rcd_{ap.name}")
-        except (IOError, ConnectionError, asyncio.TimeoutError):
-            ap.connected = False
-            await self.reconnect_ap(ap, timeout)
-        except asyncio.CancelledError as e:
-            if ap.connected:
-                await ap.disconnect()
-            raise e
-
-    async def reconnect_ap(self, ap, delay):
-        if delay:
-            await asyncio.sleep(delay)
-
-        self.add_task(self.connect_ap(ap), name=f"reconnect_{ap.name}")
+        Parameters
+        ----------
+        ap: rateman.AccessPoint
+            The access point to connect to
+        timeout : int
+            The timeout value serves two functions. One, it sets a time limit on the process of
+            establishing a connection to the access point and parsing its initial information data.
+            Two, it acts as the delay before a reconnection attempt is made in case of connection
+            failure.
+        """
+        while True:
+            try:
+                async with asyncio.timeout(timeout):
+                    await ap.connect()
+                    await process_header(ap)
+                
+                await self.rcd_connection(ap)
+            except asyncio.CancelledError as e:
+                raise e
+            except Exception as e:
+                self._logger.error(f"{ap}: Disconnected. Trying to reconnect in {timeout}s: {e}")
+                await asyncio.sleep(timeout)
+                continue
 
     def add_raw_data_callback(self, cb, context=None):
         """
@@ -200,7 +206,7 @@ class RateMan:
         except KeyError:
             return
 
-    async def rcd_connection(self, ap, reconnect_timeout=10.0):
+    async def rcd_connection(self, ap):
         """
         Receive data from an instance of minstrel-rcd, update internal state
         accordingly, and execute callbacks.
