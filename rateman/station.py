@@ -31,7 +31,7 @@ class Station:
         timestamp: int,
         rc_mode: str,
         tpc_mode:str,
-        supp_rates: list,
+        supported_rates: list,
         airtimes_ns: int,
         overhead_mcs: int,
         overhead_legacy: int,
@@ -46,7 +46,7 @@ class Station:
             Name of physical radio of the AP to which station is connected.
         mac_addr : str
             MAC address of the station.
-        supp_rates : list
+        supported_rates : list
             MCS rates supported by the station.
         timestamp : str
             Timestamp in hex at which the station connected to the AP.
@@ -57,7 +57,7 @@ class Station:
         self._loop = ap.loop
         self._radio = radio
         self._iface = iface
-        self._supp_rates = supp_rates
+        self._supported_rates = supported_rates
         self._airtimes_ns = airtimes_ns
         self._last_seen = timestamp
         self._rc_mode = rc_mode
@@ -69,7 +69,7 @@ class Station:
         self._ampdu_len = 0
         self._avg_ampdu_len = 0
         self._stats = dict.fromkeys(
-            supp_rates,
+            supported_rates,
             dict.fromkeys(
                 [-1] + ap.get_txpowers(radio),
                 {"attempts": 0, "success": 0, "timestamp": timestamp}
@@ -148,7 +148,7 @@ class Station:
 
     @property
     def supported_rates(self) -> list:
-        return self._supp_rates
+        return self._supported_rates
 
     @property
     def airtimes_ns(self) -> list:
@@ -248,8 +248,8 @@ class Station:
         return self._rc
 
     @property
-    def lowest_supp_rate(self):
-        return self._supp_rates[0]
+    def lowest_supported_rate(self):
+        return self._supported_rates[0]
 
     def reset_rate_stats(self, rate):
         if rate in self._stats:
@@ -260,7 +260,7 @@ class Station:
                     "timestamp": 0
                 }
 
-    def update_rate_stats(self, timestamp: int, rate: str, txpwr: int, atmpts: int, succ: int):
+    def update_rate_stats(self, timestamp: int, rate: str, txpwr: int, attempts: int, succ: int):
         if timestamp < self._last_seen:
             return
 
@@ -270,24 +270,27 @@ class Station:
             txpwr = -1
 
         if rate not in self._stats:
-            self._stats[rate] = {}
+            self._stats[rate] = {
+                txpwr: {
+                    "attempts": 0,
+                    "success": 0
+                }
+            }
+        elif txpwr not in self._stats[rate]:
             self._stats[rate][txpwr] = {
                 "attempts": 0,
                 "success": 0
             }
 
-        if txpwr not in self._stats[rate]:
-            return
-
-        self._stats[rate][txpwr]["attempts"] += atmpts
+        self._stats[rate][txpwr]["attempts"] += attempts
         self._stats[rate][txpwr]["success"] += succ
 
         # If the station is not in manual TPC mode, i.e., the driver decides on TX power, we
         # also update the counters for the TX power index -1, which is the index to set for letting
         # the driver make the transmit power decision. This is done because user space rate control
-        # algorithms that do not set TX power will fetch the
+        # algorithms that do not set TX power will fetch the stats at txpwr == -1.
         if self._tpc_mode == "auto":
-            self._stats[rate][-1]["attempts"] += atmpts
+            self._stats[rate][-1]["attempts"] += attempts
             self._stats[rate][-1]["success"] += succ
 
     def update_rssi(self, timestamp, min_rssi, per_antenna):
@@ -355,7 +358,7 @@ class Station:
         self._accesspoint.send(self._radio, f"set_rates_power;{self._mac_addr};{mrr}")
 
     def set_probe_rate(self, rate: str, count: int, txpwr: int) -> None:
-        if rate not in self._supp_rates:
+        if rate not in self._supported_rates:
             raise ValueError(f"{self}: Cannot probe '{rate}': Not supported")
 
         if self._rc_mode != "manual":
