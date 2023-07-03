@@ -236,14 +236,14 @@ class Station:
 
         self._log.debug(f"{self}: Start rate control algorithm '{rc_alg}', options={rc_opts}")
     
-        rc = rate_control.load(rc_alg)
+        configure, rc = rate_control.load(rc_alg)
 
         self._rate_control_algorithm = rc_alg
         self._rate_control_options = rc_opts
-        self._rc = self._loop.create_task(
-            rc(self, logger=self._log, **rc_opts),
-            name=f"rc_{self._mac_addr}_{rc_alg}"
-        )
+
+        ctx = await configure(self)
+
+        self._rc = self._loop.create_task(rc(ctx), name=f"rc_{self._mac_addr}_{rc_alg}")
 
         return self._rc
 
