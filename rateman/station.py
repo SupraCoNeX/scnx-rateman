@@ -307,7 +307,13 @@ class Station:
         rates.
 
         """
-        self._stats = {}
+        self._stats = dict.fromkeys(
+            self._supported_rates,
+            dict.fromkeys(
+                [-1] + self._ap.get_txpowers(self._radio),
+                {"attempts": 0, "success": 0, "timestamp": timestamp}
+            )
+        )
 
     def set_manual_rc_mode(self, enable: bool) -> None:
         if enable == (self._rc_mode == "manual"):
