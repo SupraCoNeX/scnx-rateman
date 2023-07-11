@@ -57,7 +57,7 @@ class AccessPoint:
                 async with asyncio.timeout(timeout):
                     line = (await anext(it)).decode("utf-8").rstrip()
 
-                if line.startswith("*") or ";0;add" in line or "sta;dump" in line:
+                if line.startswith("*") or ";0;add" in line or "sta;" in line:
                     yield line
                 else:
                     self._first_non_header_line = line
