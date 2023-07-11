@@ -3,7 +3,7 @@ class RateManError(Exception):
 		self._msg = msg
 
 	def __repr__(self):
-		return msg
+		return self._msg
 
 
 class RadioConfigError(RateManError):
@@ -54,10 +54,18 @@ class ParsingError(RateManError):
 
 class UnsupportedAPIVersionError(RateManError):
 	def __init__(self, ap, supported_version, announced_version):
-		super().__init__(
-		    f"{ap.name} announced unsupported API version! "
-		    f"Announced={announced_version} supported={supported_version}"
-		)
+		super().__init__("")
+		self._ap = ap
+		self._announced = announced_version
+		self._supported = supported_version
+
+	def __str__(self):
+		return f"{self._ap.name} announced unsupported API version {self._announced}. "
+		f"We support {self._supported}"
+
+	def __repr__(self):
+		return f"Unsupported API version for {self._ap}: {self._announced} "
+		f"(we support {self._supported})"
 
 class StationModeError(RateManError):
 	def __init__(self, sta, msg):

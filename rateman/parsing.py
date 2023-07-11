@@ -30,9 +30,11 @@ def twos_complement(hexstr, bits):
 parse_s16 = lambda s: twos_complement(s, 16)
 parse_s32 = lambda s: twos_complement(s, 32)
 
+
 def check_orca_version(ap, v: int):
     if v != API_VERSION:
         raise UnsupportedAPIVersionError(ap, API_VERSION, v)
+
 
 def process_api(ap, fields):
     if len(fields) < 4:
@@ -46,6 +48,7 @@ def process_api(ap, fields):
         case "sample_table":
             ap.sample_table = fields[5:]
 
+
 def parse_tpc_range_block(blk: list) -> list:
     fields = blk.split(",")
     if len(fields) != 4:
@@ -57,6 +60,7 @@ def parse_tpc_range_block(blk: list) -> list:
     width = int(fields[3], 16)
 
     return [(start_lvl + idx) * width * .25 for idx in range(start_idx, start_idx + n_indeces + 1)]
+
 
 def parse_tpc(cap: list) -> dict:
     if cap[0] == "not":
@@ -77,6 +81,7 @@ def parse_tpc(cap: list) -> dict:
         tpc["txpowers"] += parse_tpc_range_block(blk)
 
     return tpc
+
 
 def process_phy_info(ap, fields):
     radio = fields[0]
@@ -117,16 +122,6 @@ async def process_header(ap):
             process_phy_info(ap, fields)
         else:
             await process_sta_info(ap, fields)
-
-async def get_next_line(ap, timeout):
-    data = await asyncio.wait_for(await anext(ap), timeout=timeout)
-
-    if data == "":
-        ap.connected = False
-        self._logger.error(f"Disconnected from {ap.name}")
-        return None
-
-    return data.decode("utf-8").rstrip()
 
 
 def parse_group_info(fields):
@@ -305,20 +300,6 @@ def update_rate_stats(ap, fields: list) -> None:
 
 
 def parse_sta(ap, fields: list):
-    """
-
-    Parameters
-    ----------
-    ap : AccessPoint
-        Object of rateman.AccessPoint where the station is associated.
-    fields : list
-        Fields contained with line separated by ';' and containing 'sta;add' or 'sta;dump' strings.
-
-    Returns
-    -------
-    sta : Station
-        A rateman.Station object.
-    """
     supported_rates = []
     airtimes_ns = []
     radio = fields[0]

@@ -22,7 +22,7 @@ __all__ = ["AccessPoint", "from_file", "from_strings"]
 
 
 class AccessPoint:
-    def __init__(self, name, addr, rcd_port=21059, config=None, logger=None, loop=None):
+    def __init__(self, name, addr, rcd_port=21059, logger=None, loop=None):
         """
         Parameters
         ----------
@@ -78,6 +78,9 @@ class AccessPoint:
                 yield data.decode("utf-8").rstrip()
             except UnicodeError:
                 continue
+
+    def __str__(self):
+        return self._name
 
     def __repr__(self):
         return f"AP[name={self._name}, addr={self._addr}:{self._rcd_port}]"
@@ -240,7 +243,7 @@ class AccessPoint:
     def update_timestamp(self, timestamp_str):
         try:
             timestamp = int(timestamp_str, 16)
-        except:
+        except Exception:
             return False
 
         if self._latest_timestamp == 0:
@@ -305,7 +308,7 @@ class AccessPoint:
             self._writer = w
             self._connected = True
 
-            # immediately send dump sta command so sta info can be parsed with api_info and phy info
+            # immediately send dump sta command so sta info can be parsed with api info and phy info
             if dump_stas:
                 self.dump_stas()
 

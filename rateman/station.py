@@ -206,9 +206,7 @@ class Station:
             Configuration options specific to the rate control algorithm
 
         This function will raise a rateman.RateControlError if there is an error loading the rate
-        control algorithm. It will also raise a rateman.RateControlConfigError if the station is not
-        in the appropriate rate control mode, i.e., auto for kernel minstrel-ht and manual for user
-        space rate control.
+        control algorithm.
         """
 
         if self._rate_control_algorithm == rc_alg and self._rate_control_options == rc_opts:
