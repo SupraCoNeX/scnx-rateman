@@ -268,7 +268,7 @@ class RateMan:
             ap.set_all_stations_tpc_mode("auto")
 
             for sta in stas:
-                sta.start_rate_control("minstrel_ht_kernel_space", {})
+                await sta.start_rate_control("minstrel_ht_kernel_space", {})
 
             await ap.disconnect()
 

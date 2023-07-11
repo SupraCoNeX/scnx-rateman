@@ -194,7 +194,7 @@ class Station:
         self._rate_control_options = None
 
     # TODO: only handle user space rc in this function?
-    def start_rate_control(self, rc_alg: str, rc_opts: dict) -> asyncio.Task:
+    async def start_rate_control(self, rc_alg: str, rc_opts: dict) -> asyncio.Task:
         """
         Put this STA under the given rate control algorithm. 
         '''
@@ -212,38 +212,27 @@ class Station:
         if self._rate_control_algorithm == rc_alg and self._rate_control_options == rc_opts:
             return
 
-        if rc_alg == "minstrel_ht_kernel_space":
-            if self._rc_mode == "manual":
-                raise RateControlConfigError(self, rc_alg, "Not in auto rate control mode")
-
-            self._log.debug(f"{self}: Start rate control algorithm '{rc_alg}', options={rc_opts}")
-
-            self._rate_control_algorithm = rc_alg
-            self._rate_control_options = rc_opts
-            return None
-
-        elif self._rc_mode == "auto":
-            raise RateControlConfigError(self, rc_alg, "Not in manual rate control mode")
-
-        elif self._rate_control_algorithm != None:
-            raise RateControlConfigError(
-                self,
-                rc_alg,
-                f"Rate control algorithm '{self._rate_control_algorithm}' must be stopped first"
-            )
+        if self._rate_control_algorithm:
+            await self.stop_rate_control()
 
         self._log.debug(f"{self}: Start rate control algorithm '{rc_alg}', options={rc_opts}")
-    
-        configure, rc = rate_control.load(rc_alg)
+
+        if rc_alg == "minstrel_ht_kernel_space":
+            self.set_manual_rc_mode(False)
+            self.set_manual_tpc_mode(False)
+
+            rc_task = None
+        else:
+            configure, rc = rate_control.load(rc_alg)
+            ctx = await configure(self)
+
+            self._rc = self._loop.create_task(rc(ctx), name=f"rc_{self._mac_addr}_{rc_alg}")
+            rc_task = self._rc
 
         self._rate_control_algorithm = rc_alg
         self._rate_control_options = rc_opts
 
-        ctx = await configure(self)
-
-        self._rc = self._loop.create_task(rc(ctx), name=f"rc_{self._mac_addr}_{rc_alg}")
-
-        return self._rc
+        return rc_task
 
     @property
     def lowest_supported_rate(self):
