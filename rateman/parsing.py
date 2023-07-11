@@ -19,7 +19,8 @@ from .exception import UnsupportedAPIVersionError, ParsingError
 
 __all__ = ["process_api", "process_line", "process_header", "parse_sta"]
 
-API_VERSION = 1
+API_VERSION = 2
+
 
 # utility function to parse signed integers from hex strings in two's complement format
 def twos_complement(hexstr, bits):
@@ -63,7 +64,7 @@ def parse_tpc_range_block(blk: list) -> list:
 
 
 def parse_tpc(cap: list) -> dict:
-    if cap[0] == "not":
+    if cap[0] == "NA":
         return None
 
     tpc = {
@@ -92,24 +93,21 @@ def process_phy_info(ap, fields):
 
     return True
 
+
 async def process_sta_info(ap, fields):
     # TODO: handle sta;update
     if fields[3] in ["add", "dump"]:
         sta = parse_sta(ap, fields)
         ap.add_station(sta)
 
-        rc_alg, rc_opts = ap.get_default_rc(sta.radio)
-        if rc_alg:
-            if rc_alg == "minstrel_ht_kernel_space" and sta.rc_mode == "manual":
-                await sta.stop_rate_control()
-                sta.set_manual_rc_mode(False)
-
-            sta.start_rate_control(rc_alg, rc_opts)
+        if sta.rc_mode == "auto":
+            await sta.start_rate_control("minstrel_ht_kernel_space", {})
 
     elif fields[3] == "remove":
         sta = ap.remove_station(mac=fields[4], radio=fields[0])
         if sta:
             await sta.stop_rate_control()
+
 
 async def process_header(ap):
     async for line in ap.api_info():
