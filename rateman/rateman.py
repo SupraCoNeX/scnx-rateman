@@ -12,6 +12,7 @@ import importlib
 import csv
 
 from .parsing import *
+from .exception import UnsupportedAPIVersionError
 
 __all__ = ["RateMan"]
 
@@ -145,6 +146,10 @@ class RateMan:
                 
                 await self.rcd_connection(ap)
             except asyncio.CancelledError as e:
+                raise e
+            except UnsupportedAPIVersionError as e:
+                await ap.disconnect()
+                self._logger.error(f"Diconnecting from {ap}: {e}")
                 raise e
             except Exception as e:
                 self._logger.error(f"{ap}: Disconnected. Trying to reconnect in {timeout}s: {e}")
