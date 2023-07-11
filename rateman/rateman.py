@@ -152,7 +152,7 @@ class RateMan:
                 self._logger.error(f"Diconnecting from {ap}: {e}")
                 raise e
             except Exception as e:
-                self._logger.error(f"{ap}: Disconnected. Trying to reconnect in {timeout}s: {e}")
+                self._logger.error(f"{ap}: Disconnected. Trying to reconnect in {timeout}s: {e.__repr__()}")
                 await asyncio.sleep(timeout)
                 continue
 
