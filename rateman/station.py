@@ -271,6 +271,7 @@ class Station:
 
         self._stats[rate][txpwr]["attempts"] += attempts
         self._stats[rate][txpwr]["success"] += succ
+        self._stats[rate][txpwr]["timestamp"] = timestamp
 
         # If the station is not in manual TPC mode, i.e., the driver decides on TX power, we
         # also update the counters for the TX power index -1, which is the index to set for letting
@@ -279,6 +280,7 @@ class Station:
         if self._tpc_mode == "auto":
             self._stats[rate][-1]["attempts"] += attempts
             self._stats[rate][-1]["success"] += succ
+            self._stats[rate][-1]["timestamp"] = timestamp
 
     def update_rssi(self, timestamp, min_rssi, per_antenna):
         if timestamp > self._last_seen:
