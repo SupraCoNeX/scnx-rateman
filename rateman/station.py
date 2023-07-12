@@ -238,15 +238,6 @@ class Station:
     def lowest_supported_rate(self):
         return self._supported_rates[0]
 
-    def reset_rate_stats(self, rate):
-        if rate in self._stats:
-            for txpwr in self._stats[rate]:
-                self._stats[rate][txpwr] = {
-                    "attempts": 0,
-                    "success": 0,
-                    "timestamp": 0
-                }
-
     def update_rate_stats(self, timestamp: int, rate: str, txpwr: int, attempts: int, succ: int):
         if timestamp < self._last_seen:
             return
@@ -290,7 +281,7 @@ class Station:
     def get_rate_stats(self, rate: str) -> dict:
         return self._stats.get(rate, {})
 
-    def reset_stats(self) -> None:
+    def reset_rate_stats(self) -> None:
         """
         Reset packet transmission attempts and success statistics over all
         rates.
@@ -300,9 +291,16 @@ class Station:
             self._supported_rates,
             dict.fromkeys(
                 [-1] + self._ap.get_txpowers(self._radio),
-                {"attempts": 0, "success": 0, "timestamp": timestamp}
+                {"attempts": 0, "success": 0, "timestamp": 0}
             )
         )
+
+    def reset_kernel_rate_stats(self) -> None:
+        """
+        Reset counters for attempted and successful transmission in the kernel of this station's
+        access point.
+        """
+        self._accesspoint.reset_kernel_rate_stats(radio=self._radio, sta=self._mac_addr)
 
     def set_manual_rc_mode(self, enable: bool) -> None:
         if enable == (self._rc_mode == "manual"):

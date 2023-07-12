@@ -143,7 +143,7 @@ class RateMan:
                 async with asyncio.timeout(timeout):
                     await ap.connect()
                     await process_header(ap)
-                
+
                 await self.rcd_connection(ap)
             except asyncio.CancelledError as e:
                 raise e

@@ -32,9 +32,12 @@ parse_s16 = lambda s: twos_complement(s, 16)
 parse_s32 = lambda s: twos_complement(s, 32)
 
 
-def check_orca_version(ap, v: int):
-    if v != API_VERSION:
-        raise UnsupportedAPIVersionError(ap, API_VERSION, v)
+def check_orca_version(ap, line, fields):
+    if (
+        (not re.fullmatch(r"\*;0;orca_version;[0-9a-f]+", line)) or
+        (int(fields[3], 16) != API_VERSION)
+    ):
+        raise UnsupportedAPIVersionError(ap, API_VERSION, fields[3])
 
 
 def process_api(ap, fields):
@@ -64,7 +67,7 @@ def parse_tpc_range_block(blk: list) -> list:
 
 
 def parse_tpc(cap: list) -> dict:
-    if cap[0] == "NA":
+    if cap[0] == "not":
         return None
 
     tpc = {
@@ -110,16 +113,18 @@ async def process_sta_info(ap, fields):
 
 
 async def process_header(ap):
+    first = True
     async for line in ap.api_info():
-        fields = line.split(";")
-        if fields[0] == "*":
-            if fields[2] == "#error":
-                ap.handle_error(fields[3])
-            process_api(ap, fields)
-        elif "0;add" in line:
-            process_phy_info(ap, fields)
-        else:
-            await process_sta_info(ap, fields)
+        if line.startswith("*;0;"):
+            if first:
+                check_orca_version(ap, line, line.split(";"))
+                first = False
+            else:
+                process_api(ap, line.split(";"))
+        elif "0;add;" in line:
+            process_phy_info(ap, line.split(";"))
+        elif "0;sta;add;" in line:
+            await process_sta_info(ap, line.split(";"))
 
 
 def parse_group_info(fields):
@@ -141,6 +146,7 @@ def parse_group_info(fields):
     }
 
     return group_ind, group_info
+
 
 async def process_line(ap, line):
     fields = validate_line(ap, line)
@@ -167,8 +173,11 @@ async def process_line(ap, line):
                 sta = ap.remove_station(mac=fields[4], radio=fields[0])
                 if sta:
                     await sta.stop_rate_control()
+        case "#error":
+            ap.handle_error(fields[3])
 
     return fields
+
 
 COMMANDS = [
     "start",
@@ -186,8 +195,10 @@ PHY_REGEX = r"[-a-z0-9]+"
 TIMESTAMP_REGEX = r"[0-9a-f]{16}"
 MACADDR_REGEX = r"[0-9a-f]{2}(:[0-9a-f]{2}){5}"
 
+
 def base_regex(line_type: str) -> str:
     return ";".join([PHY_REGEX, TIMESTAMP_REGEX, line_type, MACADDR_REGEX])
+
 
 TXS_REGEX = re.compile(
     base_regex("txs") + r"(;[0-9a-f]{1,2}){2};[01](;[0-9a-f]{0,4}(,[0-9a-f]{0,4}){2}){4}"
@@ -204,6 +215,8 @@ STA_UPDATE_REGEX = re.compile(
 )
 STA_REMOVE_REGEX = re.compile(base_regex("sta;remove") + r";.*")
 CMD_ECHO_REGEX = re.compile(";".join([PHY_REGEX, TIMESTAMP_REGEX]) + ";(" + "|".join(COMMANDS) + ");.*")
+ERROR_REGEX = re.compile(r"\*;0;#error;.*")
+
 
 def validate_line(ap, line: str) -> list:
     fields = line.split(";")
@@ -220,14 +233,18 @@ def validate_line(ap, line: str) -> list:
     except KeyError:
         return fields if CMD_ECHO_REGEX.fullmatch(line) else None
 
+
 def validate_txs(line: str, fields: list) -> list:
     return fields if TXS_REGEX.fullmatch(line) else None
+
 
 def validate_rxs(line: str, fields: list) -> list:
     return fields if RXS_REGEX.fullmatch(line) else None
 
+
 def validate_stats(line: str, fields: list) -> list:
     return fields if STATS_REGEX.fullmatch(line) else None
+
 
 def validate_sta(line: str, fields: list) -> list:
     match fields[3]:
@@ -240,11 +257,18 @@ def validate_sta(line: str, fields: list) -> list:
         case _:
             return None
 
+
 def validate_best_rates(line: str, fields: list) -> list:
     return fields if BEST_RATES_REGEX.fullmatch(line) else None
 
+
 def validate_sample_rates(line: str, fields: list) -> list:
     return fields if SAMPLE_RATES_REGEX.fullmatch(line) else None
+
+
+def validate_error(line: str, fields: list) -> list:
+    return fields if ERROR_REGEX.fullmatch(line) else None
+
 
 VALIDATORS = {
     "txs": validate_txs,
@@ -252,8 +276,10 @@ VALIDATORS = {
     "rxs": validate_rxs,
     "sta": validate_sta,
     "best_rates": validate_best_rates,
-    "sample_rates": validate_sample_rates
+    "sample_rates": validate_sample_rates,
+    "#error": validate_error
 }
+
 
 def update_rate_stats(ap, fields: list) -> None:
     sta = ap.get_sta(fields[3], radio=fields[0])
@@ -282,7 +308,6 @@ def update_rate_stats(ap, fields: list) -> None:
     succ = [0, 0, 0, 0]
     succ[suc_rate_ind] = num_ack
     rates = [f"0{rate}" if rate and (len(rate) == 1) else rate for rate in rates]
-    info = {}
 
     for i, rate in enumerate(rates):
         if not rate:

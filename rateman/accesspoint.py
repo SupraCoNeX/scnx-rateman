@@ -57,7 +57,7 @@ class AccessPoint:
                 async with asyncio.timeout(timeout):
                     line = (await anext(it)).decode("utf-8").rstrip()
 
-                if line.startswith("*") or ";0;add" in line or "sta;" in line:
+                if line.startswith("*") or ";0;add" in line or ";0;sta" in line:
                     yield line
                 else:
                     self._first_non_header_line = line
@@ -226,6 +226,8 @@ class AccessPoint:
             return []
 
     def add_station(self, sta) -> bool:
+        # TODO: maybe handle sta;updates here, too?
+        # Check for diff in capabilities and update accordingly
         if sta.mac_addr not in self._radios[sta.radio]["stations"]["active"]:
             self._logger.debug(f"{self._name}:{sta.radio}: Adding {sta}")
 
