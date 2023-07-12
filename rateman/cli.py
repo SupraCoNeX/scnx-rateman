@@ -3,26 +3,6 @@ import sys
 import asyncio
 import rateman
 
-def parse_aps(apstrs):
-    aps = []
-
-    for apstr in apstrs:
-        fields = apstr.split(":")
-        if len(fields) < 2:
-            print(f"Inval access point: '{apstr}'", file=sys.stderr)
-            continue
-
-        name = fields[0]
-        addr = fields[1]
-
-        try:
-            rcd_port = int(fields[2])
-        except (IndexError, ValueError):
-            rcd_port = 21059
-
-        aps.append(rateman.accesspoint.AccessPoint(name, addr, rcd_port))
-
-    return aps
 
 def main():
     arg_parser = argparse.ArgumentParser(prog="rateman")
@@ -50,7 +30,7 @@ def main():
         + "RCDPORT is optional and defaults to 21059.",
     )
     args = arg_parser.parse_args()
-    aps = parse_aps(args.accesspoints)
+    aps = rateman.accesspoint.from_strings(args.accesspoints)
 
     if args.ap_file:
         aps += accesspoint.from_file(args.ap_file)
