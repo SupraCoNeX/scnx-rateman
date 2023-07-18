@@ -47,7 +47,14 @@ def main():
     for ap in aps:
         rm.add_accesspoint(ap)
 
+    print("Initializing rateman...", end="")
     loop.run_until_complete(rm.initialize())
+    print("OK")
+
+    for _, ap in rm.accesspoints.items():
+        for sta in ap.get_stations():
+            print(f"Starting rate control scheme '{args.algorithm}' for {sta}")
+            loop.run_until_complete(sta.start_rate_control(args.algorithm, args.options))
 
     print("Running rateman...")
     # add a simple print callback to see the incoming data

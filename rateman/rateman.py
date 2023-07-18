@@ -260,7 +260,7 @@ class RateMan:
                 continue
 
             await ap.stop_task()
-            ap.disable_events(["txs", "rxs", "stats"], radio="all")
+            await ap.disable_events(["txs", "rxs", "stats"], radio="all")
 
             stas = []
             for radio in ap.radios:
@@ -269,8 +269,8 @@ class RateMan:
             for sta in stas:
                 await sta.stop_rate_control()
 
-            ap.set_all_stations_rc_mode("auto")
-            ap.set_all_stations_tpc_mode("auto")
+            await ap.set_all_stations_rc_mode("auto")
+            await ap.set_all_stations_tpc_mode("auto")
 
             for sta in stas:
                 await sta.start_rate_control("minstrel_ht_kernel_space", {})

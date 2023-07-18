@@ -218,8 +218,8 @@ class Station:
         self._log.debug(f"{self}: Start rate control algorithm '{rc_alg}', options={rc_opts}")
 
         if rc_alg == "minstrel_ht_kernel_space":
-            self.set_manual_rc_mode(False)
-            self.set_manual_tpc_mode(False)
+            await self.set_manual_rc_mode(False)
+            await self.set_manual_tpc_mode(False)
 
             rc_task = None
         else:
@@ -302,25 +302,25 @@ class Station:
         """
         self._accesspoint.reset_kernel_rate_stats(radio=self._radio, sta=self._mac_addr)
 
-    def set_manual_rc_mode(self, enable: bool) -> None:
+    async def set_manual_rc_mode(self, enable: bool) -> None:
         if enable == (self._rc_mode == "manual"):
             return
 
         mode = "manual" if enable else "auto"
-        self._accesspoint.send(self._radio, f"rc_mode;{self._mac_addr};{mode}")
+        await self._accesspoint.send(self._radio, f"rc_mode;{self._mac_addr};{mode}")
         self._rc_mode = mode
         self._log.debug(f"{self}: set rc_mode={mode}")
 
-    def set_manual_tpc_mode(self, enable: bool) -> None:
+    async def set_manual_tpc_mode(self, enable: bool) -> None:
         if enable == self._tpc_mode == "manual":
             return
 
         mode = "manual" if enable else "auto"
-        self._accesspoint.send(self._radio, f"tpc_mode;{self._mac_addr};{mode}")
+        await self._accesspoint.send(self._radio, f"tpc_mode;{self._mac_addr};{mode}")
         self._tpc_mode = mode
         self._log.debug(f"{self}: set tpc_mode={mode}")
 
-    def set_rates(self, rates: list, counts: list) -> None:
+    async def set_rates(self, rates: list, counts: list) -> None:
         if len(rates) != len(counts):
             raise ValueError(f"Number of rates and counts must be identical!")
 
@@ -328,16 +328,16 @@ class Station:
             raise StationModeError(self, "Need to be in manual rate control mode to set rates")
 
         mrr = ";".join([f"{r},{c}" for (r,c) in zip(rates, counts)])
-        self._accesspoint.send(self._radio, f"set_rates;{self._mac_addr};{mrr}")
+        await self._accesspoint.send(self._radio, f"set_rates;{self._mac_addr};{mrr}")
 
-    def set_power(self, pwrs: list) -> None:
+    async def set_power(self, pwrs: list) -> None:
         if self._tpc_mode != "manual":
             raise StationModeError(self, "Need to be in manual power control mode to set tx power")
 
         txpwrs = ";".join([str(p) for p in pwrs])
-        self._accesspoint.send(self._radio, f"set_power;{self._mac_addr};{txpwrs}")
+        await self._accesspoint.send(self._radio, f"set_power;{self._mac_addr};{txpwrs}")
 
-    def set_rates_and_power(self, rates: list, counts: list, pwrs: list) -> None:
+    async def set_rates_and_power(self, rates: list, counts: list, pwrs: list) -> None:
         if not (len(rates) == len(counts) == len(pwrs)):
             raise ValueError(f"Number of rates, counts, and tx_powers must be identical!")
 
@@ -348,16 +348,16 @@ class Station:
             )
 
         mrr = ";".join([f"{r},{c},{p}" for ((r, c), p) in zip(zip(rates, counts), pwrs)])
-        self._accesspoint.send(self._radio, f"set_rates_power;{self._mac_addr};{mrr}")
+        await self._accesspoint.send(self._radio, f"set_rates_power;{self._mac_addr};{mrr}")
 
-    def set_probe_rate(self, rate: str, count: int, txpwr: int) -> None:
+    async def set_probe_rate(self, rate: str, count: int, txpwr: int) -> None:
         if rate not in self._supported_rates:
             raise ValueError(f"{self}: Cannot probe '{rate}': Not supported")
 
         if self._rc_mode != "manual":
             raise StationModeError(self, "Need to be in manual rate control mode to sample a rate")
 
-        self._accesspoint.send(self._radio, f";set_probe;{self._mac_addr};{rate},{count},{txpwr}")
+        await self._accesspoint.send(self._radio, f";set_probe;{self._mac_addr};{rate},{count},{txpwr}")
 
     def __str__(self):
         return f"STA[{self._mac_addr}]"

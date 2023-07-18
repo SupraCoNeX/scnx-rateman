@@ -273,7 +273,7 @@ class AccessPoint:
 
         return False
 
-    def send(self, radio: str, cmd: str):
+    async def send(self, radio: str, cmd: str):
         if not self.connected:
             raise AccessPointNotConnectedError(self, f"Cannot send '{cmd}'")
 
@@ -285,6 +285,7 @@ class AccessPoint:
             cmd += "\n"
 
         self._writer.write(f"{radio};{cmd}".encode("ascii"))
+        await self._writer.drain()
 
     def handle_error(self, error):
         self._logger.error(f"{self._name}: Error '{error}', last command='{self._last_cmd}'")
@@ -324,10 +325,10 @@ class AccessPoint:
 
             # immediately send dump sta command so sta info can be parsed with api info and phy info
             if dump_stas:
-                self.dump_stas()
+                await self.dump_stas()
 
             for radio, events in events_mask.items():
-                self.enable_events(events, radio=radio)
+                await self.enable_events(events, radio=radio)
 
         except asyncio.CancelledError as e:
             self._task = None
@@ -367,10 +368,10 @@ class AccessPoint:
 
         self._logger.debug(f"{self}: disconnected")
 
-    def apply_system_config(self, radio="all", new_config=None):
+    async def apply_system_config(self, radio="all", new_config=None):
         if radio == "all":
             for radio in self._radios:
-                self.apply_system_config(radio, new_config)
+                await self.apply_system_config(radio, new_config)
             return
 
         if radio not in self._radios:
@@ -389,29 +390,30 @@ class AccessPoint:
         self._logger.debug(f"{self._name}:{radio}: applying system config: {cfg}")
 
         if "sensitivity_control" in cfg:
-            self.set_sensitivity_control(cfg["sensitivity_control"], radio)
+            await self.set_sensitivity_control(cfg["sensitivity_control"], radio)
 
         if "mt76_force_rate_retry" in cfg:
-            self.mt76_force_rate_retry(cfg["mt76_force_rate_retry"], radio)
+            await self.mt76_force_rate_retry(cfg["mt76_force_rate_retry"], radio)
 
-    def enable_events(self, events: list, radio="all"):
+    async def enable_events(self, events: list, radio="all"):
         if radio == "all":
             radio = "*"
 
-        self.send(radio, "start;" + ";".join(events))
+        await self.send(radio, "start;" + ";".join(events))
 
-    def disable_events(self, events: list, radio="all"):
+    async def disable_events(self, events: list, radio="all"):
         if radio == "all":
             radio = "*"
 
-        self.send(radio, "stop;" + ";".join(events))
+        await self.send(radio, "stop;" + ";".join(events))
 
-    def dump_stas(self, radio="all"):
+    async def dump_stas(self, radio="all"):
         if radio == "all":
             radio = "*"
-        self.send(radio, "dump")
 
-    def debugfs_set(self, path, value, radio="all"):
+        await self.send(radio, "dump")
+
+    async def debugfs_set(self, path, value, radio="all"):
         if radio == "all":
             for radio in self._radios:
                 self.debugfs_set(path, value, radio=radio)
@@ -421,22 +423,22 @@ class AccessPoint:
             return
 
         self._logger.debug(f"{self._name}:{radio}: debugfs: setting {path}={value}")
-        self.send(radio, f"debugfs;{path};{value}")
+        await self.send(radio, f"debugfs;{path};{value}")
 
-    def mt76_force_rate_retry(self, enable, radio="all"):
+    async def mt76_force_rate_retry(self, enable, radio="all"):
         if radio == "all":
             for radio in self._radios:
-                self.mt76_force_rate_retry(enable, radio)
+                await self.mt76_force_rate_retry(enable, radio)
 
             return
 
         if "mt76" in self._radios[radio]["driver"]:
-            self.debugfs_set("mt76/force_rate_retry", 1 if enable else 0, radio)
+            await self.debugfs_set("mt76/force_rate_retry", 1 if enable else 0, radio)
 
-    def set_sensitivity_control(self, enable: bool, radio="all") -> None:
+    async def set_sensitivity_control(self, enable: bool, radio="all") -> None:
         if radio == "all":
             for radio in self._radios:
-                self.set_sensitivity_control(enable, radio)
+                await self.set_sensitivity_control(enable, radio)
 
             return
 
@@ -451,11 +453,11 @@ class AccessPoint:
         val = 1 if enable else 0
 
         if self._radios[radio]["driver"] == "ath9k":
-            self.send(radio, f"debugfs;ath9k/ani;{val}")
+            await self.send(radio, f"debugfs;ath9k/ani;{val}")
         elif self._radios[radio]["driver"] == "mt76":
-            self.send(radio, f"debugfs;mt76/scs;{val}")
+            await self.send(radio, f"debugfs;mt76/scs;{val}")
 
-    def reset_kernel_rate_stats(self, radio="all", sta="all") -> None:
+    async def reset_kernel_rate_stats(self, radio="all", sta="all") -> None:
         if radio in ["*", "all"]:
             radio = "*"
         elif radio not in self._radios:
@@ -463,22 +465,22 @@ class AccessPoint:
 
         if sta == "all":
             self._logger.debug(f"{self._name}:{radio}: Resetting in-kernel rate statistics")
-            self.send(radio, f"reset_stats")
+            await self.send(radio, f"reset_stats")
         elif sta in self._radios[radio]["stations"]["active"]:
             self._logger.debug(f"{self._name}:{radio}:{sta}: Resetting in-kernel rate statistics")
-            self.send(radio, f"reset_stats;{sta}")
+            await self.send(radio, f"reset_stats;{sta}")
 
     def add_supp_rates(self, group_ind, group_info):
         if group_ind not in self._supp_rates:
             self._supp_rates.update({group_ind: group_info})
 
-    def _set_all_stations_mode(self, radio, which, mode):
+    async def _set_all_stations_mode(self, radio, which, mode):
         if mode not in ["manual", "auto"]:
             raise ValueError(f"Invalid mode '{mode}', must be either 'manual' or 'auto'")
 
         self._logger.debug(f"{self._name}:{radio}: Setting {which} for all stations to {mode}")
 
-        self.send(radio, f"{which};all;{mode}")
+        await self.send(radio, f"{which};all;{mode}")
 
         if radio == "*":
             for r in self._radios:
@@ -494,15 +496,16 @@ class AccessPoint:
                 else:
                     sta._tpc_mode = mode
 
-    def set_all_stations_rc_mode(self, mode: str, radio="*") -> None:
-        self._set_all_stations_mode(radio, "rc_mode", mode)
+    async def set_all_stations_rc_mode(self, mode: str, radio="*") -> None:
+        await self._set_all_stations_mode(radio, "rc_mode", mode)
 
-    def set_all_stations_tpc_mode(self, mode: str, radio="*") -> None:
-        self._set_all_stations_mode(radio, "tpc_mode", mode)
+    async def set_all_stations_tpc_mode(self, mode: str, radio="*") -> None:
+        await self._set_all_stations_mode(radio, "tpc_mode", mode)
 
-    def enable_tprc_echo(self, enable: bool, radio="*") -> None:
+    async def enable_tprc_echo(self, enable: bool, radio="*") -> None:
         action = "start" if enable else "stop"
-        self.send(radio, f"{action};tprc_echo")
+        await self.send(radio, f"{action};tprc_echo")
+
 
 def from_file(file: dir, logger=None):
     def parse_ap(ap):
