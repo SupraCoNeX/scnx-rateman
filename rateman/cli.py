@@ -14,12 +14,21 @@ def main():
         help="Rate control algorithm to run."
     )
     arg_parser.add_argument(
+        "-o", "--options",
+        type=dict,
+        default={},
+        help="Rate control algorithm configuration options"
+    )
+    arg_parser.add_argument(
         "-A",
         "--ap-file",
         metavar="AP_FILE",
         type=str,
         help="Path to a csv file where each line contains information about an access point "
         + "in the format: NAME,ADDR,RCDPORT.",
+    )
+    arg_parser.add_argument(
+        "-e", "--events", action="store_true", help="Print the events rateman receives"
     )
     arg_parser.add_argument(
         "accesspoints",
@@ -57,8 +66,10 @@ def main():
             loop.run_until_complete(sta.start_rate_control(args.algorithm, args.options))
 
     print("Running rateman...")
-    # add a simple print callback to see the incoming data
-    rm.add_data_callback(lambda ap, line, **kwargs: print(f"{ap.name}> {';'.join(line)}"))
+
+    if args.events:
+        # add a simple print callback to see the incoming data
+        rm.add_data_callback(lambda ap, line, **kwargs: print(f"{ap.name}> {';'.join(line)}"))
 
     try:
         loop.run_forever()
