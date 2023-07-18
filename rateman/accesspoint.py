@@ -15,6 +15,7 @@ import csv
 import sys
 import os
 import logging
+from functools import reduce
 
 from .exception import RadioConfigError, AccessPointNotConnectedError
 
@@ -159,9 +160,17 @@ class AccessPoint:
         for row in sample_table_data:
             self._sample_table.append(list(map(int, row.split(","))))
 
-    def get_stations(self, radio, which="active"):
+    def get_stations(self, radio="all", which="active"):
+        if radio == "all":
+            return reduce(
+                lambda a, b: a + b,
+                [self.get_stations(radio=radio, which=which) for radio in self._radios],
+                []
+            )
+
         if which == "all":
-            return self.get_stations(radio, which="active").update(
+            return (
+                self.get_stations(radio, which="active") +
                 self.get_stations(radio, which="inactive")
             )
 

@@ -315,9 +315,7 @@ def update_rate_stats(ap, fields: list) -> None:
 
         sta.update_rate_stats(timestamp, rate, txpwr[i], attempts[i], succ[i])
 
-    if num_frames > 1:
-        sta.ampdu_enabled = True
-
+    sta.ampdu_enabled = (num_frames > 1)
     sta.ampdu_len += num_frames
     sta.ampdu_packets += 1
 

@@ -10,6 +10,7 @@ import logging
 import asyncio
 import importlib
 import csv
+import traceback
 
 from .parsing import *
 from .exception import UnsupportedAPIVersionError
@@ -152,7 +153,11 @@ class RateMan:
                 self._logger.error(f"Diconnecting from {ap}: {e}")
                 raise e
             except Exception as e:
-                self._logger.error(f"{ap}: Disconnected. Trying to reconnect in {timeout}s: {e.__repr__()}")
+                tb = traceback.extract_tb(e.__traceback__)[-1]
+                self._logger.error(
+                    f"{ap}: Disconnected. Trying to reconnect in {timeout}s: "
+                    f"Error='{e}' ({tb.filename}:{tb.lineno})"
+                )
                 await asyncio.sleep(timeout)
                 continue
 
