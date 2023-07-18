@@ -24,6 +24,9 @@ class RateControlError(RateManError):
 	def __repr__(self):
 		return f"Error concerning rate control '{self._alg}': {self._msg}"
 
+	def __str__(self):
+		return f"Error concerning rate control '{self._alg}': {self._msg}"
+
 
 class RateControlConfigError(RateControlError):
 	def __init__(self, sta, rc_alg, msg):
