@@ -210,7 +210,7 @@ class Station:
             rc_task = None
         else:
             configure, rc = rate_control.load(rc_alg)
-            ctx = await configure(self)
+            ctx = await configure(self, **rc_opts)
 
             self._rc = self._loop.create_task(rc(ctx), name=f"rc_{self._mac_addr}_{rc_alg}")
             rc_task = self._rc
