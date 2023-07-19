@@ -3,14 +3,6 @@
 #     https://www.supraconex.org
 #
 
-r"""
-Parsing Rate Control API Output Lines
--------------------------------------
-
-This is the main processing module that provides functions to asynchronously 
-monitor network status and set rates.
-
-"""
 import asyncio
 import re
 
@@ -28,8 +20,12 @@ def twos_complement(hexstr, bits):
     return val - (1 << bits) if val & (1 << (bits - 1)) else val
 
 
-parse_s16 = lambda s: twos_complement(s, 16)
-parse_s32 = lambda s: twos_complement(s, 32)
+def parse_s16(s):
+    return twos_complement(s, 16)
+
+
+def parse_s32(s):
+    return twos_complement(s, 32)
 
 
 def check_orca_version(ap, line, fields):
@@ -214,7 +210,9 @@ STA_UPDATE_REGEX = re.compile(
     base_regex("sta;update") + ";" + PHY_REGEX + r"(;(manual|auto)){2}(;[0-9a-f]{1,3}){44}"
 )
 STA_REMOVE_REGEX = re.compile(base_regex("sta;remove") + r";.*")
-CMD_ECHO_REGEX = re.compile(";".join([PHY_REGEX, TIMESTAMP_REGEX]) + ";(" + "|".join(COMMANDS) + ");.*")
+CMD_ECHO_REGEX = re.compile(
+    ";".join([PHY_REGEX, TIMESTAMP_REGEX]) + ";(" + "|".join(COMMANDS) + ");.*"
+)
 ERROR_REGEX = re.compile(r"\*;0;#error;.*")
 
 
@@ -290,9 +288,9 @@ def update_rate_stats(ap, fields: list) -> None:
     num_frames = int(fields[4], 16)
     num_ack = int(fields[5], 16)
     mrr = [tuple(s.split(",")) for s in fields[7:]]
-    rates = [r if r != "" else None for (r,_,_) in mrr]
-    counts = [int(c, 16) if c != "" else None for (_,c,_) in mrr]
-    txpwr = [int(t, 16) if t != "" else None for (_,_,t) in mrr]
+    rates = [r if r != "" else None for (r, _, _) in mrr]
+    counts = [int(c, 16) if c != "" else None for (_, c, _) in mrr]
+    txpwr = [int(t, 16) if t != "" else None for (_, _, t) in mrr]
 
     attempts = [(num_frames * c) if c else 0 for c in counts]
 

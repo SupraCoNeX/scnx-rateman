@@ -2,6 +2,7 @@ from importlib import import_module
 
 from .exception import RateControlError
 
+
 def load(rc_alg):
     try:
         mod = import_module(rc_alg)

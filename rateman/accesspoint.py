@@ -70,9 +70,9 @@ class AccessPoint:
 
     async def events(self):
         if self._first_non_header_line:
-                line = self._first_non_header_line
-                self._first_non_header_line = None
-                yield line
+            line = self._first_non_header_line
+            self._first_non_header_line = None
+            yield line
 
         async for data in self._reader:
             try:
@@ -174,7 +174,7 @@ class AccessPoint:
                 self.get_stations(radio, which="inactive")
             )
 
-        return [sta for _,sta in self._radios[radio]["stations"][which].items()]
+        return [sta for _, sta in self._radios[radio]["stations"][which].items()]
 
     def _get_sta(self, mac, radio, state):
         try:
@@ -211,7 +211,7 @@ class AccessPoint:
             rc_alg, rc_opts = self.get_default_rc(radio)
             if not rc_alg:
                 self._radios[radio]["default_rate_control_algorithm"] = "minstrel_ht_kernel_space"
-                self._radios[radio]["default_rate_control_options"] = {}                
+                self._radios[radio]["default_rate_control_options"] = {}
 
         self._radios[radio].update({
             "driver": driver,
@@ -349,7 +349,7 @@ class AccessPoint:
 
         for radio in self._radios:
             for sta in self.get_stations(radio):
-                rc_alg,_ = sta.rate_control
+                rc_alg, _ = sta.rate_control
                 if rc_alg != "minstrel_ht_kernel_space":
                     self._logger.warning(
                         f"Disconnecting from {self} will leave {sta} without rate control"

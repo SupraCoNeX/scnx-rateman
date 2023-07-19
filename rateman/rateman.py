@@ -115,11 +115,11 @@ class RateMan:
 
         tasks = [
             ap.start_task(self.ap_connection(ap, timeout=timeout), name=f"rcd_{ap.name}")
-            for _,ap in self._accesspoints.items()
+            for _, ap in self._accesspoints.items()
         ]
         await asyncio.wait(tasks, timeout=timeout)
 
-        for _,ap in self._accesspoints.items():
+        for _, ap in self._accesspoints.items():
             if not ap.connected:
                 self._logger.warning(
                     f"Connection to {ap} could not be established during initialization."

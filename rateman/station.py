@@ -3,20 +3,13 @@
 #     https://www.supraconex.org
 #
 
-r"""
-Station Class
--------------
-
-A Station object is created at instance a station connects to a given AP. 
-
-"""
-
 import asyncio
 import logging
 
 from .accesspoint import AccessPoint
 from . import rate_control
 from .exception import RateControlError, RateControlConfigError, StationModeError
+
 
 __all__ = ["Station"]
 
@@ -30,7 +23,7 @@ class Station:
         iface: str,
         timestamp: int,
         rc_mode: str,
-        tpc_mode:str,
+        tpc_mode: str,
         supported_rates: list,
         airtimes_ns: int,
         overhead_mcs: int,
@@ -38,20 +31,7 @@ class Station:
         rc_alg="minstrel_ht_kernel_space",
         rc_opts=None,
         logger=None
-    ) -> None:
-        """
-        Parameters
-        ----------
-        radio : str
-            Name of physical radio of the AP to which station is connected.
-        mac_addr : str
-            MAC address of the station.
-        supported_rates : list
-            MCS rates supported by the station.
-        timestamp : str
-            Timestamp in hex at which the station connected to the AP.
-        """
-
+    ):
         self._mac_addr = mac_addr
         self._accesspoint = ap
         self._loop = ap.loop
@@ -193,20 +173,26 @@ class Station:
         self._rate_control_algorithm = None
         self._rate_control_options = None
 
-    # TODO: only handle user space rc in this function?
     async def start_rate_control(self, rc_alg: str, rc_opts: dict) -> asyncio.Task:
         """
-        Put this STA under the given rate control algorithm. 
+        Put this STA under the given rate control algorithm. The algorithm is identified by its
+        module name, which will be used to try and import the module. The module is expected to
+        expose `configure()` and `run()` functions.
+        `configure()` takes as arguments the `Station` object and the rate control configuration
+        options and can return an arbitrary object. It is expected to configure the Station in a way
+        that isappropriate for the rate control algorithm. The core operation of the rate control
+        algorithm is expedted to happen in `run()`, which takes as its sole argument the object that
+        `configure()` returned.
+
+        This function will raise a rateman.RateControlError if there is an error loading the rate
+        control algorithm's Python module.
         '''
         Parameters
         ----------
         rc_alg : str
             The name of the rate control algorithm
         rc_opts : dict
-            Configuration options specific to the rate control algorithm
-
-        This function will raise a rateman.RateControlError if there is an error loading the rate
-        control algorithm.
+            Configuration options specific to the rate control algorithm.
         """
 
         if self._rate_control_algorithm == rc_alg and self._rate_control_options == rc_opts:
@@ -327,7 +313,7 @@ class Station:
         if self._rc_mode != "manual":
             raise StationModeError(self, "Need to be in manual rate control mode to set rates")
 
-        mrr = ";".join([f"{r},{c}" for (r,c) in zip(rates, counts)])
+        mrr = ";".join([f"{r},{c}" for (r, c) in zip(rates, counts)])
         await self._accesspoint.send(self._radio, f"set_rates;{self._mac_addr};{mrr}")
 
     async def set_power(self, pwrs: list) -> None:
@@ -357,7 +343,9 @@ class Station:
         if self._rc_mode != "manual":
             raise StationModeError(self, "Need to be in manual rate control mode to sample a rate")
 
-        await self._accesspoint.send(self._radio, f";set_probe;{self._mac_addr};{rate},{count},{txpwr}")
+        await self._accesspoint.send(
+            self._radio, f";set_probe;{self._mac_addr};{rate},{count},{txpwr}"
+        )
 
     def __str__(self):
         return f"STA[{self._mac_addr}]"
