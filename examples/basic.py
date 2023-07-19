@@ -21,12 +21,14 @@ if __name__ == "__main__":
         print("ERROR: No accesspoints given", file=sys.stderr)
         sys.exit(1)
 
+    # create asyncio event loop
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
+    # create rateman object
     rm = rateman.RateMan(loop=loop, logger=log)
 
-    # set AP's logger and add AP to rateman
+    # add APs to rateman
     for ap in aps:
         rm.add_accesspoint(ap)
 
@@ -44,6 +46,7 @@ if __name__ == "__main__":
 
     rm.add_raw_data_callback(print_event)
 
+    # run indefinitely
     try:
         print("Running rateman...")
         loop.run_forever()
