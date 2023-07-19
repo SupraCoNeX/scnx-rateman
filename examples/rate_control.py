@@ -10,8 +10,9 @@ import time
 
 from common import parse_arguments, setup_logger
 
+
 if __name__ == "__main__":
-    log = setup_logger("basic")
+    log = setup_logger("rate_control")
     args = parse_arguments()
     aps = rateman.from_strings(args.accesspoints, logger=log)
 
