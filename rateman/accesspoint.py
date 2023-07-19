@@ -106,10 +106,6 @@ class AccessPoint:
     def logger(self):
         return self._logger
 
-    @logger.setter
-    def logger(self, logger):
-        self._logger = logger
-
     def get_default_rc(self, radio):
         try:
             rc_alg = self._radios[radio]["default_rate_control_algorithm"]
@@ -336,7 +332,7 @@ class AccessPoint:
             raise e
         except Exception as e:
             self._logger.error(
-                f"{self._name}: Failed to connect at {self._addr}:{self._rcd_port}: {e}"
+                f"{self._name}: Failed to connect at {self._addr}:{self._rcd_port}: {e.__repr__()}"
             )
             self._connected = False
             raise e

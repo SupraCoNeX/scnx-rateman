@@ -140,6 +140,8 @@ class RateMan:
             failure.
         """
         while True:
+            self._logger.debug(f"Connecting to {ap}, timeout={timeout} s")
+
             try:
                 async with asyncio.timeout(timeout):
                     await ap.connect()
