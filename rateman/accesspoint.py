@@ -215,6 +215,7 @@ class AccessPoint:
             "tpc": tpc,
             "config": cfg,
             "stations": {"active": {}, "inactive": {}},
+            "events": []
         })
 
     def radio_for_interface(self, iface: str) -> str:
@@ -392,14 +393,26 @@ class AccessPoint:
             await self.mt76_force_rate_retry(cfg["mt76_force_rate_retry"], radio)
 
     async def enable_events(self, events: list, radio="all"):
-        if radio == "all":
+        if radio in ["all", "*"]:
             radio = "*"
+            for r in self._radios:
+                enabled_events = set(self._radios[r]["events"])
+                enabled_events.update(events)
+                self._radios[r]["events"] = list(enabled_events)
+        else:
+            enabled_events = set(self._radios[radio]["events"])
+            enabled_events.update(events)
+            self._radios[radio]["events"] = list(enabled_events)
 
         await self.send(radio, "start;" + ";".join(events))
 
-    async def disable_events(self, events: list, radio="all"):
-        if radio == "all":
+    async def disable_events(self, events: list = ["txs", "rxs", "stats"], radio="all"):
+        if radio in ["all", "*"]:
             radio = "*"
+            for r in self._radios:
+                self._radios[r]["events"] = list(set(self._radios[r]["events"]) - set(events))
+        else:
+            self._radios[radio]["events"] = list(set(self._radios[radio]["events"]) - set(events))
 
         await self.send(radio, "stop;" + ";".join(events))
 
