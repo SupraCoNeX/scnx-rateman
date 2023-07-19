@@ -269,13 +269,7 @@ class RateMan:
                 stas += ap.get_stations(radio)
 
             for sta in stas:
-                await sta.stop_rate_control()
-
-            await ap.set_all_stations_rc_mode("auto")
-            await ap.set_all_stations_tpc_mode("auto")
-
-            for sta in stas:
-                await sta.start_rate_control("minstrel_ht_kernel_space", {})
+                await sta.start_rate_control("minstrel_ht_kernel_space", None)
 
             await ap.disconnect()
 

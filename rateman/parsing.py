@@ -100,7 +100,7 @@ async def process_sta_info(ap, fields):
         ap.add_station(sta)
 
         if sta.rc_mode == "auto":
-            await sta.start_rate_control("minstrel_ht_kernel_space", {})
+            await sta.start_rate_control("minstrel_ht_kernel_space", None)
 
     elif fields[3] == "remove":
         sta = ap.remove_station(mac=fields[4], radio=fields[0])
