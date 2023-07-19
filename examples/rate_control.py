@@ -7,50 +7,57 @@ import asyncio
 import sys
 import rateman
 import time
-from common import setup_argparser
+
+from common import parse_arguments, setup_logger
 
 if __name__ == "__main__":
-    arg_parser = setup_argparser()
-    args = arg_parser.parse_args()
-    aps = rateman.from_strings(args.accesspoints)
-    save_data = True
+    log = setup_logger("basic")
+    args = parse_arguments()
+    aps = rateman.from_strings(args.accesspoints, logger=log)
 
     if args.ap_file:
-        aps += rateman.from_file(args.ap_file)
+        aps += rateman.from_file(args.ap_file, logger=log)
 
     if len(aps) == 0:
         print("ERROR: No accesspoints given", file=sys.stderr)
         sys.exit(1)
 
+    # create asyncio event loop
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
+    # create rateman object
+    rm = rateman.RateMan(loop=loop, logger=log)
+
+    # add APs to rateman
     for ap in aps:
-        ap._name = f"{ap.name}-{args.rc_alg}-{round(time.time())}"
-        ap.default_rc_alg = args.rc_alg
-        ap.default_rc_opts = {"filter": "EWMA"}
+        rm.add_accesspoint(ap)
 
-    rateman_obj=rateman.RateMan(aps,loop=loop)
+    # establish connections and set up state
+    loop.run_until_complete(rm.initialize())
 
-    if save_data:
-        file_handles = {}
-        for ap in aps:
-            file_handles[ap.name] = open(f"{ap.name}.csv", 'w')
+    # start 'example_rc' rate control algorithm. This will import from the example_rc.py file.
+    for ap in aps:
+        for sta in ap.get_stations():
+            loop.run_until_complete(sta.start_rate_control("example_rc", { "interval_ms": 1000 }))
 
-        # add a simple print callback to collect the incoming data
-        rateman_obj.add_raw_data_callback(
-            lambda ap,line:file_handles[ap.name].write(f"{line}\n")
-        )
+    # Enable 'txs' events so we can see our rate setting in action. Note, this requires traffic to
+    # produce events. pinging the station across the wireless link can help with that.
+    for ap in aps:
+        loop.run_until_complete(ap.disable_events())
+        loop.run_until_complete(ap.enable_events(["txs"]))
 
-    print("Running rateman...")
+    # add a simple print callback to see the txs events
+    def print_event(ap, ev, context=None):
+        print(f"{ap.name} > {ev}")
+
+    rm.add_raw_data_callback(print_event)
 
     try:
+        print("Running rateman...")
         loop.run_forever()
-    except (OSError, KeyboardInterrupt):
+    except KeyboardInterrupt:
         print("Stopping...")
     finally:
-        loop.run_until_complete(asyncio.wait([rateman_obj.stop()], timeout=5))
-        if save_data:
-            for _, file_handle in file_handles.items():
-                file_handle.close()
+        loop.run_until_complete(rm.stop())
         print("DONE")
