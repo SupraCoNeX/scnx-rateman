@@ -1,13 +1,14 @@
 import argparse
 import sys
+import logging
 
 from rateman.accesspoint import AccessPoint
 
 
-def setup_argparser():
+def parse_arguments():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument(
-        "-rc-alg",
+        "-g", "--rc-algorithm",
         metavar="RC_ALG",
         type=str,
         choices=["minstrel_ht_kernel_space", "py_minstrel_ht", "manual_mrr_setter"],
@@ -16,19 +17,19 @@ def setup_argparser():
     )
 
     arg_parser.add_argument(
-        "-rc-opts",
+        "-o", "--rc-options",
         metavar="RC_OPTS",
-        default="{}",
+        type=dict,
+        default={},
         help="Rate control options",
     )
 
     arg_parser.add_argument(
-        "-A",
-        "--ap-file",
+        "-A", "--ap-file",
         metavar="AP_FILE",
         type=str,
         help="Path to a csv file where each line contains information about an access point "
-        + "in the format: ID,ADDR,RCDPORT.",
+        + "in the format: NAME,ADDR,RCDPORT",
     )
     arg_parser.add_argument(
         "accesspoints",
@@ -39,4 +40,12 @@ def setup_argparser():
         + "RCDPORT is optional and defaults to 21059.",
     )
 
-    return arg_parser
+    return arg_parser.parse_args()
+
+
+def setup_logger(name, log_lvl=logging.DEBUG):
+    logging.basicConfig(format="[LOG] %(asctime)s - %(name)s - %(message)s")
+    logger = logging.getLogger(name)
+    logger.setLevel(log_lvl)
+
+    return logger
