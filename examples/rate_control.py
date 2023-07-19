@@ -54,7 +54,7 @@ if __name__ == "__main__":
     rm.add_raw_data_callback(print_event)
 
     try:
-        print("Running rateman...")
+        print("Running rateman... (Press CTRL+C to stop)")
         loop.run_forever()
     except KeyboardInterrupt:
         print("Stopping...")

@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
     # run indefinitely
     try:
-        print("Running rateman...")
+        print("Running rateman... (Press CTRL+C to stop)")
         loop.run_forever()
     except KeyboardInterrupt:
         print("Stopping...")
