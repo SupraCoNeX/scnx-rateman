@@ -276,17 +276,17 @@ class Station:
         self._stats = dict.fromkeys(
             self._supported_rates,
             dict.fromkeys(
-                [-1] + self._ap.get_txpowers(self._radio),
+                [-1] + self._accesspoint.get_txpowers(self._radio),
                 {"attempts": 0, "success": 0, "timestamp": 0}
             )
         )
 
-    def reset_kernel_rate_stats(self) -> None:
+    async def reset_kernel_rate_stats(self) -> None:
         """
         Reset counters for attempted and successful transmission in the kernel of this station's
         access point.
         """
-        self._accesspoint.reset_kernel_rate_stats(radio=self._radio, sta=self._mac_addr)
+        await self._accesspoint.reset_kernel_rate_stats(radio=self._radio, sta=self._mac_addr)
 
     async def set_manual_rc_mode(self, enable: bool) -> None:
         if enable == (self._rc_mode == "manual"):
