@@ -114,13 +114,15 @@ class RateMan:
         """
 
         tasks = [
-            ap.start_task(self.ap_connection(ap, timeout=timeout), name=f"rcd_{ap.name}")
+            ap.start_task(self.ap_connection(ap, timeout=timeout), name=f"connect_{ap.name}")
             for _, ap in self._accesspoints.items()
         ]
         await asyncio.wait(tasks, timeout=timeout)
 
         for _, ap in self._accesspoints.items():
-            if not ap.connected:
+            if ap.connected:
+                ap.start_task(self.rcd_connection(ap), name=f"rcd_{ap.name}")
+            else:
                 self._logger.warning(
                     f"Connection to {ap} could not be established during initialization."
                 )
@@ -146,8 +148,7 @@ class RateMan:
                 async with asyncio.timeout(timeout):
                     await ap.connect()
                     await process_header(ap)
-
-                await self.rcd_connection(ap)
+                    break
             except asyncio.CancelledError as e:
                 raise e
             except UnsupportedAPIVersionError as e:
