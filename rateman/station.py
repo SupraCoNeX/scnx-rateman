@@ -336,16 +336,19 @@ class Station:
         mrr = ";".join([f"{r},{c},{p}" for ((r, c), p) in zip(zip(rates, counts), pwrs)])
         await self._accesspoint.send(self._radio, f"set_rates_power;{self._mac_addr};{mrr}")
 
-    async def set_probe_rate(self, rate: str, count: int, txpwr: int) -> None:
+    async def set_probe_rate(self, rate: str, count: int, txpwr: int = None) -> None:
         if rate not in self._supported_rates:
             raise ValueError(f"{self}: Cannot probe '{rate}': Not supported")
 
         if self._rc_mode != "manual":
             raise StationModeError(self, "Need to be in manual rate control mode to sample a rate")
 
-        await self._accesspoint.send(
-            self._radio, f";set_probe;{self._mac_addr};{rate},{count},{txpwr}"
-        )
+        cmd = f"set_probe;{self._mac_addr};{rate},{count}"
+
+        if txpwr and txpwr != -1:
+            cmd += f",{txpwr}"
+
+        await self._accesspoint.send(self._radio, cmd)
 
     def __str__(self):
         return f"STA[{self._mac_addr}]"
