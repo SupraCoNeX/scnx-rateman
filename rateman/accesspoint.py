@@ -245,8 +245,8 @@ class AccessPoint:
         except KeyError:
             return None
 
-        sta.radio = None
-        sta.accesspoint = None
+        sta.disassociate()
+
         self._radios[radio]["stations"]["inactive"][mac] = sta
         self._logger.debug(f"{self._name}:{sta.radio}: Removed {sta}")
         return sta

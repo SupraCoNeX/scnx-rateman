@@ -153,6 +153,10 @@ class Station:
     def __repr__(self):
         return f"STA[{self._mac_addr}]"
 
+    def disassociate(self):
+        self._radio = None
+        self._accesspoint = None
+
     async def stop_rate_control(self):
         if not self._rate_control_algorithm:
             return
