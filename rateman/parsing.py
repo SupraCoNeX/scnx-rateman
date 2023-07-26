@@ -305,12 +305,11 @@ def update_rate_stats(ap, fields: list) -> None:
 
     succ = [0, 0, 0, 0]
     succ[suc_rate_ind] = num_ack
-    rates = [f"0{rate}" if rate and (len(rate) == 1) else rate for rate in rates]
+    rates = [f"0{rate}" if (rate and len(rate) == 1) else rate for rate in rates]
 
     for i, rate in enumerate(rates):
         if not rate:
             break
-
         sta.update_rate_stats(timestamp, rate, txpwr[i], attempts[i], succ[i])
 
     sta.ampdu_enabled = (num_frames > 1)

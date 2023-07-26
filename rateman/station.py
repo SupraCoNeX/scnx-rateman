@@ -237,19 +237,6 @@ class Station:
         if not txpwr:
             txpwr = -1
 
-        if rate not in self._stats:
-            self._stats[rate] = {
-                txpwr: {
-                    "attempts": 0,
-                    "success": 0
-                }
-            }
-        elif txpwr not in self._stats[rate]:
-            self._stats[rate][txpwr] = {
-                "attempts": 0,
-                "success": 0
-            }
-
         self._stats[rate][txpwr]["attempts"] += attempts
         self._stats[rate][txpwr]["success"] += succ
         self._stats[rate][txpwr]["timestamp"] = timestamp
