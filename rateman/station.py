@@ -48,13 +48,8 @@ class Station:
         self._ampdu_packets = 0
         self._ampdu_len = 0
         self._avg_ampdu_len = 0
-        self._stats = dict.fromkeys(
-            supported_rates,
-            dict.fromkeys(
-                [-1] + ap.get_txpowers(radio),
-                {"attempts": 0, "success": 0, "timestamp": timestamp}
-            )
-        )
+        self._stats = {}
+        self.reset_rate_stats()
         self._rssi = 1
         self._rssi_vals = []
         self._rate_control_algorithm = rc_alg
@@ -260,17 +255,17 @@ class Station:
 
     def reset_rate_stats(self) -> None:
         """
-        Reset packet transmission attempts and success statistics over all
-        rates.
+        Reset packet transmission attempts and success statistics for all supported rates and
+        transmit power levels.
 
         """
-        self._stats = dict.fromkeys(
-            self._supported_rates,
-            dict.fromkeys(
-                [-1] + self._accesspoint.get_txpowers(self._radio),
-                {"attempts": 0, "success": 0, "timestamp": 0}
-            )
-        )
+        self._stats = {
+            rate: {
+                txpwr: {"attempts": 0, "success": 0, "timestamp": 0}
+                for txpwr in [-1] + self._accesspoint.get_txpowers(self._radio)
+            }
+            for rate in self._supported_rates
+        }
 
     async def reset_kernel_rate_stats(self) -> None:
         """
