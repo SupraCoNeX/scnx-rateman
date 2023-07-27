@@ -91,10 +91,10 @@ class RateMan:
             self._tasks.remove(task)
 
     def add_accesspoint(self, ap):
-        if ap._addr in self._accesspoints:
+        if (ap._addr,ap._rcd_port) in self._accesspoints:
             return
 
-        self._accesspoints[ap._addr] = ap
+        self._accesspoints[(ap._addr, ap._rcd_port)] = ap
 
         if not ap.loop:
             ap.loop = self._loop
