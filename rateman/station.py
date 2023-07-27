@@ -179,11 +179,11 @@ class Station:
         expose `configure()` and `run()` functions.
         `configure()` takes as arguments the `Station` object and the rate control configuration
         options and can return an arbitrary object. It is expected to configure the Station in a way
-        that isappropriate for the rate control algorithm. The core operation of the rate control
+        that is appropriate for the rate control algorithm. The core operation of the rate control
         algorithm is expedted to happen in `run()`, which takes as its sole argument the object that
         `configure()` returned.
 
-        This function will raise a rateman.RateControlError if there is an error loading the rate
+        This function will raise a `rateman.RateControlError` if there is an error loading the rate
         control algorithm's Python module.
         '''
         Parameters
