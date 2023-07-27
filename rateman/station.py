@@ -5,6 +5,7 @@
 
 import asyncio
 import logging
+from contextlib import suppress
 
 from .accesspoint import AccessPoint
 from . import rate_control
@@ -163,10 +164,9 @@ class Station:
 
         if self._rc:
             self._rc.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await self._rc
-            except (asyncio.CancelledError, StationModeError):
-                pass
+                result = self._rc.result()
 
         self._rc = None
         self._rate_control_algorithm = None
