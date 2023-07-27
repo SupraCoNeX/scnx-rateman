@@ -108,7 +108,7 @@ def main():
             print(f"Starting rate control scheme '{args.algorithm}' for {sta}")
             loop.run_until_complete(sta.start_rate_control(args.algorithm, args.options))
 
-    print("Running rateman...")
+    print("Running rateman... (Press CTRL+C to stop)")
 
     if args.events:
         # add a simple print callback to see the incoming data
@@ -116,8 +116,9 @@ def main():
 
     try:
         loop.run_forever()
-    except (OSError, KeyboardInterrupt):
+    except KeyboardInterrupt:
         print("Stopping...")
     finally:
         loop.run_until_complete(rm.stop())
+        loop.close()
         print("DONE")
