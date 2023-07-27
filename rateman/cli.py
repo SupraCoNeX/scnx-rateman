@@ -1,12 +1,13 @@
 import argparse
 import sys
 import asyncio
+import logging
 import rateman
 
 
 def dump_stas(ap, radio, interface):
     for sta in [sta for sta in ap.get_stations(radio) if sta.interface == interface]:
-        print(f"        - {sta.mac_addr}"
+        print(f"        + {sta.mac_addr}"
               f" [rc={sta.rc_mode} tpc={sta.tpc_mode} rc_alg={sta.rate_control[0]}]"
         )
 
@@ -14,7 +15,7 @@ def dump_stas(ap, radio, interface):
 def dump_interfaces(ap, radio):
     print("      interfaces:")
     for iface in ap.interfaces(radio):
-        print(f"        {iface}")
+        print(f"      - {iface}")
         dump_stas(ap, radio, iface)
 
 
@@ -37,6 +38,15 @@ def show_state(rm):
   radios:""" % dict(name=ap.name, conn=("yes" if ap.connected else "no")))
         dump_radios(ap)
 
+
+def setup_logger(verbose):
+    logging.basicConfig(format="[LOG] %(asctime)s - %(name)s - %(message)s")
+    logger = logging.getLogger("rateman")
+    logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+
+    return logger
+
+
 def main():
     arg_parser = argparse.ArgumentParser(prog="rateman")
     arg_parser.add_argument(
@@ -51,6 +61,11 @@ def main():
         type=dict,
         default={},
         help="Rate control algorithm configuration options"
+    )
+    arg_parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="debug logging"
     )
     arg_parser.add_argument(
         "-A",
@@ -76,6 +91,8 @@ def main():
         + "RCDPORT is optional and defaults to 21059.",
     )
     args = arg_parser.parse_args()
+    logger = setup_logger(args.verbose)
+
     aps = rateman.accesspoint.from_strings(args.accesspoints)
 
     if args.ap_file:
@@ -88,7 +105,7 @@ def main():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    rm = rateman.RateMan(loop=loop)
+    rm = rateman.RateMan(loop=loop, logger=logger)
 
     for ap in aps:
         rm.add_accesspoint(ap)
