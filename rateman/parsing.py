@@ -84,13 +84,13 @@ def parse_tpc(cap: list) -> dict:
 
 
 def process_phy_info(ap, fields):
-    radio = fields[0]
-    driver = fields[3]
-    ifaces = fields[4].split(",")
-
-    ap.add_radio(fields[0], fields[3], fields[4].split(","), parse_tpc(fields[5:]))
-
-    return True
+    ap.add_radio(
+        fields[0],             # radio
+        fields[3],             # driver
+        fields[4].split(","),  # interfaces
+        fields[5].split(","),  # active events ('txs', 'rxs', 'stats', 'tprc_echo')
+        parse_tpc(fields[6:])  # tx power range blocks
+    )
 
 
 async def process_sta_info(ap, fields):

@@ -263,7 +263,6 @@ class RateMan:
                 continue
 
             await ap.stop_task()
-            await ap.disable_events(["txs", "rxs", "stats"], radio="all")
 
             stas = []
             for radio in ap.radios:

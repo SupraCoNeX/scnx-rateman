@@ -193,8 +193,10 @@ class AccessPoint:
 
         return self._get_sta(mac, radio, state)
 
-    def add_radio(self, radio: str, driver: str, ifaces: list, tpc: dict, rc_alg=None, rc_opts=None,
-                  cfg=None) -> None:
+    def enabled_events(self, radio: str) -> list:
+        return self._radios[radio]["events"]
+
+    def add_radio(self, radio: str, driver: str, ifaces: list, events: list, tpc: dict) -> None:
         self._logger.debug(
             f"{self._name}: adding radio '{radio}', driver={driver}, "
             f"interfaces={','.join(ifaces)}, tpc={tpc}"
@@ -212,10 +214,9 @@ class AccessPoint:
         self._radios[radio].update({
             "driver": driver,
             "interfaces": ifaces,
+            "events": events,
             "tpc": tpc,
-            "config": cfg,
-            "stations": {"active": {}, "inactive": {}},
-            "events": []
+            "stations": {"active": {}, "inactive": {}}
         })
 
     def radio_for_interface(self, iface: str) -> str:
@@ -310,7 +311,7 @@ class AccessPoint:
         self._task = None
         return t
 
-    async def connect(self, dump_stas=True, events_mask={"*": ["txs", "rxs", "stats"]}):
+    async def connect(self):
         if self._connected:
             return
 
@@ -319,14 +320,6 @@ class AccessPoint:
             self._reader = r
             self._writer = w
             self._connected = True
-
-            # immediately send dump sta command so sta info can be parsed with api info and phy info
-            if dump_stas:
-                await self.dump_stas()
-
-            for radio, events in events_mask.items():
-                await self.enable_events(events, radio=radio)
-
         except asyncio.CancelledError as e:
             self._task = None
             self._connected = False
@@ -392,7 +385,7 @@ class AccessPoint:
         if "mt76_force_rate_retry" in cfg:
             await self.mt76_force_rate_retry(cfg["mt76_force_rate_retry"], radio)
 
-    async def enable_events(self, events: list, radio="all"):
+    async def enable_events(self, events: list, radio="all") -> None:
         if radio in ["all", "*"]:
             radio = "*"
             for r in self._radios:
@@ -406,7 +399,9 @@ class AccessPoint:
 
         await self.send(radio, "start;" + ";".join(events))
 
-    async def disable_events(self, events: list = ["txs", "rxs", "stats"], radio="all"):
+    async def disable_events(
+        self, events: list = ["txs", "rxs", "stats", "tprc_echo"], radio="all"
+    ) -> None:
         if radio in ["all", "*"]:
             radio = "*"
             for r in self._radios:
