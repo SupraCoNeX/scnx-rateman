@@ -106,30 +106,6 @@ class AccessPoint:
     def logger(self):
         return self._logger
 
-    def get_default_rc(self, radio):
-        try:
-            rc_alg = self._radios[radio]["default_rate_control_algorithm"]
-            rc_opts = self._radios[radio]["default_rate_control_options"]
-            return (rc_alg, rc_opts)
-        except KeyError:
-            return (None, None)
-
-    def set_default_rc(self, rc_alg, rc_opts, radio="all"):
-        if radio == "all":
-            for radio in self._radios:
-                self.set_default_rc(rc_alg, rc_opts, radio=radio)
-            return
-
-        self._logger.debug(
-            f"{self._name}:{radio}: Set default rc algorithm '{rc_alg}', options={rc_opts}"
-        )
-
-        if radio not in self._radios:
-            self._radios[radio] = {}
-
-        self._radios[radio]["default_rate_control_algorithm"] = rc_alg
-        self._radios[radio]["default_rate_control_options"] = rc_opts
-
     @property
     def supported_rates(self) -> dict:
         return self._supp_rates
@@ -204,12 +180,6 @@ class AccessPoint:
 
         if radio not in self._radios:
             self.radios[radio] = {}
-
-        if (rc_alg and rc_opts) is None:
-            rc_alg, rc_opts = self.get_default_rc(radio)
-            if not rc_alg:
-                self._radios[radio]["default_rate_control_algorithm"] = "minstrel_ht_kernel_space"
-                self._radios[radio]["default_rate_control_options"] = {}
 
         self._radios[radio].update({
             "driver": driver,
