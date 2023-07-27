@@ -17,7 +17,7 @@ import os
 import logging
 from functools import reduce
 
-from .exception import RadioConfigError, AccessPointNotConnectedError
+from .exception import RadioConfigError, AccessPointNotConnectedError, UnsupportedFeatureException
 
 __all__ = ["AccessPoint", "from_file", "from_strings"]
 
@@ -172,10 +172,59 @@ class AccessPoint:
     def enabled_events(self, radio: str) -> list:
         return self._radios[radio]["events"]
 
-    def add_radio(self, radio: str, driver: str, ifaces: list, events: list, tpc: dict) -> None:
+    def features(self, radio: str) -> list:
+        return self._radios[radio]["features"].keys()
+
+    async def _set_feature(self, radio, feature, state):
+        try:
+            if feature not in self._radios[radio]["features"]:
+                raise UnsupportedFeatureException(self, radio, feature)
+            elif self._radios[radio]["features"][feature] == state:
+                return
+        except KeyError as e:
+            raise RateManError(f"{self._name}: No such radio '{radio}'") from e
+
+        self._radios[radio]["features"][feature] = state
+        await self.send(radio, f"set_feature;{feature};{'on' if state else 'off'}")
+
+    async def enable_feature(self, radio :str, feature: str) -> None:
+        """
+        Enable a given radio's feature.
+
+        Parameters
+        ----------
+        radio : str
+            The radio for which to enable the feature
+        feature : str
+            The feature to enable
+
+        This will raise a `RateManError` if the radio is unknown and a `UnsupportedFeatureException`
+        if the radio does not support the feature.
+        """
+        await self._set_feature(radio, feature, True)
+
+    async def disable_feature(self, radio: str, feature: str):
+        """
+        Disable a given radio's feature.
+
+        Parameters
+        ----------
+        radio : str
+            The radio for which to disable the feature
+        feature : str
+            The feature to disable
+
+        This will raise a `RateManError` if the radio is unknown and a `UnsupportedFeatureException`
+        if the radio does not support the feature.
+        """
+        await self._set_feature(radio, feature, False)
+
+    def add_radio(self, radio: str, driver: str, ifaces: list, events: list, active_features: list,
+                  inactive_features: list, tpc: dict) -> None:
         self._logger.debug(
             f"{self._name}: adding radio '{radio}', driver={driver}, "
-            f"interfaces={','.join(ifaces)}, tpc={tpc}"
+            f"interfaces={','.join(ifaces)}, events={events}, active_features={active_features} "
+            f"inactive_features={inactive_features}, tpc={tpc}"
         )
 
         if radio not in self._radios:
@@ -185,6 +234,9 @@ class AccessPoint:
             "driver": driver,
             "interfaces": ifaces,
             "events": events,
+            "features": {
+                f: (f in active_features) for f in (active_features + inactive_features) if f
+            },
             "tpc": tpc,
             "stations": {"active": {}, "inactive": {}}
         })

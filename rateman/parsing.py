@@ -89,7 +89,9 @@ def process_phy_info(ap, fields):
         fields[3],             # driver
         fields[4].split(","),  # interfaces
         fields[5].split(","),  # active events ('txs', 'rxs', 'stats', 'tprc_echo')
-        parse_tpc(fields[6:])  # tx power range blocks
+        fields[6].split(","),  # active features
+        fields[7].split(","),  # inactive features
+        parse_tpc(fields[8:])  # tx power range blocks
     )
 
 

@@ -23,8 +23,15 @@ def dump_radios(ap):
     for radio in ap.radios:
         print("""  - %(radio)s
       driver: %(drv)s
-      events: %(ev)s""" % dict(
-                radio=radio, drv=ap.get_radio_driver(radio), ev=",".join(ap.enabled_events(radio))
+      events: %(ev)s
+      features: %(features)s""" % dict(
+                radio=radio,
+                drv=ap.get_radio_driver(radio),
+                ev=",".join(ap.enabled_events(radio)),
+                features=", ".join([
+                    f"{f}={'on' if s else 'off'}"
+                    for f, s in ap._radios[radio]["features"].items()
+                ])
             )
         )
         dump_interfaces(ap, radio)
