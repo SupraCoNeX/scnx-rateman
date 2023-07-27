@@ -4,6 +4,39 @@ import asyncio
 import rateman
 
 
+def dump_stas(ap, radio, interface):
+    for sta in [sta for sta in ap.get_stations(radio) if sta.interface == interface]:
+        print(f"        - {sta.mac_addr}"
+              f" [rc={sta.rc_mode} tpc={sta.tpc_mode} rc_alg={sta.rate_control[0]}]"
+        )
+
+
+def dump_interfaces(ap, radio):
+    print("      interfaces:")
+    for iface in ap.interfaces(radio):
+        print(f"        {iface}")
+        dump_stas(ap, radio, iface)
+
+
+def dump_radios(ap):
+    for radio in ap.radios:
+        print("""  - %(radio)s
+      driver: %(drv)s
+      events: %(ev)s""" % dict(
+                radio=radio, drv=ap.get_radio_driver(radio), ev=",".join(ap.enabled_events(radio))
+            )
+        )
+        dump_interfaces(ap, radio)
+
+
+def show_state(rm):
+    for _, ap in rm.accesspoints.items():
+        print("""
+%(name)s:
+  connected: %(conn)s
+  radios:""" % dict(name=ap.name, conn=("yes" if ap.connected else "no")))
+        dump_radios(ap)
+
 def main():
     arg_parser = argparse.ArgumentParser(prog="rateman")
     arg_parser.add_argument(
@@ -29,6 +62,10 @@ def main():
     )
     arg_parser.add_argument(
         "-e", "--events", action="store_true", help="Print the events rateman receives"
+    )
+    arg_parser.add_argument(
+        "--show-state", action="store_true",
+        help="Connect to APs and output their state. This is useful for testing"
     )
     arg_parser.add_argument(
         "accesspoints",
@@ -59,6 +96,12 @@ def main():
     print("Initializing rateman...", end="")
     loop.run_until_complete(rm.initialize())
     print("OK")
+
+    if args.show_state:
+        show_state(rm)
+        loop.run_until_complete(rm.stop())
+        loop.close()
+        return 0
 
     for _, ap in rm.accesspoints.items():
         for sta in ap.get_stations():
