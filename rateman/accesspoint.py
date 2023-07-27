@@ -196,6 +196,18 @@ class AccessPoint:
 
         return None
 
+    def interfaces(self, radio: str) -> list:
+        try:
+            return self._radios[radio]["interfaces"]
+        except KeyError as e:
+            raise RateManError(f"{self._name}: No such radio '{radio}'") from e
+
+    def get_radio_driver(self, radio: str) -> str:
+        try:
+            return self._radios[radio]["driver"]
+        except KeyError as e:
+            raise RateManError(f"{self._name}: No such radio '{radio}'") from e
+
     def get_txpowers(self, radio: str) -> list:
         if self._radios[radio]["tpc"]:
             return self._radios[radio]["tpc"]["txpowers"]
