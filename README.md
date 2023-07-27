@@ -48,6 +48,20 @@ These are the relevant functions that `Station` objects expose for performing re
 
   To perform rate sampling of the given rate at the given transmit power for the given number of attempts.
 
+## Testing your setup
+
+In order to quickly see if rateman is able to connect to [orca-rcd](https://github.com/SupraCoNeX/orca-rcd) instances in your network, you can run rateman as a package (after installing it using `pip install -e <scnx-rateman directory>`):
+```
+python -m rateman --show-state <NAME>:<IPADDR>:<RCDPORT> [<NAME>:<IPADDR>:<RCDPORT> ...]
+```
+where
+
+- `NAME` is an arbitrary name used to identify the device on which orca-rcd runs,
+- `IPADDR` is that device's IP address, and
+- `RCDPORT` is the port orca-rcd listens on. If you omit this option, it will default to 21059.
+
+This will make rateman connect to the given device\[s\] and print information about their state.
+
 ## Examples
 
 The examples directory contains simple examples showcasing Rateman's capabilities and its interface. To run them you require a wireless device running [orca-rcd](https://github.com/SupraCoNeX/orca-rcd) with at least one associated station. For example, to run the `basic.py` example, execute
