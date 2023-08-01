@@ -429,7 +429,11 @@ class Station:
 
 
 def handle_rc_exception(sta, future, **kwargs):
-    exception = future.exception()
+    try:
+        exception = future.exception()
+    except asyncio.CancelledError:
+        return
+
     rc_alg, _ = sta.rate_control
 
     sta.logger.error(f"{sta}: Rate control '{rc_alg}' raised an exception: {exception.__repr__()}")
