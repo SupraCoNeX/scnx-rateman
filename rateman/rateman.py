@@ -71,6 +71,9 @@ class RateMan:
         return self._tasks
 
     def get_sta(self, mac):
+        """
+        Return the `rateman.Station` object identified by the given MAC address.
+        """
         for ap in self._accesspoints:
             sta = ap.get_sta(mac)
             if sta:
@@ -221,15 +224,6 @@ class RateMan:
             return
 
     async def rcd_connection(self, ap):
-        """
-        Receive data from an instance of minstrel-rcd, update internal state
-        accordingly, and execute callbacks.
-
-        Parameters
-        ----------
-        ap : rateman.accesspoint.AccessPoint
-            The access point
-        """
         try:
             async for line in ap.events():
                 for (cb, ctx) in self._raw_data_callbacks:
