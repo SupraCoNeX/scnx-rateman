@@ -59,13 +59,17 @@ class Station:
         self._log = logger if logger else logging.getLogger()
 
     @property
-    def last_seen(self) -> str:
+    def last_seen(self) -> int:
+        """
+        Return the timestamp of the last known activity of the station given in nanoseconds since
+        1970/1/1 00:00:00.
+        """
         return self._last_seen
 
     @property
     def accesspoint(self) -> AccessPoint:
         """
-        Return the accesspoint this station is connected to.
+        Return the accesspoint to which the station is connected.
         """
         return self._accesspoint
 
@@ -79,7 +83,7 @@ class Station:
     @property
     def interface(self) -> str:
         """
-        Return the virtual interface on the AP to which this station is connected.
+        Return the name of the virtual interface on the AP to which this station is connected.
         """
         return self._iface
 
@@ -106,22 +110,37 @@ class Station:
 
     @property
     def rc_mode(self) -> str:
+        """
+        Return the station's currently active `rc_mode` (`auto` or `manual`).
+        """
         return self._rc_mode
 
     @property
     def tpc_mode(self) -> str:
+        """
+        Return the station's currently active `tpc_mode` (`auto` or `manual`).
+        """
         return self._tpc_mode
 
     @property
     def overhead_mcs(self):
+        """
+        Return the overhead time for frames sent at MCS rates in nanoseconds.
+        """
         return self._overhead_mcs
 
     @property
     def overhead_legacy(self):
+        """
+        Return the overhead time for frames sent at legacy rates in nanoseconds.
+        """
         return self._overhead_legacy
 
     @property
     def supported_rates(self) -> list:
+        """
+        Return a list of all the transmission rates this station supports.
+        """
         return self._supported_rates
 
     @property
@@ -130,6 +149,9 @@ class Station:
 
     @property
     def mac_addr(self) -> str:
+        """
+        Return the station's MAC address
+        """
         return self._mac_addr
 
     @property
@@ -137,7 +159,12 @@ class Station:
         return self._stats
 
     @property
-    def rate_control(self):
+    def rate_control(self) -> tuple:
+        """
+        Return a tuple `(rc_alg, rc_opts)` where `rc_alg` is the name (`str`) of the rc algorithm
+        controlling this station at the moment, and `rc_opts` is the `dict` with the configuration
+        options it was started with.
+        """
         return (self._rate_control_algorithm, self._rate_control_options)
 
     @property
@@ -152,6 +179,9 @@ class Station:
         self._accesspoint = None
 
     async def stop_rate_control(self):
+        """
+        Stop the user space rc algorithm controlling transmit rates and power for the station.
+        """
         if not self._rate_control_algorithm:
             return
 
@@ -220,6 +250,9 @@ class Station:
 
     @property
     def lowest_supported_rate(self):
+        """
+        Return the index of the slowest rate that this station supports.
+        """
         return self._supported_rates[0]
 
     def update_rate_stats(self, timestamp: int, rate: str, txpwr: int, attempts: int, succ: int):
@@ -258,6 +291,13 @@ class Station:
             self._rssi_vals = per_antenna
 
     def get_rate_stats(self, rate: str) -> dict:
+        """
+        Return the statistics for the given rate. The returned dictionary includes the keys
+        `attempts`, `success`, and `timestamp` keyed by transmit power levels. `attempts` counts the
+        total number of transmissions attempted at the given rate for the given power level, while
+        `success` counts the number of successful transmissions. `timestamp` gives the time of the
+        last attempt made at the given rate and power level in nanoseconds since 1970/1/1 00:00:00.
+        """
         return self._stats.get(rate, {})
 
     def reset_rate_stats(self) -> None:
@@ -282,6 +322,10 @@ class Station:
         await self._accesspoint.reset_kernel_rate_stats(radio=self._radio, sta=self._mac_addr)
 
     async def set_manual_rc_mode(self, enable: bool) -> None:
+        """
+        Configure the station's rate control mode. If `enable` is `True`, the station will be
+        switched into manual rc mode. If `enable` is `False`, the station will be put into auto rc mode.
+        """
         if enable == (self._rc_mode == "manual"):
             return
 
@@ -291,6 +335,11 @@ class Station:
         self._log.debug(f"{self}: set rc_mode={mode}")
 
     async def set_manual_tpc_mode(self, enable: bool) -> None:
+        """
+        Configure the station's transmit power control mode. If `enable` is `True`, the station will
+        be switched into manual tpc mode. If `enable` is `False`, the station will be put into auto
+        tpc mode.
+        """
         if enable == self._tpc_mode == "manual":
             return
 
@@ -300,6 +349,14 @@ class Station:
         self._log.debug(f"{self}: set tpc_mode={mode}")
 
     async def set_rates(self, rates: list, counts: list) -> None:
+        """
+        Set the station's rate table, i.e., the rates at which transmissions will be attempted and
+        their respective retry counts. Given the hardware's support, transmissions to this station
+        will be attempted at the rates identified by the indices in `rates` for however many
+        attempts are set in `counts` until either transmission succeeds or all attempts have been
+        exhausted. This function will raise a `ValueError` if `rates` and `counts` differ in length,
+        and a `StationModeError` if the station is not in manual rc mode.
+        """
         if len(rates) != len(counts):
             raise ValueError(f"Number of rates and counts must be identical!")
 
@@ -310,6 +367,12 @@ class Station:
         await self._accesspoint.send(self._radio, f"set_rates;{self._mac_addr};{mrr}")
 
     async def set_power(self, pwrs: list) -> None:
+        """
+        Set the transmit power levels for the station's rate table. Given the hardware's support,
+        this will prescribe which transmit power level is to be used at every stage of the retry
+        chain when transmitting to this station.
+        This function will raise a `StationModeError` if the station is not in manual tpc mode.
+        """
         if self._tpc_mode != "manual":
             raise StationModeError(self, "Need to be in manual power control mode to set tx power")
 
@@ -317,6 +380,12 @@ class Station:
         await self._accesspoint.send(self._radio, f"set_power;{self._mac_addr};{txpwrs}")
 
     async def set_rates_and_power(self, rates: list, counts: list, pwrs: list) -> None:
+        """
+        Set rates, retry counts, and transmit power levels for transmissions made to this station.
+        This combines the effects of `set_rates()` and `set_power()`.
+        This fucntion will raise a `ValueError` of `rates`, `counts`, and `pwrs` differ in length,
+        and a `StationModeError` if the station is not in manual rc and manual tpc mode.
+        """
         if not (len(rates) == len(counts) == len(pwrs)):
             raise ValueError(f"Number of rates, counts, and tx_powers must be identical!")
 
@@ -330,11 +399,23 @@ class Station:
         await self._accesspoint.send(self._radio, f"set_rates_power;{self._mac_addr};{mrr}")
 
     async def set_probe_rate(self, rate: str, count: int, txpwr: int = None) -> None:
+        """
+        Sample a rate identified by its index `rate` for `count` attempts at transmit power level
+        `txpwr`. This overwrite the first entry in the rate table for the station with the given
+        values.
+        This function will raise a `ValueError` if `rate` is not supported by the station, and a
+        `StationModeError` if the station is not in manual rc mode. It will also raise a
+        `StationModeError` if `txpwr` is not `None` and the station is not in manual tpc mode.
+        """
         if rate not in self._supported_rates:
             raise ValueError(f"{self}: Cannot probe '{rate}': Not supported")
 
         if self._rc_mode != "manual":
             raise StationModeError(self, "Need to be in manual rate control mode to sample a rate")
+
+        if txpwr and self._tpc_mode != "manual":
+            raise StationModeError(self, "Need to be in manual transmit power control mode to set "
+                                   "tpc for a probe rate")
 
         cmd = f"set_probe;{self._mac_addr};{rate},{count}"
 
