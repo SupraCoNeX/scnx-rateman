@@ -251,7 +251,7 @@ class Station:
         # also update the counters for the TX power index -1, which is the index to set for letting
         # the driver make the transmit power decision. This is done because user space rate control
         # algorithms that do not set TX power will fetch the stats at txpwr == -1.
-        if self._tpc_mode == "auto":
+        if self._tpc_mode == "auto" and txpwr != -1:
             self._stats[rate][-1]["attempts"] += attempts
             self._stats[rate][-1]["success"] += succ
             self._stats[rate][-1]["timestamp"] = timestamp
