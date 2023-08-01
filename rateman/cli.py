@@ -66,7 +66,7 @@ def main():
     arg_parser.add_argument(
         "-o", "--options",
         type=dict,
-        default={},
+        default=None,
         help="Rate control algorithm configuration options"
     )
     arg_parser.add_argument(
@@ -100,10 +100,10 @@ def main():
     args = arg_parser.parse_args()
     logger = setup_logger(args.verbose)
 
-    aps = rateman.accesspoint.from_strings(args.accesspoints)
+    aps = rateman.accesspoint.from_strings(args.accesspoints, logger=logger)
 
     if args.ap_file:
-        aps += accesspoint.from_file(args.ap_file)
+        aps += accesspoint.from_file(args.ap_file, logger=logger)
 
     if len(aps) == 0:
         print("ERROR: No accesspoints given", file=sys.stderr)
