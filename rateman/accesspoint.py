@@ -223,7 +223,7 @@ class AccessPoint:
                   inactive_features: list, tpc: dict) -> None:
         self._logger.debug(
             f"{self._name}: adding radio '{radio}', driver={driver}, "
-            f"interfaces={','.join(ifaces)}, events={events}, active_features={active_features} "
+            f"interfaces={ifaces}, events={events}, active_features={active_features} "
             f"inactive_features={inactive_features}, tpc={tpc}"
         )
 
