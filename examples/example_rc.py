@@ -19,6 +19,7 @@ enabling each rate for a given duration.
 async def configure(sta: rateman.Station, **rc_opts: dict) -> object:
     # enable manual rate control for the station
     await sta.set_manual_rc_mode(True)
+    await sta.set_manual_tpc_mode(False)
 
     # parse rc options
     interval = rc_opts.get("interval_ms", 1000)
