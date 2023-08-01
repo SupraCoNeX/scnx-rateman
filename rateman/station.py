@@ -6,6 +6,7 @@
 import asyncio
 import logging
 from contextlib import suppress
+from functools import partial
 
 from .accesspoint import AccessPoint
 from . import rate_control
@@ -222,6 +223,7 @@ class Station:
 
             self._rc = self._loop.create_task(rc(ctx), name=f"rc_{self._mac_addr}_{rc_alg}")
             rc_task = self._rc
+            rc_task.add_done_callback(partial(handle_rc_exception, self))
 
         self._rate_control_algorithm = rc_alg
         self._rate_control_options = rc_opts
@@ -347,3 +349,18 @@ class Station:
 
     def __str__(self):
         return f"STA[{self._mac_addr}]"
+
+
+def handle_rc_exception(sta, future, **kwargs):
+    exception = future.exception()
+    rc_alg, _ = sta.rate_control
+
+    sta.logger.error(f"{sta}: Rate control '{rc_alg}' raised an exception: {exception.__repr__()}")
+    sta._rc = sta._loop.create_task(cleanup_failed_rc(sta))
+
+
+async def cleanup_failed_rc(sta):
+    sta._rc = None
+    sta._rate_control_algorithm = None
+    sta._rate_control_options = None
+    await sta.start_rate_control("minstrel_ht_kernel_space", None)
