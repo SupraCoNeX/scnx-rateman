@@ -47,9 +47,8 @@ class Station:
         self._overhead_mcs = overhead_mcs
         self._overhead_legacy = overhead_legacy
         self._ampdu_enabled = False
-        self._ampdu_packets = 0
-        self._ampdu_len = 0
-        self._avg_ampdu_len = 0
+        self._ampdu_aggregates = 0
+        self._ampdu_subframes = 0
         self._stats = {}
         self.reset_rate_stats()
         self._rssi = 1
@@ -85,36 +84,25 @@ class Station:
         return self._iface
 
     @property
-    def ampdu_packets(self) -> int:
-        return self._ampdu_packets
-
-    @ampdu_packets.setter
-    def ampdu_packets(self, packet_count):
-        self._ampdu_packets = packet_count
-
-    @property
-    def ampdu_len(self) -> int:
-        return self._ampdu_len
-
-    @ampdu_len.setter
-    def ampdu_len(self, length):
-        self._ampdu_len = length
+    def ampdu_aggregates(self) -> int:
+        """
+        Return the number of AMPDU aggregate frames sent to the station.
+        """
+        return self._ampdu_aggregates
 
     @property
-    def avg_ampdu_len(self):
-        return self._avg_ampdu_len
-
-    @avg_ampdu_len.setter
-    def avg_ampdu_len(self, avg_length):
-        self._avg_ampdu_len = avg_length
+    def ampdu_subframes(self) -> int:
+        """
+        Return the total number of sub-frames sent in AMPDU aggreagate frames to the station.
+        """
+        return self._ampdu_subframes
 
     @property
     def ampdu_enabled(self) -> bool:
+        """
+        Return `True` if AMPDU is enabled for the station, `False` otherwise.
+        """
         return self._ampdu_enabled
-
-    @ampdu_enabled.setter
-    def ampdu_enabled(self, enabled: bool):
-        self._ampdu_enabled = enabled
 
     @property
     def rc_mode(self) -> str:
@@ -255,6 +243,14 @@ class Station:
             self._stats[rate][-1]["attempts"] += attempts
             self._stats[rate][-1]["success"] += succ
             self._stats[rate][-1]["timestamp"] = timestamp
+
+    def update_ampdu(self, num_frames):
+        self._ampdu_enabled = (num_frames > 1)
+        if not self._ampdu_enabled:
+            return
+
+        self._ampdu_subframes += num_frames
+        self._ampdu_aggregates += 1
 
     def update_rssi(self, timestamp, min_rssi, per_antenna):
         if timestamp > self._last_seen:
