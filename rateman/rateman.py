@@ -11,6 +11,7 @@ import asyncio
 import importlib
 import csv
 import traceback
+from contextlib import suppress
 
 from .parsing import *
 from .exception import UnsupportedAPIVersionError
@@ -59,8 +60,11 @@ class RateMan:
         self._accesspoints = dict()
 
     @property
-    def accesspoints(self) -> dict:
-        return self._accesspoints
+    def accesspoints(self) -> list:
+        """
+        Return a list of registered `rateman.AccessPoints` objects.
+        """
+        return [ap for _, (ap, _) in self._accesspoints.items()]
 
     @property
     def tasks(self) -> list:
@@ -74,27 +78,14 @@ class RateMan:
 
         return None
 
-    def add_task(self, coro, name=""):
-        for task in self._tasks:
-            if task.get_name() == name:
-                return
-
-        self._logger.debug(f"starting task '{name}'")
-
-        task = self._loop.create_task(coro, name=name)
-        task.add_done_callback(self.remove_task)
-        self._tasks.append(task)
-        return task
-
-    def remove_task(self, task):
-        if task in self._tasks:
-            self._tasks.remove(task)
-
     def add_accesspoint(self, ap):
+        """
+        Register the given `rateman.AccessPoint` object with rateman.
+        """
         if (ap._addr,ap._rcd_port) in self._accesspoints:
             return
 
-        self._accesspoints[(ap._addr, ap._rcd_port)] = ap
+        self._accesspoints[(ap._addr, ap._rcd_port)] = (ap, None)
 
         if not ap.loop:
             ap.loop = self._loop
@@ -114,17 +105,27 @@ class RateMan:
         """
 
         tasks = [
-            ap.start_task(self.ap_connection(ap, timeout=timeout), name=f"connect_{ap.name}")
-            for _, ap in self._accesspoints.items()
+            self._loop.create_task(
+                self.ap_connection(ap, timeout=timeout), name=f"connect_{ap.name}"
+            )
+            for _, (ap, _) in self._accesspoints.items()
         ]
-        await asyncio.wait(tasks, timeout=timeout)
 
-        for _, ap in self._accesspoints.items():
+        _, pending = await asyncio.wait(tasks, timeout=timeout)
+        for task in pending:
+            with suppress(asyncio.CancelledError):
+                task.cancel()
+                await task
+
+
+
+        for (addr, port), (ap, _) in self._accesspoints.items():
             if ap.connected:
-                ap.start_task(self.rcd_connection(ap), name=f"rcd_{ap.name}")
+                rcd_task = self._loop.create_task(self.rcd_connection(ap), name=f"rcd_{ap.name}")
+                self._accesspoints.update({(addr, port): (ap, rcd_task)})
             else:
                 self._logger.warning(
-                    f"Connection to {ap} could not be established during initialization."
+                    f"Connection to {ap} could not be established in time (timeout={timeout}s)"
                 )
 
     async def ap_connection(self, ap, timeout=5):
@@ -258,11 +259,9 @@ class RateMan:
             except asyncio.CancelledError:
                 pass
 
-        for _, ap in self._accesspoints.items():
+        for _, (ap, _) in self._accesspoints.items():
             if not ap.connected:
                 continue
-
-            await ap.stop_task()
 
             stas = []
             for radio in ap.radios:

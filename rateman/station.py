@@ -63,15 +63,24 @@ class Station:
         return self._last_seen
 
     @property
-    def accesspoint(self):
+    def accesspoint(self) -> AccessPoint:
+        """
+        Return the accesspoint this station is connected to.
+        """
         return self._accesspoint
 
     @property
     def radio(self) -> str:
+        """
+        Return the name of the radio (PHY) at the AP where this station is connected.
+        """
         return self._radio
 
     @property
     def interface(self) -> str:
+        """
+        Return the virtual interface on the AP to which this station is connected.
+        """
         return self._iface
 
     @property

@@ -249,24 +249,33 @@ class AccessPoint:
         return None
 
     def interfaces(self, radio: str) -> list:
+        """
+        Return the list of virtual interfaces running on the given radio.
+        """
         try:
             return self._radios[radio]["interfaces"]
         except KeyError as e:
             raise RateManError(f"{self._name}: No such radio '{radio}'") from e
 
     def get_radio_driver(self, radio: str) -> str:
+        """
+        Return the name of the given radio's driver.
+        """
         try:
             return self._radios[radio]["driver"]
         except KeyError as e:
             raise RateManError(f"{self._name}: No such radio '{radio}'") from e
 
     def get_txpowers(self, radio: str) -> list:
+        """
+        Return the list of transmit power levels supported by the given radio.
+        """
         if self._radios[radio]["tpc"]:
             return self._radios[radio]["tpc"]["txpowers"]
         else:
             return []
 
-    def add_station(self, sta) -> bool:
+    def add_station(self, sta):
         # TODO: maybe handle sta;updates here, too?
         # Check for diff in capabilities and update accordingly
         if sta.mac_addr not in self._radios[sta.radio]["stations"]["active"]:
@@ -321,29 +330,6 @@ class AccessPoint:
 
     def handle_error(self, error):
         self._logger.error(f"{self._name}: Error '{error}', last command='{self._last_cmd}'")
-
-    def start_task(self, coro, name):
-        if self._task and not self._task.done():
-            raise Exception(
-                f"{self._name}: Cannot start '{name}': '{self._task.get_name()}' is not done"
-            )
-
-        self._task = self._loop.create_task(coro, name=name)
-        return self._task
-
-    async def stop_task(self):
-        if not self._task:
-            return None
-
-        self._task.cancel()
-        try:
-            await self._task
-        except asyncio.CancelledError:
-            pass
-
-        t = self._task
-        self._task = None
-        return t
 
     async def connect(self):
         if self._connected:

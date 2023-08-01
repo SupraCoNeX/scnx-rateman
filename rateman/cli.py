@@ -38,7 +38,7 @@ def dump_radios(ap):
 
 
 def show_state(rm):
-    for _, ap in rm.accesspoints.items():
+    for ap in rm.accesspoints:
         print("""
 %(name)s:
   connected: %(conn)s
@@ -127,7 +127,7 @@ def main():
         loop.close()
         return 0
 
-    for _, ap in rm.accesspoints.items():
+    for ap in rm.accesspoints:
         for sta in ap.get_stations():
             print(f"Starting rate control scheme '{args.algorithm}' for {sta}")
             loop.run_until_complete(sta.start_rate_control(args.algorithm, args.options))
