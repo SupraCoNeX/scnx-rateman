@@ -7,6 +7,7 @@ import asyncio
 import re
 
 from .station import Station
+from .accesspoint import AccessPoint
 from .exception import UnsupportedAPIVersionError, ParsingError
 
 __all__ = ["process_api", "process_line", "process_header", "parse_sta"]
@@ -62,7 +63,7 @@ def parse_tpc_range_block(blk: list) -> list:
     return [(start_lvl + idx) * width * .25 for idx in range(start_idx, start_idx + n_indeces + 1)]
 
 
-def parse_tpc(cap: list) -> dict:
+def parse_tpc(ap: AccessPoint, cap: list) -> dict:
     if cap[0] == "not":
         return None
 
@@ -88,10 +89,10 @@ def process_phy_info(ap, fields):
         fields[0],             # radio
         fields[3],             # driver
         fields[4].split(","),  # interfaces
-        fields[5].split(","),  # active events ('txs', 'rxs', 'stats', 'tprc_echo')
-        fields[6].split(","),  # active features
-        fields[7].split(","),  # inactive features
-        parse_tpc(fields[8:])  # tx power range blocks
+        fields[5].split(",") if len(fields[5]) != 0 else [],  # active events
+        fields[6].split(",") if len(fields[6]) != 0 else [],  # active features
+        fields[7].split(",") if len(fields[7]) != 0 else [],  # inactive features
+        parse_tpc(ap, fields[8:])  # tx power range blocks
     )
 
 
