@@ -406,7 +406,7 @@ class Station:
 
         self._validate_txpwrs(pwrs)
 
-        txpwrs = ";".join([str(self._accesspoint.txpowers(self._radio).index(p)) for p in pwrs])
+        txpwrs = ";".join([f"{self._accesspoint.txpowers(self._radio).index(p):x}" for p in pwrs])
         await self._accesspoint.send(self._radio, f"set_power;{self._mac_addr};{txpwrs}")
 
     async def set_rates_and_power(self, rates: list, counts: list, pwrs: list) -> None:
@@ -436,7 +436,7 @@ class Station:
         supported_pwrs = self._accesspoint.txpowers(self._radio)
         txpwrs = [supported_pwrs.index(p) for p in pwrs]
 
-        mrr = ";".join([f"{r},{c},{p}" for ((r, c), p) in zip(zip(rates, counts), txpwrs)])
+        mrr = ";".join([f"{r:x},{c:x},{p:x}" for ((r, c), p) in zip(zip(rates, counts), txpwrs)])
         await self._accesspoint.send(self._radio, f"set_rates_power;{self._mac_addr};{mrr}")
 
     async def set_probe_rate(self, rate: str, count: int, txpwr: int = None) -> None:
