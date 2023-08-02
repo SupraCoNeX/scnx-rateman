@@ -94,6 +94,19 @@ class StationError(RateManError):
         return f"{self._sta}: {msg}"
 
 
+class AccessPointError(RateManError):
+    def __init__(self, ap, msg):
+        super().__init__(msg)
+        self._ap = ap
+
+    def __str__(self):
+        return f"{self._ap.name}: {msg}"
+
+    def __repr__(self):
+        return f"{self._ap}: {msg}"
+
+
+
 class RadioError(RateManError):
     def __init__(self, ap, radio, msg):
         super().__init__(msg)

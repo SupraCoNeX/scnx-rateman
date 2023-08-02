@@ -10,7 +10,12 @@ import os
 import logging
 from functools import reduce
 
-from .exception import RadioConfigError, AccessPointNotConnectedError, UnsupportedFeatureException
+from .exception import (
+    RadioConfigError,
+    AccessPointNotConnectedError,
+    UnsupportedFeatureException,
+    AccessPointError
+)
 
 __all__ = ["AccessPoint", "from_file", "from_strings"]
 
@@ -132,6 +137,8 @@ class AccessPoint:
                 [self.stations(radio=radio, which=which) for radio in self._radios],
                 []
             )
+        elif radio not in self._radios:
+            raise AccessPointError(self, f"No such radio '{radio}'")
 
         if which == "all":
             return (
@@ -175,7 +182,7 @@ class AccessPoint:
             elif self._radios[radio]["features"][feature] == state:
                 return
         except KeyError as e:
-            raise RateManError(f"{self._name}: No such radio '{radio}'") from e
+            raise AccessPointError(self, f"No such radio '{radio}'") from e
 
         self._radios[radio]["features"][feature] = state
         await self.send(radio, f"set_feature;{feature};{'on' if state else 'off'}")
