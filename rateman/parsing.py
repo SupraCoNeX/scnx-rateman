@@ -45,7 +45,7 @@ def process_api(ap, fields):
         case "orca_version":
             check_orca_version(ap, int(fields[3]))
         case "group":
-            ap.add_supp_rates(*parse_group_info(fields))
+            ap.add_supported_rates(*parse_group_info(fields))
         case "sample_table":
             ap.sample_table = fields[5:]
 

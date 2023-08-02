@@ -86,11 +86,24 @@ class AccessPoint:
 
     @property
     def name(self) -> str:
+        """
+        Return the accesspoint's name.
+        """
         return self._name
 
     @property
     def addr(self) -> str:
+        """
+        Return the accesspoint's IP address
+        """
         return self._addr
+
+    @property
+    def port(self) -> int:
+        """
+        Return the port the ORCA-RCD instance on the accesspoint listens on.
+        """
+        return self._rcd_port
 
     @property
     def loop(self):
@@ -106,10 +119,16 @@ class AccessPoint:
 
     @property
     def supported_rates(self) -> dict:
+        """
+        Return the indices of the accesspoint's supported MCS rates in the ORCA format.
+        """
         return self._supp_rates
 
     @property
     def connected(self) -> dict:
+        """
+        Return the state of the connection to the ORCA-RCD instance on the accesspoint.
+        """
         return self._connected
 
     @connected.setter
@@ -118,6 +137,9 @@ class AccessPoint:
 
     @property
     def radios(self) -> list:
+        """
+        Return the accesspoint's list of radios.
+        """
         return self._radios
 
     @property
@@ -130,7 +152,11 @@ class AccessPoint:
         for row in sample_table_data:
             self._sample_table.append(list(map(int, row.split(","))))
 
-    def stations(self, radio="all", which="active"):
+    def stations(self, radio="all", which="active") -> list:
+        """
+        Return a list of stations of the given radio. If `radio` is `"all" the returned list will
+        include the stations of all of the accesspoint's radios.
+        """
         if radio == "all":
             return reduce(
                 lambda a, b: a + b,
@@ -170,9 +196,16 @@ class AccessPoint:
         return self._get_sta(mac, radio, state)
 
     def enabled_events(self, radio: str) -> list:
+        """
+        Return a list of ORCA API events which are currently enabled, i.e., which are being reported
+        by the device to which rateman is connected.
+        """
         return self._radios[radio]["events"]
 
     def features(self, radio: str) -> list:
+        """
+        Return the list of supported features of a given radio.
+        """
         return self._radios[radio]["features"].keys()
 
     async def _set_feature(self, radio, feature, state):
@@ -242,6 +275,9 @@ class AccessPoint:
         })
 
     def radio_for_interface(self, iface: str) -> str:
+        """
+        Return the radio on which the given virtual interface is running.
+        """
         for radio in self._radios:
             if iface in self._radios[radio]["interfaces"]:
                 return radio
@@ -257,7 +293,7 @@ class AccessPoint:
         except KeyError as e:
             raise RateManError(f"{self._name}: No such radio '{radio}'") from e
 
-    def get_radio_driver(self, radio: str) -> str:
+    def driver(self, radio: str) -> str:
         """
         Return the name of the given radio's driver.
         """
@@ -406,6 +442,10 @@ class AccessPoint:
             await self.mt76_force_rate_retry(cfg["mt76_force_rate_retry"], radio)
 
     async def enable_events(self, events: list, radio="all") -> None:
+        """
+        Enable the given events for the given radio. If `radio` is `"*"` or
+        `"all"`, the events will be enabled on all of the accesspoint's radios.
+        """
         if radio in ["all", "*"]:
             radio = "*"
             for r in self._radios:
@@ -419,9 +459,11 @@ class AccessPoint:
 
         await self.send(radio, "start;" + ";".join(events))
 
-    async def disable_events(
-        self, events: list = ["txs", "rxs", "stats", "tprc_echo"], radio="all"
-    ) -> None:
+    async def disable_events(self, events: list = [], radio="all") -> None:
+        """
+        Disable the given events for the given radio. If `radio` is `"*"` or
+        `"all"`, the events will be disabled on all of the accesspoint's radios.
+        """
         if radio in ["all", "*"]:
             radio = "*"
             for r in self._radios:
@@ -438,6 +480,10 @@ class AccessPoint:
         await self.send(radio, "dump")
 
     async def debugfs_set(self, path, value, radio="all"):
+        """
+        write the given `value` to the file located in debugfs on the connected device under
+        `/sys/kernel/debug/ieee80211/<radio>/<path>`. `path` cannot contain `..` or `.`.
+        """
         if radio == "all":
             for radio in self._radios:
                 self.debugfs_set(path, value, radio=radio)
@@ -482,6 +528,12 @@ class AccessPoint:
             await self.send(radio, f"debugfs;mt76/scs;{val}")
 
     async def reset_kernel_rate_stats(self, radio="all", sta="all") -> None:
+        """
+        Reset the rate statistics in the kernel for the given `sta` and `radio` on the remote
+        device. `sta` must be either a MAC address or `"all"`. If it is `"all"`, the reset_stats
+        command will be executed for all radios. In this case, it does not make sense to supply a
+        MAC address for `sta`.
+        """
         if radio in ["*", "all"]:
             radio = "*"
         elif radio not in self._radios:
@@ -494,7 +546,7 @@ class AccessPoint:
             self._logger.debug(f"{self._name}:{radio}:{sta}: Resetting in-kernel rate statistics")
             await self.send(radio, f"reset_stats;{sta}")
 
-    def add_supp_rates(self, group_ind, group_info):
+    def add_supported_rates(self, group_ind, group_info):
         if group_ind not in self._supp_rates:
             self._supp_rates.update({group_ind: group_info})
 
@@ -521,17 +573,36 @@ class AccessPoint:
                     sta._tpc_mode = mode
 
     async def set_all_stations_rc_mode(self, mode: str, radio="*") -> None:
+        """
+        Convenience function to set the rc mode for all stations of a given radio or even across
+        all radios.
+        """
         await self._set_all_stations_mode(radio, "rc_mode", mode)
 
     async def set_all_stations_tpc_mode(self, mode: str, radio="*") -> None:
+        """
+        Convenience function to set the tpc mode for all stations of a given radio or even across
+        all radios.
+        """
         await self._set_all_stations_mode(radio, "tpc_mode", mode)
 
     async def enable_tprc_echo(self, enable: bool, radio="*") -> None:
+        """
+        Enable echoing of rc and tpc commands in the form of ORCA API events. This can be useful
+        for debugging.
+        """
         action = "start" if enable else "stop"
         await self.send(radio, f"{action};tprc_echo")
 
 
-def from_file(file: dir, logger=None):
+def from_file(file: dir, logger=None) -> list:
+    """
+    Parse the given csv `file` and return a list of `AccessPoint` objects created from the
+    descriptions within.
+    Lines must have the format `<NAME>,<ADDR>,<RCDPORT>` for name, IP address and ORCA-RCD listening
+    port, respectively.
+    `logger` sets the `logging.Logger` for the newly created `AccessPoint`s.
+    """
     def parse_ap(ap):
         name = ap["NAME"]
         addr = ap["ADDR"]
@@ -548,7 +619,14 @@ def from_file(file: dir, logger=None):
         return [parse_ap(ap) for ap in csv.DictReader(csvfile)]
 
 
-def from_strings(ap_strs, logger=None):
+def from_strings(ap_strs: list, logger=None) -> list:
+    """
+    Parse the given list of strings and return a list of `AccessPoint` objects created from them.
+    The list entries in `ap_strs` must adhere to the following format:
+    `<NAME>,<ADDR>[,<RCDPORT>]` for name, IP address, and (optionally) ORCA-RCD listening port,
+    respectively.
+    `logger` sets the `logging.Logger` for the newly created `AccessPoint`s.
+    """
     aps = []
 
     for apstr in ap_strs:

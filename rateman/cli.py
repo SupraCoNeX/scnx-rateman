@@ -25,7 +25,7 @@ def dump_radios(ap):
       events: %(ev)s
       features: %(features)s""" % dict(
                 radio=radio,
-                drv=ap.get_radio_driver(radio),
+                drv=ap.driver(radio),
                 ev=",".join(ap.enabled_events(radio)),
                 features=", ".join([
                     f"{f}={'on' if s else 'off'}"
