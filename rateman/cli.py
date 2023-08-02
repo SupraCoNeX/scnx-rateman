@@ -6,7 +6,7 @@ import rateman
 
 
 def dump_stas(ap, radio, interface):
-    for sta in [sta for sta in ap.get_stations(radio) if sta.interface == interface]:
+    for sta in [sta for sta in ap.stations(radio) if sta.interface == interface]:
         print(f"        + {sta.mac_addr}"
               f" [rc={sta.rc_mode} tpc={sta.tpc_mode} rc_alg={sta.rate_control[0]}]"
         )
@@ -128,7 +128,7 @@ def main():
         return 0
 
     for ap in rm.accesspoints:
-        for sta in ap.get_stations():
+        for sta in ap.stations():
             print(f"Starting rate control scheme '{args.algorithm}' for {sta}")
             loop.run_until_complete(sta.start_rate_control(args.algorithm, args.options))
 

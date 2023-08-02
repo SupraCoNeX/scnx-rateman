@@ -259,7 +259,7 @@ class RateMan:
 
             stas = []
             for radio in ap.radios:
-                stas += ap.get_stations(radio)
+                stas += ap.stations(radio)
 
             for sta in stas:
                 await sta.start_rate_control("minstrel_ht_kernel_space", None)

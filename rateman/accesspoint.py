@@ -132,18 +132,18 @@ class AccessPoint:
         for row in sample_table_data:
             self._sample_table.append(list(map(int, row.split(","))))
 
-    def get_stations(self, radio="all", which="active"):
+    def stations(self, radio="all", which="active"):
         if radio == "all":
             return reduce(
                 lambda a, b: a + b,
-                [self.get_stations(radio=radio, which=which) for radio in self._radios],
+                [self.stations(radio=radio, which=which) for radio in self._radios],
                 []
             )
 
         if which == "all":
             return (
-                self.get_stations(radio, which="active") +
-                self.get_stations(radio, which="inactive")
+                self.stations(radio, which="active") +
+                self.stations(radio, which="inactive")
             )
 
         return [sta for _, sta in self._radios[radio]["stations"][which].items()]
@@ -358,7 +358,7 @@ class AccessPoint:
             return
 
         for radio in self._radios:
-            for sta in self.get_stations(radio):
+            for sta in self.stations(radio):
                 rc_alg, _ = sta.rate_control
                 if rc_alg != "minstrel_ht_kernel_space":
                     self._logger.warning(
@@ -508,13 +508,13 @@ class AccessPoint:
 
         if radio == "*":
             for r in self._radios:
-                for sta in self.get_stations(r):
+                for sta in self.stations(r):
                     if which == "rc_mode":
                         sta._rc_mode = mode
                     else:
                         sta._tpc_mode = mode
         else:
-            for sta in self.get_stations(radio):
+            for sta in self.stations(radio):
                 if which == "rc_mode":
                     sta._rc_mode = mode
                 else:

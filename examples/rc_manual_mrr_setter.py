@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     # start 'manual_mrr_setter' user space rate control algorithm.
     for ap in aps:
-        for sta in ap.get_stations():
+        for sta in ap.stations():
             loop.run_until_complete(
                 sta.start_rate_control(
                     "manual_mrr_setter",
