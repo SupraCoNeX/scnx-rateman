@@ -8,8 +8,7 @@ import rateman
 def dump_stas(ap, radio, interface):
     for sta in [sta for sta in ap.stations(radio) if sta.interface == interface]:
         print(f"        + {sta.mac_addr}"
-              f" [rc={sta.rc_mode} tpc={sta.tpc_mode} rc_alg={sta.rate_control[0]}]"
-        )
+              f" [rc={sta.rc_mode} tpc={sta.tpc_mode} rc_alg={sta.rate_control[0]}]")
 
 
 def dump_interfaces(ap, radio):

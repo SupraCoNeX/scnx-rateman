@@ -3,13 +3,6 @@
 #     https://www.supraconex.org
 #
 
-r"""
-Accesspoint Object
-------------------
-
-TODO
-
-"""
 import asyncio
 import csv
 import sys
@@ -187,7 +180,7 @@ class AccessPoint:
         self._radios[radio]["features"][feature] = state
         await self.send(radio, f"set_feature;{feature};{'on' if state else 'off'}")
 
-    async def enable_feature(self, radio :str, feature: str) -> None:
+    async def enable_feature(self, radio: str, feature: str) -> None:
         """
         Enable a given radio's feature.
 

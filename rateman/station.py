@@ -327,7 +327,8 @@ class Station:
     async def set_manual_rc_mode(self, enable: bool) -> None:
         """
         Configure the station's rate control mode. If `enable` is `True`, the station will be
-        switched into manual rc mode. If `enable` is `False`, the station will be put into auto rc mode.
+        switched into manual rc mode. If `enable` is `False`, the station will be put into auto rc
+        mode.
         """
         if enable == (self._rc_mode == "manual"):
             return
@@ -455,7 +456,7 @@ class Station:
 
         if txpwr and self._tpc_mode != "manual":
             raise StationError(self, "Need to be in manual transmit power control mode to set "
-                                   "tpc for a probe rate")
+                               "tpc for a probe rate")
 
         self._validate_rates([rate])
 

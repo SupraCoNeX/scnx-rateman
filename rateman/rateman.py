@@ -85,7 +85,7 @@ class RateMan:
         """
         Register the given `rateman.AccessPoint` object with rateman.
         """
-        if (ap._addr,ap._rcd_port) in self._accesspoints:
+        if (ap._addr, ap._rcd_port) in self._accesspoints:
             return
 
         self._accesspoints[(ap._addr, ap._rcd_port)] = (ap, None)
@@ -119,8 +119,6 @@ class RateMan:
             with suppress(asyncio.CancelledError):
                 task.cancel()
                 await task
-
-
 
         for (addr, port), (ap, _) in self._accesspoints.items():
             if ap.connected:
