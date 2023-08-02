@@ -348,7 +348,7 @@ class Station:
         """
         if not self._accesspoint.txpowers(self._radio):
             raise RadioError(self._accesspoint, self._radio, "TX power control not supported")
-        elif not self._accesspoint._radios[radio]["features"].get("tpc", True):
+        elif not self._accesspoint._radios[self._radio]["features"].get("tpc", True):
             raise RadioError(self._accesspoint, self._radio, "TPC is disabled")
 
         if enable == self._tpc_mode == "manual":
