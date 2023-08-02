@@ -22,6 +22,13 @@ __all__ = ["Station"]
 
 
 class Station:
+    """
+    `Station` objects represent a device which is connected wirelessly to a device represented by an
+    instance of :class:`.AccessPoint`. Consequently, since the the :class:`.AccessPoint` acts as the
+    transmitter for data for the station, this is where transmission resource control taskes place.
+    The ORCA system allows users to perform transmit rate and power control on a per-station basis.
+    Thus, this class is the main interaction point for resource control schemes.
+    """
     def __init__(
         self,
         mac_addr: str,

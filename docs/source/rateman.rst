@@ -6,39 +6,20 @@ rateman.rateman
 
 .. automodule:: rateman.rateman
    :members:
-   :undoc-members:
-   :show-inheritance:
+   :member-order: bysource
 
 rateman.accesspoint
 -------------------
 
 .. automodule:: rateman.accesspoint
+
+.. autoclass:: rateman.accesspoint.AccessPoint()
    :members:
-   :undoc-members:
-   :show-inheritance:
-   
-rateman.station 
+   :member-order: bysource
+
+rateman.station
 ----------------
 
-.. automodule:: rateman.station
+.. autoclass:: rateman.station.Station()
    :members:
-   :undoc-members:
-   :show-inheritance:
-
-rateman.parsing
----------------
-
-.. automodule:: rateman.parsing
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-rateman.tasks
--------------
-
-.. automodule:: rateman.tasks
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-
+   :member-order: bysource

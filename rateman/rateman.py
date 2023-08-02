@@ -20,21 +20,16 @@ __all__ = ["RateMan"]
 
 
 class RateMan:
-    def __init__(self, loop=None, logger=None):
-        """
-        Parameters
-        ----------
-        loop : asyncio.BaseEventLoop
-            The event loop to execute on. A new loop will be created if none is
-            provided.
-        logger : logging.Logger
-            The logger to use. A new one will be created if none is provided.
-        """
+    """
 
-        if not logger:
-            self._logger = logging.getLogger("rateman")
-        else:
-            self._logger = logger
+    :ivar asyncio.BaseEventLoop loop:   The event loop on which rateman is to run. If none is
+                                        provided, a new one will be created.
+    :ivar logging.Logger logger:    The logger for this rateman instance. If none is given, a new one
+                                    will be created.
+    """
+
+    def __init__(self, loop=None, logger=None):
+        self._logger = logger if logger else logging.getLogger("rateman")
 
         if not loop:
             self._logger.debug("Creating new event loop")
@@ -45,7 +40,6 @@ class RateMan:
             self._loop = loop
             self._new_loop_created = False
 
-        self._tasks = []
         self._raw_data_callbacks = []
         self._data_callbacks = {
             "any": [],
@@ -62,28 +56,13 @@ class RateMan:
     @property
     def accesspoints(self) -> list:
         """
-        Return a list of registered `rateman.AccessPoints` objects.
+        Return the list of registered :class:`.AccessPoint` s.
         """
         return [ap for _, (ap, _) in self._accesspoints.items()]
 
-    @property
-    def tasks(self) -> list:
-        return self._tasks
-
-    def get_sta(self, mac):
-        """
-        Return the `rateman.Station` object identified by the given MAC address.
-        """
-        for ap in self._accesspoints:
-            sta = ap.get_sta(mac)
-            if sta:
-                return sta
-
-        return None
-
     def add_accesspoint(self, ap):
         """
-        Register the given `rateman.AccessPoint` object with rateman.
+        Register the given :class:`.AccessPoint` instance with rateman.
         """
         if (ap._addr, ap._rcd_port) in self._accesspoints:
             return
@@ -93,56 +72,18 @@ class RateMan:
         if not ap.loop:
             ap.loop = self._loop
 
-    async def initialize(self, timeout=5):
+    def get_sta(self, mac):
         """
-        Establish connections to acess points and process the information they
-        provide. When this function returns, rateman has created representations
-        of the accesspoints' radios, their state and capabilities, virtual
-        interfaces, and connected stations.
-
-        Parameters
-        ----------
-        timeout : int
-            The timeout for the connection attempt. This is also the time that rateman will wait
-            before making a new connection attempt.
+        Return the :class:`.Station` object identified by the given MAC address.
         """
+        for ap in self._accesspoints:
+            sta = ap.get_sta(mac)
+            if sta:
+                return sta
 
-        tasks = [
-            self._loop.create_task(
-                self.ap_connection(ap, timeout=timeout), name=f"connect_{ap.name}"
-            )
-            for _, (ap, _) in self._accesspoints.items()
-        ]
-
-        _, pending = await asyncio.wait(tasks, timeout=timeout)
-        for task in pending:
-            with suppress(asyncio.CancelledError):
-                task.cancel()
-                await task
-
-        for (addr, port), (ap, _) in self._accesspoints.items():
-            if ap.connected:
-                rcd_task = self._loop.create_task(self.rcd_connection(ap), name=f"rcd_{ap.name}")
-                self._accesspoints.update({(addr, port): (ap, rcd_task)})
-            else:
-                self._logger.warning(
-                    f"Connection to {ap} could not be established in time (timeout={timeout}s)"
-                )
+        return None
 
     async def ap_connection(self, ap, timeout=5):
-        """
-        The coroutine managing the connection to the given accesspoint.
-
-        Parameters
-        ----------
-        ap: rateman.AccessPoint
-            The access point to connect to
-        timeout : int
-            The timeout value serves two functions. One, it sets a time limit on the process of
-            establishing a connection to the access point and parsing its initial information data.
-            Two, it acts as the delay before a reconnection attempt is made in case of connection
-            failure.
-        """
         while True:
             self._logger.debug(f"Connecting to {ap}, timeout={timeout} s")
 
@@ -168,22 +109,28 @@ class RateMan:
 
     def add_raw_data_callback(self, cb, context=None):
         """
-        Register a callback to be called on unvalidated incoming event data.
+        Register a callback to be called on unvalidated incoming ORCA event data.
+        Parameters
+        ----------
+        cb : Callable
+            The callback function.
+        context : object
+            Additional arguments to be passed to the callback function.
         """
         if (cb, context) not in self._raw_data_callbacks:
             self._raw_data_callbacks.append((cb, context))
 
     def add_data_callback(self, cb, type="any", context=None):
         """
-        Register a callback to be called on incoming event data.
+        Register a callback to be called on incoming ORCA event data.
 
         Parameters
         ----------
         cb : Callable
             The callback function.
         type : str
-            Which data to call the callback on. Valid options: _any, txs, stats,
-            rxs, sta, best_rates,_ or _sample_rates_.
+            Which data to call the callback on. Valid options: `"any", "txs", "stats",
+            "rxs", "sta", "best_rates", or "sample_rates"`.
         context : object
             Additional arguments to be passed to the callback function.
         """
@@ -199,6 +146,11 @@ class RateMan:
     def remove_data_callback(self, cb):
         """
         Unregister a data callback.
+
+        Parameters
+        ----------
+        cb : Callable
+            The callback function to unregister.
         """
         for (c, ctx) in self._raw_data_callbacks:
             if c == cb:
@@ -235,21 +187,47 @@ class RateMan:
         except asyncio.CancelledError as e:
             raise e
 
+    async def initialize(self, timeout: int = 5):
+        """
+        Establish connections to access points and process the information they provide. When this
+        function returns, rateman has created representations of the accesspoints' radios, their
+        state and capabilities, virtual interfaces, and connected stations.
+
+        Parameters
+        ----------
+        timeout : int
+            The timeout for the connection attempt. This is also the time that rateman will wait
+            before making a new connection attempt.
+        """
+
+        tasks = [
+            self._loop.create_task(
+                self.ap_connection(ap, timeout=timeout), name=f"connect_{ap.name}"
+            )
+            for _, (ap, _) in self._accesspoints.items()
+        ]
+
+        _, pending = await asyncio.wait(tasks, timeout=timeout)
+        for task in pending:
+            with suppress(asyncio.CancelledError):
+                task.cancel()
+                await task
+
+        for (addr, port), (ap, _) in self._accesspoints.items():
+            if ap.connected:
+                rcd_task = self._loop.create_task(self.rcd_connection(ap), name=f"rcd_{ap.name}")
+                self._accesspoints.update({(addr, port): (ap, rcd_task)})
+            else:
+                self._logger.warning(
+                    f"Connection to {ap} could not be established in time (timeout={timeout}s)"
+                )
+
     async def stop(self):
         """
-        Stop all running tasks and disconnect from all accesspoints. Kernel rate
-        control will be enabled for all of the access points' stations prior to
-        disconnection.
+        Stop all running tasks and disconnect from all accesspoints. Kernel rate control will be
+        enabled for all of the access points' stations prior to disconnection.
         """
         self._logger.debug("Stopping RateMan")
-
-        for task in self._tasks:
-            self._logger.debug(f"Cancelling task '{task.get_name()}'")
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
 
         for _, (ap, _) in self._accesspoints.items():
             if not ap.connected:

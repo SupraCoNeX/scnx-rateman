@@ -33,5 +33,5 @@ sys.path.insert(0, os.path.relpath("../../RateMan/rateman/"))
 napoleon_numpy_docstring = True
 
 
-html_theme = "classic"
+html_theme = "alabaster"
 html_static_path = ["_static"]

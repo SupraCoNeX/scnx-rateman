@@ -21,6 +21,14 @@ __all__ = ["AccessPoint", "from_file", "from_strings"]
 
 
 class AccessPoint:
+    """
+    Objects of this class represent a remote wireless device running an instance of ORCA-RCD to
+    which RateMan connects and which it potentially controls. Although the class is called
+    `AccessPoint`, the device need not necessary fulfill the role of an access point in the sense
+    of the IEEE 802.11 standard (WiFi). As far as RateMan is concerned, it is a wireless device to
+    which other wireless devices are connected, whose wireless transmission parameters are
+    controllable using the ORCA system.
+    """
     def __init__(self, name, addr, rcd_port=21059, logger=None, loop=None):
         """
         Parameters
@@ -154,8 +162,8 @@ class AccessPoint:
 
     def stations(self, radio="all", which="active") -> list:
         """
-        Return a list of stations of the given radio. If `radio` is `"all" the returned list will
-        include the stations of all of the accesspoint's radios.
+        Return a list of :class:`Station` s of the given radio. If `radio` is `"all"` the returned
+        list will include the stations of all of the accesspoint's radios.
         """
         if radio == "all":
             return reduce(
@@ -601,7 +609,7 @@ def from_file(file: dir, logger=None) -> list:
     descriptions within.
     Lines must have the format `<NAME>,<ADDR>,<RCDPORT>` for name, IP address and ORCA-RCD listening
     port, respectively.
-    `logger` sets the `logging.Logger` for the newly created `AccessPoint`s.
+    `logger` sets the `logging.Logger` for the newly created `AccessPoint` s.
     """
     def parse_ap(ap):
         name = ap["NAME"]
@@ -625,7 +633,7 @@ def from_strings(ap_strs: list, logger=None) -> list:
     The list entries in `ap_strs` must adhere to the following format:
     `<NAME>,<ADDR>[,<RCDPORT>]` for name, IP address, and (optionally) ORCA-RCD listening port,
     respectively.
-    `logger` sets the `logging.Logger` for the newly created `AccessPoint`s.
+    `logger` sets the `logging.Logger` for the newly created `AccessPoint` s.
     """
     aps = []
 
