@@ -85,10 +85,20 @@ class UnsupportedFeatureException(RateManError):
         return f"{self._ap}:{self._radio}: Radio does not support feature '{feature}'"
 
 
-class StationModeError(RateManError):
+class StationError(RateManError):
     def __init__(self, sta, msg):
         super().__init__(msg)
         self._sta = sta
 
     def __repr__(self):
         return f"{self._sta}: {msg}"
+
+
+class RadioError(RateManError):
+    def __init__(self, ap, radio, msg):
+        super().__init__(msg)
+        self._ap = ap
+        self._radio = radio
+
+    def __repr__(self):
+        return f"{self._ap}:{self._radio}: {msg}"

@@ -10,7 +10,12 @@ from functools import partial
 
 from .accesspoint import AccessPoint
 from . import rate_control
-from .exception import RateControlError, RateControlConfigError, StationModeError
+from .exception import (
+    RateControlError,
+    RateControlConfigError,
+    StationError,
+    RadioError
+)
 
 
 __all__ = ["Station"]
@@ -338,7 +343,14 @@ class Station:
         Configure the station's transmit power control mode. If `enable` is `True`, the station will
         be switched into manual tpc mode. If `enable` is `False`, the station will be put into auto
         tpc mode.
+        This function will raise a `RadioError` if either the radio serving the station does not
+        support transmit power control or the TPC feature is disabled.
         """
+        if not self._accesspoint.txpowers(self._radio):
+            raise RadioError(self._accesspoint, self._radio, "TX power control not supported")
+        elif not self._accesspoint._radios[radio]["features"].get("tpc", True):
+            raise RadioError(self._accesspoint, self._radio, "TPC is disabled")
+
         if enable == self._tpc_mode == "manual":
             return
 
@@ -347,6 +359,17 @@ class Station:
         self._tpc_mode = mode
         self._log.debug(f"{self}: set tpc_mode={mode}")
 
+    def _validate_txpwrs(self, pwrs: list):
+        supported_pwrs = self._accesspoint.txpowers(self._radio)
+        for p in pwrs:
+            if p not in supported_pwrs:
+                raise RadioError(self._accesspoint, self._radio, f"Unsupported TX power level: {p}")
+
+    def _validate_rates(self, rates: list):
+        for r in rates:
+            if str(r) not in self._supported_rates:
+                raise StationError(self, f"Unsupported rate: {r}")
+
     async def set_rates(self, rates: list, counts: list) -> None:
         """
         Set the station's rate table, i.e., the rates at which transmissions will be attempted and
@@ -354,13 +377,15 @@ class Station:
         will be attempted at the rates identified by the indices in `rates` for however many
         attempts are set in `counts` until either transmission succeeds or all attempts have been
         exhausted. This function will raise a `ValueError` if `rates` and `counts` differ in length,
-        and a `StationModeError` if the station is not in manual rc mode.
+        and a `StationError` if the station is not in manual rc mode.
         """
         if len(rates) != len(counts):
             raise ValueError(f"Number of rates and counts must be identical!")
 
         if self._rc_mode != "manual":
-            raise StationModeError(self, "Need to be in manual rate control mode to set rates")
+            raise StationError(self, "Need to be in manual rate control mode to set rates")
+
+        self._validate_rates(rates)
 
         mrr = ";".join([f"{r},{c}" for (r, c) in zip(rates, counts)])
         await self._accesspoint.send(self._radio, f"set_rates;{self._mac_addr};{mrr}")
@@ -370,12 +395,18 @@ class Station:
         Set the transmit power levels for the station's rate table. Given the hardware's support,
         this will prescribe which transmit power level is to be used at every stage of the retry
         chain when transmitting to this station.
-        This function will raise a `StationModeError` if the station is not in manual tpc mode.
+        This function will raise a `RadioError` if the radio serving the station does not support
+        transmit power control, and a`StationError` if the station is not in manual tpc mode.
         """
-        if self._tpc_mode != "manual":
-            raise StationModeError(self, "Need to be in manual power control mode to set tx power")
+        if not self._accesspoint.txpowers(self._radio):
+            raise RadioError(self._accesspoint, self._radio, "TX power control not supported")
 
-        txpwrs = ";".join([str(p) for p in pwrs])
+        if self._tpc_mode != "manual":
+            raise StationError(self, "Need to be in manual power control mode to set TX power")
+
+        self._validate_txpwrs(pwrs)
+
+        txpwrs = ";".join([str(self._accesspoint.txpowers(self._radio).index(p)) for p in pwrs])
         await self._accesspoint.send(self._radio, f"set_power;{self._mac_addr};{txpwrs}")
 
     async def set_rates_and_power(self, rates: list, counts: list, pwrs: list) -> None:
@@ -383,18 +414,29 @@ class Station:
         Set rates, retry counts, and transmit power levels for transmissions made to this station.
         This combines the effects of `set_rates()` and `set_power()`.
         This fucntion will raise a `ValueError` of `rates`, `counts`, and `pwrs` differ in length,
-        and a `StationModeError` if the station is not in manual rc and manual tpc mode.
+        and a `StationError` if the station is not in manual rc and manual tpc mode. If the radio
+        serving this station does not support transmit power control, this function will raise a
+        `RadioError`.
         """
         if not (len(rates) == len(counts) == len(pwrs)):
             raise ValueError(f"Number of rates, counts, and tx_powers must be identical!")
 
+        if not self._accesspoint.txpowers(self._radio):
+            raise RadioError(self._accesspoint, self._radio, "TX power control not supported")
+
         if not (self._rc_mode == "manual" and self._tpc_mode == "manual"):
-            raise StationModeError(
+            raise StationError(
                 self,
-                "Need to be in manual rate and power control mode to set rates and tx power"
+                "Need to be in manual rate and power control mode to set rates and TX power"
             )
 
-        mrr = ";".join([f"{r},{c},{p}" for ((r, c), p) in zip(zip(rates, counts), pwrs)])
+        self._validate_rates(rates)
+        self._validate_txpwrs(pwrs)
+
+        supported_pwrs = self._accesspoint.txpowers(self._radio)
+        txpwrs = [supported_pwrs.index(p) for p in pwrs]
+
+        mrr = ";".join([f"{r},{c},{p}" for ((r, c), p) in zip(zip(rates, counts), txpwrs)])
         await self._accesspoint.send(self._radio, f"set_rates_power;{self._mac_addr};{mrr}")
 
     async def set_probe_rate(self, rate: str, count: int, txpwr: int = None) -> None:
@@ -403,18 +445,20 @@ class Station:
         `txpwr`. This overwrite the first entry in the rate table for the station with the given
         values.
         This function will raise a `ValueError` if `rate` is not supported by the station, and a
-        `StationModeError` if the station is not in manual rc mode. It will also raise a
-        `StationModeError` if `txpwr` is not `None` and the station is not in manual tpc mode.
+        `StationError` if the station is not in manual rc mode. It will also raise a `StationError`
+        if `txpwr` is not `None` and the station is not in manual tpc mode.
         """
         if rate not in self._supported_rates:
             raise ValueError(f"{self}: Cannot probe '{rate}': Not supported")
 
         if self._rc_mode != "manual":
-            raise StationModeError(self, "Need to be in manual rate control mode to sample a rate")
+            raise StationError(self, "Need to be in manual rate control mode to sample a rate")
 
         if txpwr and self._tpc_mode != "manual":
-            raise StationModeError(self, "Need to be in manual transmit power control mode to set "
+            raise StationError(self, "Need to be in manual transmit power control mode to set "
                                    "tpc for a probe rate")
+
+        self._validate_rates([rate])
 
         cmd = f"set_probe;{self._mac_addr};{rate},{count}"
 
