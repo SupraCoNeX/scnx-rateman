@@ -199,7 +199,6 @@ class Station:
             self._rc.cancel()
             with suppress(asyncio.CancelledError):
                 await self._rc
-                result = self._rc.result()
 
         self._rc = None
         self._rate_control_algorithm = None

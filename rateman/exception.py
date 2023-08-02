@@ -57,7 +57,7 @@ class ParsingError(RateManError):
 
 class UnsupportedAPIVersionError(RateManError):
     def __init__(self, ap, supported_version, announced_version):
-        super().__init__("")
+        super().__init__(None)
         self._ap = ap
         self._announced = announced_version
         self._supported = supported_version
@@ -73,7 +73,7 @@ class UnsupportedAPIVersionError(RateManError):
 
 class UnsupportedFeatureException(RateManError):
     def __init__(self, ap, radio, feature):
-        super().__init__("")
+        super().__init__(None)
         self._ap = ap
         self._radio = radio
         self._feature = feature
