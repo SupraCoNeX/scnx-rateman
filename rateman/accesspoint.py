@@ -266,7 +266,7 @@ class AccessPoint:
         except KeyError as e:
             raise RateManError(f"{self._name}: No such radio '{radio}'") from e
 
-    def get_txpowers(self, radio: str) -> list:
+    def txpowers(self, radio: str) -> list:
         """
         Return the list of transmit power levels supported by the given radio.
         """

@@ -304,12 +304,11 @@ class Station:
         """
         Reset packet transmission attempts and success statistics for all supported rates and
         transmit power levels.
-
         """
         self._stats = {
             rate: {
                 txpwr: {"attempts": 0, "success": 0, "timestamp": 0}
-                for txpwr in [-1] + self._accesspoint.get_txpowers(self._radio)
+                for txpwr in [-1] + self._accesspoint.txpowers(self._radio)
             }
             for rate in self._supported_rates
         }
