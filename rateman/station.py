@@ -353,13 +353,14 @@ class Station:
         This function will raise a `RadioError` if either the radio serving the station does not
         support transmit power control or the TPC feature is disabled.
         """
-        if not self._accesspoint.txpowers(self._radio):
-            raise RadioError(self._accesspoint, self._radio, "TX power control not supported")
-        elif not self._accesspoint._radios[self._radio]["features"].get("tpc", True):
-            raise RadioError(self._accesspoint, self._radio, "TPC is disabled")
-
         if enable == self._tpc_mode == "manual":
             return
+
+        if enable:
+            if not self._accesspoint.txpowers(self._radio):
+                raise RadioError(self._accesspoint, self._radio, "TX power control not supported")
+            elif not self._accesspoint._radios[self._radio]["features"].get("tpc", True):
+                raise RadioError(self._accesspoint, self._radio, "TPC is disabled")
 
         mode = "manual" if enable else "auto"
         await self._accesspoint.send(self._radio, f"tpc_mode;{self._mac_addr};{mode}")
