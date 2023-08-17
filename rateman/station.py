@@ -25,7 +25,7 @@ class Station:
     """
     `Station` objects represent a device which is connected wirelessly to a device represented by an
     instance of :class:`.AccessPoint`. Consequently, since the the :class:`.AccessPoint` acts as the
-    transmitter for data for the station, this is where transmission resource control taskes place.
+    transmitter for data for the station, this is where transmission resource control tasks place.
     The ORCA system allows users to perform transmit rate and power control on a per-station basis.
     Thus, this class is the main interaction point for resource control schemes.
     """
@@ -69,6 +69,10 @@ class Station:
         self._rate_control_options = rc_opts
         self._rc = None
         self._log = logger if logger else logging.getLogger()
+
+    @property
+    def loop(self):
+        return self._loop
 
     @property
     def last_seen(self) -> int:
@@ -180,7 +184,7 @@ class Station:
         return (self._rate_control_algorithm, self._rate_control_options)
 
     @property
-    def logger(self) -> logging.Logger:
+    def log(self) -> logging.Logger:
         return self._log
 
     def __repr__(self):
@@ -478,7 +482,7 @@ class Station:
         return f"STA[{self._mac_addr}]"
 
 
-def handle_rc_exception(sta, future, **kwargs):
+def handle_rc_exception(sta, future):
     try:
         exception = future.exception()
     except asyncio.CancelledError:
@@ -486,12 +490,9 @@ def handle_rc_exception(sta, future, **kwargs):
 
     rc_alg, _ = sta.rate_control
 
-    sta.logger.error(f"{sta}: Rate control '{rc_alg}' raised an exception: {exception.__repr__()}")
-    sta._rc = sta._loop.create_task(cleanup_failed_rc(sta))
+    sta.log.error(f"{sta}: Rate control '{rc_alg}' raised an exception: {exception.__repr__()}")
+    sta.loop.create_task(cleanup_failed_rc(sta))
 
 
 async def cleanup_failed_rc(sta):
-    sta._rc = None
-    sta._rate_control_algorithm = None
-    sta._rate_control_options = None
-    await sta.start_rate_control("minstrel_ht_kernel_space", None)
+    await sta.stop_rate_control()

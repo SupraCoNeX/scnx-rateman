@@ -225,7 +225,7 @@ class RateMan:
     async def stop(self):
         """
         Stop all running tasks and disconnect from all accesspoints. Kernel rate control will be
-        enabled for all of the access points' stations prior to disconnection.
+        enabled for all the access points' stations prior to disconnection.
         """
         self._logger.debug("Stopping RateMan")
 
@@ -236,6 +236,7 @@ class RateMan:
             stas = []
             for radio in ap.radios:
                 stas += ap.stations(radio)
+                await ap.disable_events(ap.enabled_events(radio))
 
             for sta in stas:
                 await sta.start_rate_control("minstrel_ht_kernel_space", None)

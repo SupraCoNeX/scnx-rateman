@@ -239,7 +239,7 @@ class AccessPoint:
         feature : str
             The feature to enable
 
-        This will raise a `RateManError` if the radio is unknown and a `UnsupportedFeatureException`
+        This will raise a `RadioConfigError` if the radio is unknown and a `UnsupportedFeatureException`
         if the radio does not support the feature.
         """
         await self._set_feature(radio, feature, True)
@@ -251,11 +251,11 @@ class AccessPoint:
         Parameters
         ----------
         radio : str
-            The radio for which to disable the feature
+            The radio for which to disable the feature.
         feature : str
-            The feature to disable
+            The feature to disable.
 
-        This will raise a `RateManError` if the radio is unknown and a `UnsupportedFeatureException`
+        This will raise a `RadioConfigError` if the radio is unknown and a `UnsupportedFeatureException`
         if the radio does not support the feature.
         """
         await self._set_feature(radio, feature, False)
@@ -269,7 +269,7 @@ class AccessPoint:
         )
 
         if radio not in self._radios:
-            self.radios[radio] = {}
+            self._radios[radio] = {}
 
         self._radios[radio].update({
             "driver": driver,
@@ -299,7 +299,7 @@ class AccessPoint:
         try:
             return self._radios[radio]["interfaces"]
         except KeyError as e:
-            raise RateManError(f"{self._name}: No such radio '{radio}'") from e
+            raise RadioConfigError(f"{self._name}: No such radio '{radio}'") from e
 
     def driver(self, radio: str) -> str:
         """
@@ -308,7 +308,7 @@ class AccessPoint:
         try:
             return self._radios[radio]["driver"]
         except KeyError as e:
-            raise RateManError(f"{self._name}: No such radio '{radio}'") from e
+            raise RadioConfigError(f"{self._name}: No such radio '{radio}'") from e
 
     def txpowers(self, radio: str) -> list:
         """
@@ -370,6 +370,7 @@ class AccessPoint:
             cmd += "\n"
 
         self._writer.write(f"{radio};{cmd}".encode("ascii"))
+
         await self._writer.drain()
 
     def handle_error(self, error):
@@ -409,7 +410,6 @@ class AccessPoint:
                         f"Disconnecting from {self} will leave {sta} without rate control"
                     )
                     await sta.stop_rate_control()
-
         self._writer.close()
         try:
             async with asyncio.timeout(timeout):
@@ -470,7 +470,7 @@ class AccessPoint:
     async def disable_events(self, events: list = [], radio="all") -> None:
         """
         Disable the given events for the given radio. If `radio` is `"*"` or
-        `"all"`, the events will be disabled on all of the accesspoint's radios.
+        `"all"`, the events will be disabled on all the accesspoint's radios.
         """
         if radio in ["all", "*"]:
             radio = "*"
