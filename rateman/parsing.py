@@ -284,6 +284,7 @@ VALIDATORS = {
 
 def update_rate_stats(ap, fields: list) -> None:
     sta = ap.get_sta(fields[3], radio=fields[0])
+    supported_txpowers = ap.txpowers(sta.radio)
     if not sta:
         return
 
@@ -293,7 +294,7 @@ def update_rate_stats(ap, fields: list) -> None:
     mrr = [tuple(s.split(",")) for s in fields[7:]]
     rates = [r if r != "" else None for (r, _, _) in mrr]
     counts = [int(c, 16) if c != "" else None for (_, c, _) in mrr]
-    txpwr = [int(t, 16) if t != "" else None for (_, _, t) in mrr]
+    ind_txpwr = [int(str(int(t, 16)),16) if t != "" else None for (_, _, t) in mrr]
 
     attempts = [(num_frames * c) if c else 0 for c in counts]
 
@@ -313,7 +314,7 @@ def update_rate_stats(ap, fields: list) -> None:
     for i, rate in enumerate(rates):
         if not rate:
             break
-        sta.update_rate_stats(timestamp, rate, txpwr[i], attempts[i], succ[i])
+        sta.update_rate_stats(timestamp, rate, supported_txpowers[ind_txpwr[i]], attempts[i], succ[i])
 
     sta.update_ampdu(num_frames)
 
