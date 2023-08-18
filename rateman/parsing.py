@@ -50,7 +50,7 @@ def process_api(ap, fields):
             ap.sample_table = fields[5:]
 
 
-def parse_tpc_range_block(blk: list) -> list:
+def parse_tpc_range_block(ap, blk: list) -> list:
     fields = blk.split(",")
     if len(fields) != 4:
         raise ParsingError(ap, f"Malformed TPC range block '{blk}'")
@@ -79,7 +79,7 @@ def parse_tpc(ap: AccessPoint, cap: list) -> dict:
         raise ParsingError(ap, f"Expected {n_ranges} tpc ranges but only {len(ranges)} were found")
 
     for blk in ranges:
-        tpc["txpowers"] += parse_tpc_range_block(blk)
+        tpc["txpowers"] += parse_tpc_range_block(ap, blk)
 
     return tpc
 
