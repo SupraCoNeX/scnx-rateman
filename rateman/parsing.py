@@ -295,6 +295,7 @@ def update_rate_stats(ap, fields: list) -> None:
     rates = [r if r != "" else None for (r, _, _) in mrr]
     counts = [int(c, 16) if c != "" else None for (_, c, _) in mrr]
     ind_txpwr = [int(str(int(t, 16)),16) if t != "" else None for (_, _, t) in mrr]
+    txpowers = [supported_txpowers[ind] if ind else None for ind in ind_txpwr]
 
     attempts = [(num_frames * c) if c else 0 for c in counts]
 
@@ -314,7 +315,7 @@ def update_rate_stats(ap, fields: list) -> None:
     for i, rate in enumerate(rates):
         if not rate:
             break
-        sta.update_rate_stats(timestamp, rate, supported_txpowers[ind_txpwr[i]], attempts[i], succ[i])
+        sta.update_rate_stats(timestamp, rate, txpowers[i], attempts[i], succ[i])
 
     sta.update_ampdu(num_frames)
 
