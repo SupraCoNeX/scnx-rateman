@@ -291,12 +291,15 @@ class Station:
             self._stats[rate][-1]["attempts"] += attempts
             self._stats[rate][-1]["success"] += succ
             self._stats[rate][-1]["timestamp"] = timestamp
+    
+    def reset_ampdu_stats(self):
+        self._ampdu_subframes = 0
+        self._ampdu_aggregates = 0
 
     def update_ampdu(self, num_frames):
-        self._ampdu_enabled = (num_frames > 1)
-        if not self._ampdu_enabled:
-            return
-
+        if num_frames > 1:
+            self._ampdu_enabled = True
+        
         self._ampdu_subframes += num_frames
         self._ampdu_aggregates += 1
 

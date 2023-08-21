@@ -549,7 +549,7 @@ class AccessPoint:
 
         if sta == "all":
             self._logger.debug(f"{self._name}:{radio}: Resetting in-kernel rate statistics")
-            await self.send(radio, f"reset_stats")
+            await self.send(radio, f"reset_stats;all")
         elif sta in self._radios[radio]["stations"]["active"]:
             self._logger.debug(f"{self._name}:{radio}:{sta}: Resetting in-kernel rate statistics")
             await self.send(radio, f"reset_stats;{sta}")
