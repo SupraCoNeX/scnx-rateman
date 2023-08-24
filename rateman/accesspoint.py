@@ -423,6 +423,7 @@ class AccessPoint:
         self._logger.debug(f"{self}: disconnected")
 
     async def apply_system_config(self, radio="all", new_config=None):
+
         if radio == "all":
             for radio in self._radios:
                 await self.apply_system_config(radio, new_config)
@@ -448,6 +449,12 @@ class AccessPoint:
 
         if "mt76_force_rate_retry" in cfg:
             await self.mt76_force_rate_retry(cfg["mt76_force_rate_retry"], radio)
+
+        if "tpc" in cfg:
+            if cfg["tpc"]:
+                await self.enable_feature(radio, "tpc")
+            else:
+                await self.disable_feature(radio, "tpc")
 
     async def enable_events(self, events: list, radio="all") -> None:
         """
