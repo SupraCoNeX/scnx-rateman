@@ -250,6 +250,10 @@ class Station:
             await self.set_manual_tpc_mode(False)
 
             rc_task = None
+            if rc_opts:
+                if rc_opts.get("reset_rate_stats", False):
+                    await self.reset_kernel_rate_stats()
+                    self.reset_rate_stats()
         else:
             configure, rc = rate_control.load(rc_alg)
             ctx = await configure(self, **rc_opts)
