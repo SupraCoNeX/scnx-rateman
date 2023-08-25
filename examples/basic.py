@@ -1,7 +1,4 @@
-# -*- coding: UTF8 -*-
-# Copyright SupraCoNeX
-#     https://www.supraconex.org
-#
+#!/usr/bin/env python
 
 import asyncio
 import sys
