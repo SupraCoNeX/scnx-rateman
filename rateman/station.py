@@ -22,11 +22,12 @@ __all__ = ["Station"]
 
 class Station:
     """
-    `Station` objects represent a device which is connected wirelessly to a device represented by an
-    instance of :class:`.AccessPoint`. Consequently, since the the :class:`.AccessPoint` acts as the
-    transmitter for data for the station, this is where transmission resource control tasks place.
-    The ORCA system allows users to perform transmit rate and power control on a per-station basis.
-    Thus, this class is the main interaction point for resource control schemes.
+    :class:`.Station` objects represent a device which is connected wirelessly to a device
+    represented by an instance of :class:`.AccessPoint`. Consequently, since the the
+    :class:`.AccessPoint` acts as the transmitter for data for the station, this is where
+    transmission resource control tasks place. The ORCA system allows users to perform transmit rate
+    and power control on a per-station basis. Consequently, this class is the main interaction point
+    for resource control schemes.
     """
     def __init__(
         self,
@@ -303,14 +304,14 @@ class Station:
         self._ampdu_subframes = 0
         self._ampdu_aggregates = 0
 
-    def update_ampdu(self, num_frames):
+    def update_ampdu(self, num_frames: int):
         if num_frames > 1:
             self._ampdu_enabled = True
         
         self._ampdu_subframes += num_frames
         self._ampdu_aggregates += 1
 
-    def update_rssi(self, timestamp, min_rssi, per_antenna):
+    def update_rssi(self, timestamp: int, min_rssi: int, per_antenna: int):
         if timestamp > self._last_seen:
             self._rssi = min_rssi
             self._rssi_vals = per_antenna
@@ -325,7 +326,7 @@ class Station:
         """
         return self._stats.get(rate, {})
 
-    def reset_rate_stats(self) -> None:
+    def reset_rate_stats(self):
         """
         Reset packet transmission attempts and success statistics for all supported rates and
         transmit power levels.
@@ -338,14 +339,14 @@ class Station:
             for rate in self._supported_rates
         }
 
-    async def reset_kernel_rate_stats(self) -> None:
+    async def reset_kernel_rate_stats(self):
         """
         Reset counters for attempted and successful transmission in the kernel of this station's
         access point.
         """
         await self._accesspoint.reset_kernel_rate_stats(radio=self._radio, sta=self._mac_addr)
 
-    async def set_manual_rc_mode(self, enable: bool) -> None:
+    async def set_manual_rc_mode(self, enable: bool):
         """
         Configure the station's rate control mode. If `enable` is `True`, the station will be
         switched into manual rc mode. If `enable` is `False`, the station will be put into auto rc
@@ -359,7 +360,7 @@ class Station:
         self._rc_mode = mode
         self._log.debug(f"{self}: set rc_mode={mode}")
 
-    async def set_manual_tpc_mode(self, enable: bool) -> None:
+    async def set_manual_tpc_mode(self, enable: bool):
         """
         Configure the station's transmit power control mode. If `enable` is `True`, the station will
         be switched into manual tpc mode. If `enable` is `False`, the station will be put into auto
@@ -381,18 +382,23 @@ class Station:
         self._tpc_mode = mode
         self._log.debug(f"{self}: set tpc_mode={mode}")
 
-    def _validate_txpwrs(self, pwrs: list):
+    def _validate_txpwrs(self, pwrs: list[int]):
         supported_pwrs = self._accesspoint.txpowers(self._radio)
         for p in pwrs:
             if p not in supported_pwrs:
                 raise RadioError(self._accesspoint, self._radio, f"Unsupported TX power level: {p}")
 
-    def _validate_rates(self, rates: list):
+    def _validate_rates(self, rates: list[int]):
         for r in rates:
-            if str(r) not in self._supported_rates:
+            r_str = str(r)
+
+            if len(r_str) == 1:
+                r_str = "0" + r_str
+
+            if r_str not in self._supported_rates:
                 raise StationError(self, f"Unsupported rate: {r}")
 
-    async def set_rates(self, rates: list, counts: list) -> None:
+    async def set_rates(self, rates: list[int], counts: list[int]):
         """
         Set the station's rate table, i.e., the rates at which transmissions will be attempted and
         their respective retry counts. Given the hardware's support, transmissions to this station
@@ -412,7 +418,7 @@ class Station:
         mrr = ";".join([f"{r},{c}" for (r, c) in zip(rates, counts)])
         await self._accesspoint.send(self._radio, f"set_rates;{self._mac_addr};{mrr}")
 
-    async def set_power(self, pwrs: list) -> None:
+    async def set_power(self, pwrs: list[int]):
         """
         Set the transmit power levels for the station's rate table. Given the hardware's support,
         this will prescribe which transmit power level is to be used at every stage of the retry
@@ -431,7 +437,7 @@ class Station:
         txpwrs = ";".join([f"{self._accesspoint.txpowers(self._radio).index(p):x}" for p in pwrs])
         await self._accesspoint.send(self._radio, f"set_power;{self._mac_addr};{txpwrs}")
 
-    async def set_rates_and_power(self, rates: list, counts: list, pwrs: list) -> None:
+    async def set_rates_and_power(self, rates: list[int], counts: list[int], pwrs: list[int]):
         """
         Set rates, retry counts, and transmit power levels for transmissions made to this station.
         This combines the effects of `set_rates()` and `set_power()`.
@@ -460,7 +466,7 @@ class Station:
         mrr = ";".join([f"{r},{c},{p:x}" for ((r, c), p) in zip(zip(rates, counts), txpwrs)])
         await self._accesspoint.send(self._radio, f"set_rates_power;{self._mac_addr};{mrr}")
 
-    async def set_probe_rate(self, rate: str, count: int, txpwr: int = None) -> None:
+    async def set_probe_rate(self, rate: str, count: int, txpwr: int = None):
         """
         Sample a rate identified by its index `rate` for `count` attempts at transmit power level
         `txpwr`. This overwrite the first entry in the rate table for the station with the given
@@ -492,7 +498,7 @@ class Station:
         return f"STA[{self._mac_addr}]"
 
 
-def handle_rc_exception(sta, future):
+def handle_rc_exception(sta: Station, future):
     try:
         exception = future.exception()
     except asyncio.CancelledError:
@@ -507,5 +513,5 @@ def handle_rc_exception(sta, future):
     sta.loop.create_task(cleanup_failed_rc(sta))
 
 
-async def cleanup_failed_rc(sta):
+async def cleanup_failed_rc(sta: Station):
     await sta.stop_rate_control()
