@@ -162,7 +162,7 @@ class AccessPoint:
         for row in sample_table_data:
             self._sample_table.append(list(map(int, row.split(","))))
 
-    def stations(self, radio="all", which="active") -> list[Station]:
+    def stations(self, radio="all") -> list[Station]:
         """
         Return a list of :class:`Station` s of the given radio. If `radio` is `"all"` the returned
         list will include the stations of all of the accesspoint's radios.
@@ -176,13 +176,7 @@ class AccessPoint:
         elif radio not in self._radios:
             raise AccessPointError(self, f"No such radio '{radio}'")
 
-        if which == "all":
-            return (
-                self.stations(radio, which="active") +
-                self.stations(radio, which="inactive")
-            )
-
-        return [sta for _, sta in self._radios[radio]["stations"][which].items()]
+        return [sta for _, sta in self._radios[radio]["stations"].items()]
 
     def _get_sta(self, mac, radio, state):
         try:
@@ -190,18 +184,14 @@ class AccessPoint:
         except KeyError:
             return None
 
-    def get_sta(self, mac: str, radio: str = None, state="active"):
+    def get_sta(self, mac: str, radio: str = None):
         if not radio:
             for radio in self._radios:
-                sta = self.get_sta(mac, radio, state=state)
+                sta = self.get_sta(mac, radio)
                 if sta:
                     return sta
 
             return None
-
-        if state == "any":
-            sta = self._get_sta(mac, radio, "active")
-            return sta if sta else self._get_sta(mac, radio, "inactive")
 
         return self._get_sta(mac, radio, state)
 
@@ -281,7 +271,7 @@ class AccessPoint:
                 f: (f in active_features) for f in (active_features + inactive_features) if f
             },
             "tpc": tpc,
-            "stations": {"active": {}, "inactive": {}}
+            "stations": {}
         })
 
     def radio_for_interface(self, iface: str) -> str:
@@ -324,20 +314,19 @@ class AccessPoint:
     def add_station(self, sta):
         # TODO: maybe handle sta;updates here, too?
         # Check for diff in capabilities and update accordingly
-        if sta.mac_addr not in self._radios[sta.radio]["stations"]["active"]:
+        if sta.mac_addr not in self._radios[sta.radio]["stations"]:
             self._logger.debug(f"{self._name}:{sta.radio}: Adding {sta}")
 
-            self._radios[sta.radio]["stations"]["active"][sta.mac_addr] = sta
+            self._radios[sta.radio]["stations"][sta.mac_addr] = sta
 
     def remove_station(self, mac: str, radio: str):
         try:
-            sta = self._radios[radio]["stations"]["active"].pop(mac)
+            sta = self._radios[radio]["stations"].pop(mac)
         except KeyError:
             return None
 
         sta.disassociate()
 
-        self._radios[radio]["stations"]["inactive"][mac] = sta
         self._logger.debug(f"{self._name}:{sta.radio}: Removed {sta}")
         return sta
 
@@ -559,7 +548,7 @@ class AccessPoint:
         if sta == "all":
             self._logger.debug(f"{self._name}:{radio}: Resetting in-kernel rate statistics")
             await self.send(radio, f"reset_stats;all")
-        elif sta in self._radios[radio]["stations"]["active"]:
+        elif sta in self._radios[radio]["stations"]:
             self._logger.debug(f"{self._name}:{radio}:{sta}: Resetting in-kernel rate statistics")
             await self.send(radio, f"reset_stats;{sta}")
 
