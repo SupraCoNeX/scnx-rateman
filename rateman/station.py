@@ -74,6 +74,10 @@ class Station:
         return self._loop
 
     @property
+    def logger(self) -> logging.Logger:
+        return self._log
+
+    @property
     def last_seen(self) -> int:
         """
         Return the timestamp of the last known activity of the station given in nanoseconds since
