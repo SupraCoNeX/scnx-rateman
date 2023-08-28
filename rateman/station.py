@@ -8,7 +8,6 @@ import logging
 from contextlib import suppress
 from functools import partial
 
-from .accesspoint import AccessPoint
 from . import rate_control
 from .exception import (
     RateControlError,
@@ -32,7 +31,7 @@ class Station:
     def __init__(
         self,
         mac_addr: str,
-        ap: AccessPoint,
+        ap: "AccessPoint",
         radio: str,
         iface: str,
         timestamp: int,
@@ -83,7 +82,7 @@ class Station:
         return self._last_seen
 
     @property
-    def accesspoint(self) -> AccessPoint:
+    def accesspoint(self) -> "AccessPoint":
         """
         Return the accesspoint to which the station is connected.
         """

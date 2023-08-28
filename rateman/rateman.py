@@ -13,6 +13,8 @@ import csv
 import traceback
 from contextlib import suppress
 
+from .accesspoint import AccessPoint
+from .station import Station
 from .parsing import *
 from .exception import UnsupportedAPIVersionError
 
@@ -54,13 +56,13 @@ class RateMan:
         self._accesspoints = dict()
 
     @property
-    def accesspoints(self) -> list:
+    def accesspoints(self) -> list[AccessPoint]:
         """
         Return the list of registered :class:`.AccessPoint` s.
         """
         return [ap for _, (ap, _) in self._accesspoints.items()]
 
-    def add_accesspoint(self, ap):
+    def add_accesspoint(self, ap: AccessPoint):
         """
         Register the given :class:`.AccessPoint` instance with rateman.
         """
@@ -72,7 +74,7 @@ class RateMan:
         if not ap.loop:
             ap.loop = self._loop
 
-    def get_sta(self, mac):
+    def get_sta(self, mac: str) -> Station:
         """
         Return the :class:`.Station` object identified by the given MAC address.
         """
@@ -83,7 +85,7 @@ class RateMan:
 
         return None
 
-    async def ap_connection(self, ap, timeout=5):
+    async def ap_connection(self, ap: AccessPoint, timeout=5):
         while True:
             self._logger.debug(f"Connecting to {ap}, timeout={timeout} s")
 
@@ -110,9 +112,10 @@ class RateMan:
     def add_raw_data_callback(self, cb, context=None):
         """
         Register a callback to be called on unvalidated incoming ORCA event data.
+
         Parameters
         ----------
-        cb : Callable
+        cb : callable
             The callback function.
         context : object
             Additional arguments to be passed to the callback function.
@@ -120,13 +123,13 @@ class RateMan:
         if (cb, context) not in self._raw_data_callbacks:
             self._raw_data_callbacks.append((cb, context))
 
-    def add_data_callback(self, cb, type="any", context=None):
+    def add_data_callback(self, cb, type: str = "any", context=None):
         """
         Register a callback to be called on incoming ORCA event data.
 
         Parameters
         ----------
-        cb : Callable
+        cb : callable
             The callback function.
         type : str
             Which data to call the callback on. Valid options: `"any", "txs", "stats",
@@ -143,14 +146,9 @@ class RateMan:
 
         self._data_callbacks[type].append((cb, context))
 
-    def remove_data_callback(self, cb):
+    def remove_data_callback(self, cb: callable):
         """
         Unregister a data callback.
-
-        Parameters
-        ----------
-        cb : Callable
-            The callback function to unregister.
         """
         for (c, ctx) in self._raw_data_callbacks:
             if c == cb:
@@ -163,7 +161,7 @@ class RateMan:
                     cbs.remove((c, ctx))
                     break
 
-    def execute_callbacks(self, ap, fields):
+    def execute_callbacks(self, ap: AccessPoint, fields: list[str]):
         for (cb, ctx) in self._data_callbacks["any"]:
             cb(ap, fields, context=ctx)
 
@@ -173,7 +171,7 @@ class RateMan:
         except KeyError:
             return
 
-    async def rcd_connection(self, ap):
+    async def rcd_connection(self, ap: AccessPoint):
         try:
             async for line in ap.events():
                 for (cb, ctx) in self._raw_data_callbacks:

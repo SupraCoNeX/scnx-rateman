@@ -10,6 +10,7 @@ import os
 import logging
 from functools import reduce
 
+from .station import Station
 from .exception import (
     RadioConfigError,
     AccessPointNotConnectedError,
@@ -25,9 +26,10 @@ class AccessPoint:
     Objects of this class represent a remote wireless device running an instance of ORCA-RCD to
     which RateMan connects and which it potentially controls. Although the class is called
     `AccessPoint`, the device need not necessary fulfill the role of an access point in the sense
-    of the IEEE 802.11 standard (WiFi). As far as RateMan is concerned, it is a wireless device to
-    which other wireless devices are connected, whose wireless transmission parameters are
-    controllable using the ORCA system.
+    of the IEEE 802.11 standard (WiFi). As far as RateMan is concerned, it is a wireless device
+    whose wireless transmission parameters are controllable using the ORCA system.
+    Instances of this class sould be created using :func:`.from_strings` or
+    :func:`.from_file`
     """
     def __init__(self, name, addr, rcd_port=21059, logger=None, loop=None):
         """
@@ -160,7 +162,7 @@ class AccessPoint:
         for row in sample_table_data:
             self._sample_table.append(list(map(int, row.split(","))))
 
-    def stations(self, radio="all", which="active") -> list:
+    def stations(self, radio="all", which="active") -> list[Station]:
         """
         Return a list of :class:`Station` s of the given radio. If `radio` is `"all"` the returned
         list will include the stations of all of the accesspoint's radios.
@@ -612,11 +614,10 @@ class AccessPoint:
 
 def from_file(file: dir, logger=None) -> list:
     """
-    Parse the given csv `file` and return a list of `AccessPoint` objects created from the
-    descriptions within.
-    Lines must have the format `<NAME>,<ADDR>,<RCDPORT>` for name, IP address and ORCA-RCD listening
-    port, respectively.
-    `logger` sets the `logging.Logger` for the newly created `AccessPoint` s.
+    Parse the given csv file and return a list of :class:.`AccessPoint` objects created according to
+    the lines within. Lines must have the format `<NAME>,<ADDR>,<RCDPORT>` for name, IP address and
+    ORCA-RCD listening port, respectively.
+    `logger` sets the :class:`logging.Logger` for the newly created :class:`.AccessPoint` s.
     """
     def parse_ap(ap):
         name = ap["NAME"]
@@ -636,11 +637,11 @@ def from_file(file: dir, logger=None) -> list:
 
 def from_strings(ap_strs: list, logger=None) -> list:
     """
-    Parse the given list of strings and return a list of `AccessPoint` objects created from them.
+    Parse the given list of strings and return a list of :class:`.AccessPoint` objects created from them.
     The list entries in `ap_strs` must adhere to the following format:
     `<NAME>,<ADDR>[,<RCDPORT>]` for name, IP address, and (optionally) ORCA-RCD listening port,
     respectively.
-    `logger` sets the `logging.Logger` for the newly created `AccessPoint` s.
+    `logger` sets the :class:`logging.Logger` for the newly created :class:`.AccessPoint` s.
     """
     aps = []
 
