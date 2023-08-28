@@ -158,7 +158,7 @@ async def process_line(ap, line):
             update_rate_stats(ap, fields)
         case "rxs":
             sta = ap.get_sta(fields[3], radio=fields[0])
-            if sta:
+            if sta and fields[1] != "7f":
                 sta.update_rssi(
                     int(fields[1], 16),
                     parse_s32(fields[4]),
