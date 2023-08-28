@@ -498,6 +498,9 @@ def handle_rc_exception(sta, future):
     except asyncio.CancelledError:
         return
 
+    if not exception:
+        return
+
     rc_alg, _ = sta.rate_control
 
     sta.log.error(f"{sta}: Rate control '{rc_alg}' raised an exception: {exception.__repr__()}")
