@@ -12,14 +12,12 @@ rateman.accesspoint
 -------------------
 
 .. automodule:: rateman.accesspoint
-
-.. autoclass:: rateman.accesspoint.AccessPoint()
    :members:
    :member-order: bysource
 
 rateman.station
 ----------------
 
-.. autoclass:: rateman.station.Station()
+.. automodule:: rateman.station
    :members:
    :member-order: bysource
