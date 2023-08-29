@@ -31,7 +31,7 @@ def parse_s32(s):
 
 def check_orca_version(ap, line, fields):
     if (
-        (not re.fullmatch(r"\*;0;orca_version;[0-9a-f]+", line)) or
+        (not re.fullmatch(r"\*;0;orca_version;[0-9a-f]+;[0-9a-f]+", line)) or
         (int(fields[3], 16) != API_VERSION)
     ):
         raise UnsupportedAPIVersionError(ap, API_VERSION, fields[3])
