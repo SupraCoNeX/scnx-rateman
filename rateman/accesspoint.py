@@ -170,7 +170,7 @@ class AccessPoint:
         if radio == "all":
             return reduce(
                 lambda a, b: a + b,
-                [self.stations(radio=radio, which=which) for radio in self._radios],
+                [self.stations(radio=radio) for radio in self._radios],
                 []
             )
         elif radio not in self._radios:
@@ -178,9 +178,9 @@ class AccessPoint:
 
         return [sta for _, sta in self._radios[radio]["stations"].items()]
 
-    def _get_sta(self, mac, radio, state):
+    def _get_sta(self, mac, radio):
         try:
-            return self._radios[radio]["stations"][state][mac]
+            return self._radios[radio]["stations"][mac]
         except KeyError:
             return None
 
@@ -193,7 +193,7 @@ class AccessPoint:
 
             return None
 
-        return self._get_sta(mac, radio, state)
+        return self._get_sta(mac, radio)
 
     def enabled_events(self, radio: str) -> list:
         """
