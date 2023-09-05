@@ -40,7 +40,9 @@ if __name__ == "__main__":
     # start 'example_rc' rate control algorithm. This will import from the example_rc.py file.
     for ap in aps:
         for sta in ap.stations():
-            loop.run_until_complete(sta.start_rate_control("rc_failing", {"fail_after_s": 3}))
+            loop.run_until_complete(
+                sta.start_rate_control("rc_failing", {"fail_after_s": 3})
+            )
 
     try:
         print("Running rateman... (Press CTRL+C to stop)")

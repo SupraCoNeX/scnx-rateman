@@ -46,8 +46,9 @@ if __name__ == "__main__":
                     {
                         "filter": "Butterworth",
                         "reset_rate_stats": True,
-                        "kern_sample_table": True
-                    }
+                        "kern_sample_table": True,
+                        "preloading": False,
+                    },
                 )
             )
 

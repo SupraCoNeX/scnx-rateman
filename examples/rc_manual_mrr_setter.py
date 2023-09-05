@@ -43,17 +43,15 @@ if __name__ == "__main__":
             loop.run_until_complete(
                 sta.start_rate_control(
                     "manual_mrr_setter",
-                    {
-                        "multi_rate_retry": "fastest,random,slowest;4,4,4"
-                    }
+                    {"multi_rate_retry": "fastest,random,slowest;4,4,4"},
                 )
             )
 
     # Enable 'txs' events so we can see our rate setting in action. Note, this requires traffic to
     # produce events. pinging the station across the wireless link can help with that.
-    # for ap in aps:
-    #     loop.run_until_complete(ap.disable_events(["stats", "rxs", "tprc_echo"]))
-    #     loop.run_until_complete(ap.enable_events(["txs"]))
+    for ap in aps:
+        loop.run_until_complete(ap.disable_events(["stats", "rxs", "tprc_echo"]))
+        loop.run_until_complete(ap.enable_events(["txs"]))
 
     # add a simple print callback to see the txs events
     def print_event(ap, ev, context=None):

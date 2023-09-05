@@ -8,7 +8,8 @@ from rateman.accesspoint import AccessPoint
 def parse_arguments():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument(
-        "-g", "--rc-algorithm",
+        "-g",
+        "--rc-algorithm",
         metavar="RC_ALG",
         type=str,
         choices=["minstrel_ht_kernel_space", "py_minstrel_ht", "manual_mrr_setter"],
@@ -17,7 +18,8 @@ def parse_arguments():
     )
 
     arg_parser.add_argument(
-        "-o", "--rc-options",
+        "-o",
+        "--rc-options",
         metavar="RC_OPTS",
         type=dict,
         default={},
@@ -25,7 +27,8 @@ def parse_arguments():
     )
 
     arg_parser.add_argument(
-        "-A", "--ap-file",
+        "-A",
+        "--ap-file",
         metavar="AP_FILE",
         type=str,
         help="Path to a csv file where each line contains information about an access point "
