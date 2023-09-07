@@ -231,8 +231,8 @@ class AccessPoint:
         feature : str
             The feature to enable
 
-        This will raise a `RadioConfigError` if the radio is unknown and a `UnsupportedFeatureException`
-        if the radio does not support the feature.
+        This will raise a :class:`.AccessPointError` if the radio is unknown and a
+        :class:`.UnsupportedFeatureException` if the radio does not support the feature.
         """
         await self._set_feature(radio, feature, True)
 
@@ -247,8 +247,8 @@ class AccessPoint:
         feature : str
             The feature to disable.
 
-        This will raise a `RadioConfigError` if the radio is unknown and a `UnsupportedFeatureException`
-        if the radio does not support the feature.
+        This will raise a :class:`AccessPointError` if the radio is unknown and a
+        :class:`UnsupportedFeatureException` if the radio does not support the feature.
         """
         await self._set_feature(radio, feature, False)
 
@@ -626,8 +626,8 @@ def from_file(file: dir, logger=None) -> list:
 
 def from_strings(ap_strs: list, logger=None) -> list:
     """
-    Parse the given list of strings and return a list of :class:`.AccessPoint` objects created from them.
-    The list entries in `ap_strs` must adhere to the following format:
+    Parse the given list of strings and return a list of :class:`.AccessPoint` objects created from
+    them. The list entries in `ap_strs` must adhere to the following format:
     `<NAME>,<ADDR>[,<RCDPORT>]` for name, IP address, and (optionally) ORCA-RCD listening port,
     respectively.
     `logger` sets the :class:`logging.Logger` for the newly created :class:`.AccessPoint` s.

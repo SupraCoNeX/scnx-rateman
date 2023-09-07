@@ -26,8 +26,8 @@ class RateMan:
 
     :ivar asyncio.BaseEventLoop loop:   The event loop on which rateman is to run. If none is
                                         provided, a new one will be created.
-    :ivar logging.Logger logger:    The logger for this rateman instance. If none is given, a new one
-                                    will be created.
+    :ivar logging.Logger logger:    The logger for this rateman instance. If none is given, a new
+                                    one will be created.
     """
 
     def __init__(self, loop=None, logger=None):
