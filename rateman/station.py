@@ -490,7 +490,11 @@ class Station:
         cmd = f"set_probe;{self._mac_addr};{rate},{count}"
 
         if txpwr and txpwr != -1:
-            cmd += f",{txpwr}"
+            self._validate_txpwrs([txpwr])
+
+            supported_pwrs = self._accesspoint.txpowers(self._radio)
+
+            cmd += f",{supported_pwrs.index(txpwr):x}"
 
         await self._accesspoint.send(self._radio, cmd)
 
