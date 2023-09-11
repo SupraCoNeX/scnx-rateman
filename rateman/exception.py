@@ -79,10 +79,10 @@ class UnsupportedFeatureException(RateManError):
         self._feature = feature
 
     def __str__(self):
-        return f"{self._ap.name}:{self._radio}: Radio does not support feature '{feature}'"
+        return f"{self._ap.name}:{self._radio}: Radio does not support feature '{self._feature}'"
 
     def __repr__(self):
-        return f"{self._ap}:{self._radio}: Radio does not support feature '{feature}'"
+        return f"{self._ap}:{self._radio}: Radio does not support feature '{self._feature}'"
 
 
 class StationError(RateManError):
