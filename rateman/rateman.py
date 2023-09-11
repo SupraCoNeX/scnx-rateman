@@ -234,7 +234,7 @@ class RateMan:
             stas = []
             for radio in ap.radios:
                 stas += ap.stations(radio)
-                await ap.disable_events(ap.enabled_events(radio))
+                await ap.disable_events(radio, ap.enabled_events(radio))
 
             for sta in stas:
                 await sta.start_rate_control("minstrel_ht_kernel_space", None)

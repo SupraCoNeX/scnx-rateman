@@ -220,6 +220,15 @@ class AccessPoint:
         self._radios[radio]["features"][feature] = state
         await self.send(radio, f"set_feature;{feature};{'on' if state else 'off'}")
 
+    async def set_features(self, radio, features={'tpc':False}):
+
+        for feature in features:
+            if feature:
+                await self.enable_feature(radio, feature)
+            else:
+                await self.enable_feature(radio,feature)
+
+
     async def enable_feature(self, radio: str, feature: str) -> None:
         """
         Enable a given radio's feature.
@@ -441,16 +450,10 @@ class AccessPoint:
         if "mt76_force_rate_retry" in cfg:
             await self.mt76_force_rate_retry(cfg["mt76_force_rate_retry"], radio)
 
-        if "tpc" in cfg:
-            if cfg["tpc"]:
-                await self.enable_feature(radio, "tpc")
-            else:
-                await self.disable_feature(radio, "tpc")
-
-    async def enable_events(self, events: list, radio="all") -> None:
+    async def enable_events(self, radio="all", events: list = ['txs']) -> None:
         """
         Enable the given events for the given radio. If `radio` is `"*"` or
-        `"all"`, the events will be enabled on all of the accesspoint's radios.
+        `"all"`, the events will be enabled on all the accesspoint's radios.
         """
         if radio in ["all", "*"]:
             radio = "*"
@@ -463,9 +466,10 @@ class AccessPoint:
             enabled_events.update(events)
             self._radios[radio]["events"] = list(enabled_events)
 
+        await self.disable_events(radio)
         await self.send(radio, "start;" + ";".join(events))
 
-    async def disable_events(self, events: list = [], radio="all") -> None:
+    async def disable_events(self, radio="all", events: list = []) -> None:
         """
         Disable the given events for the given radio. If `radio` is `"*"` or
         `"all"`, the events will be disabled on all the accesspoint's radios.
