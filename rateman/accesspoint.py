@@ -226,7 +226,7 @@ class AccessPoint:
             if feature:
                 await self.enable_feature(radio, feature)
             else:
-                await self.enable_feature(radio,feature)
+                await self.disable_feature(radio, feature)
 
 
     async def enable_feature(self, radio: str, feature: str) -> None:

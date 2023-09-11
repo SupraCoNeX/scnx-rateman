@@ -378,9 +378,11 @@ class Station:
                 raise RadioError(self._accesspoint, self._radio, "TPC is disabled")
 
         mode = "manual" if enable else "auto"
-        await self._accesspoint.send(self._radio, f"tpc_mode;{self._mac_addr};{mode}")
-        self._tpc_mode = mode
-        self._log.debug(f"{self}: set tpc_mode={mode}")
+        if self._accesspoint.radios[self._radio]['tpc']:
+            await self._accesspoint.send(self._radio, f"tpc_mode;{self._mac_addr};{mode}")
+            self._tpc_mode = mode
+            self._log.debug(f"{self}: set tpc_mode={mode}")
+
 
     def _validate_txpwrs(self, pwrs: list[int]):
         supported_pwrs = self._accesspoint.txpowers(self._radio)
