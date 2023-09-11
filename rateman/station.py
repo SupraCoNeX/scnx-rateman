@@ -312,7 +312,7 @@ class Station:
             self._stats[rate][-1]["attempts"] += attempts
             self._stats[rate][-1]["success"] += succ
             self._stats[rate][-1]["timestamp"] = timestamp
-    
+
     def reset_ampdu_stats(self):
         self._ampdu_subframes = 0
         self._ampdu_aggregates = 0
@@ -320,7 +320,7 @@ class Station:
     def update_ampdu(self, num_frames: int):
         if num_frames > 1:
             self._ampdu_enabled = True
-        
+
         self._ampdu_subframes += num_frames
         self._ampdu_aggregates += 1
 
@@ -391,9 +391,11 @@ class Station:
                 raise RadioError(self._accesspoint, self._radio, "TPC is disabled")
 
         mode = "manual" if enable else "auto"
-        await self._accesspoint.send(self._radio, f"tpc_mode;{self._mac_addr};{mode}")
-        self._tpc_mode = mode
-        self._log.debug(f"{self}: set tpc_mode={mode}")
+        if self._accesspoint.radios[self._radio]['tpc']:
+            await self._accesspoint.send(self._radio, f"tpc_mode;{self._mac_addr};{mode}")
+            self._tpc_mode = mode
+            self._log.debug(f"{self}: set tpc_mode={mode}")
+
 
     def _validate_txpwrs(self, pwrs: list[int]):
         supported_pwrs = self._accesspoint.txpowers(self._radio)
@@ -503,7 +505,11 @@ class Station:
         cmd = f"set_probe;{self._mac_addr};{rate},{count}"
 
         if txpwr and txpwr != -1:
-            cmd += f",{txpwr}"
+            self._validate_txpwrs([txpwr])
+
+            supported_pwrs = self._accesspoint.txpowers(self._radio)
+
+            cmd += f",{supported_pwrs.index(txpwr):x}"
 
         await self._accesspoint.send(self._radio, cmd)
 

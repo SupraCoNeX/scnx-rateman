@@ -12,7 +12,7 @@ from common import parse_arguments, setup_logger
 
 
 if __name__ == "__main__":
-    log = setup_logger("py_minstrel_ht")
+    log = setup_logger("py_thompson_sampling")
     args = parse_arguments()
     aps = rateman.from_strings(args.accesspoints, logger=log)
 
@@ -37,34 +37,22 @@ if __name__ == "__main__":
     # establish connections and set up state
     loop.run_until_complete(rm.initialize())
 
-    # start 'py-minstrel-ht' user space rate control algorithm.
-    file_handles = {}
-
-    def write_event(ap, ev, context):
-        context.write(f"{ev}\n")
-
+    # start 'py_thompson_sampling' user space rate control algorithm.
     for ap in aps:
-        file_handles[ap.name] = open(f"{ap.name}.csv", "w")
-        rm.add_raw_data_callback(write_event, file_handles[ap.name])
-
         for sta in ap.stations():
-            loop.run_until_complete(
-                sta.start_rate_control(
-                    "py_minstrel_ht",
-                    {
-                        "filter": "Butterworth",
-                        "reset_rate_stats": True,
-                        "kern_sample_table": True,
-                        "add_callback_method": rm.add_data_callback,
-                    },
-                )
-            )
+            loop.run_until_complete(sta.start_rate_control("py_thompson_sampling", {}))
 
+    # Enable 'txs' events so we can see our rate setting in action. Note, this requires traffic to
+    # produce events. pinging the station across the wireless link can help with that.
+    for ap in aps:
+        loop.run_until_complete(ap.disable_events(["stats", "rxs", "tprc_echo"]))
+        loop.run_until_complete(ap.enable_events(["txs"]))
+
+    # add a simple print callback to see the txs events
     def print_event(ap, ev, context=None):
         print(f"{ap.name} > {ev}")
 
     rm.add_raw_data_callback(print_event)
-
     try:
         print("Running rateman... (Press CTRL+C to stop)")
         loop.run_forever()
@@ -72,6 +60,4 @@ if __name__ == "__main__":
         print("Stopping...")
     finally:
         loop.run_until_complete(rm.stop())
-        for _, file_handle in file_handles.items():
-            file_handle.close()
         print("DONE")

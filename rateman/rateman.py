@@ -26,8 +26,8 @@ class RateMan:
 
     :ivar asyncio.BaseEventLoop loop:   The event loop on which rateman is to run. If none is
                                         provided, a new one will be created.
-    :ivar logging.Logger logger:    The logger for this rateman instance. If none is given, a new one
-                                    will be created.
+    :ivar logging.Logger logger:    The logger for this rateman instance. If none is given, a new
+                                    one will be created.
     """
 
     def __init__(self, loop=None, logger=None):
@@ -234,7 +234,7 @@ class RateMan:
             stas = []
             for radio in ap.radios:
                 stas += ap.stations(radio)
-                await ap.disable_events(ap.enabled_events(radio))
+                await ap.disable_events(radio, ap.enabled_events(radio))
 
             for sta in stas:
                 await sta.start_rate_control("minstrel_ht_kernel_space", None)

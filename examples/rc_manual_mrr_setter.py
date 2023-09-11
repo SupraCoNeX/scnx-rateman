@@ -43,9 +43,7 @@ if __name__ == "__main__":
             loop.run_until_complete(
                 sta.start_rate_control(
                     "manual_mrr_setter",
-                    {
-                        "multi_rate_retry": "fastest,random,slowest;4,4,4"
-                    }
+                    {"multi_rate_retry": "fastest,random,slowest;4,4,4"},
                 )
             )
 

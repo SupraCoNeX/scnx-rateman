@@ -44,10 +44,7 @@ if __name__ == "__main__":
             loop.run_until_complete(
                 sta.start_rate_control(
                     "manual_mrr_setter",
-                    {
-                        "control_type": "tpc",
-                        "multi_rate_retry": "round_robin;1;round_robin"
-                    }
+                    {"control_type": "tpc", "multi_rate_retry": "round_robin;1;19.0"},
                 )
             )
 
@@ -61,7 +58,7 @@ if __name__ == "__main__":
     def print_event(ap, ev, context=None):
         print(f"{ap.name} > {ev}")
 
-    # rm.add_raw_data_callback(print_event)
+    rm.add_raw_data_callback(print_event)
 
     try:
         print("Running rateman... (Press CTRL+C to stop)")

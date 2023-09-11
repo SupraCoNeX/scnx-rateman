@@ -106,7 +106,6 @@ class AccessPointError(RateManError):
         return f"{self._ap}: {msg}"
 
 
-
 class RadioError(RateManError):
     def __init__(self, ap, radio, msg):
         super().__init__(msg)
