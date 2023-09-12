@@ -383,7 +383,6 @@ class Station:
             self._tpc_mode = mode
             self._log.debug(f"{self}: set tpc_mode={mode}")
 
-
     def _validate_txpwrs(self, pwrs: list[int]):
         supported_pwrs = self._accesspoint.txpowers(self._radio)
         for p in pwrs:

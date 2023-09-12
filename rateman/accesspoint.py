@@ -146,9 +146,9 @@ class AccessPoint:
         self._connected = connection_status
 
     @property
-    def radios(self) -> list:
+    def radios(self) -> dict:
         """
-        Return the accesspoint's list of radios.
+        Return the dictionary of the accesspoint's radios.
         """
         return self._radios
 
@@ -220,14 +220,12 @@ class AccessPoint:
         self._radios[radio]["features"][feature] = state
         await self.send(radio, f"set_feature;{feature};{'on' if state else 'off'}")
 
-    async def set_features(self, radio, features={'tpc':False}):
-
+    async def set_features(self, radio, features={'tpc': False}):
         for feature in features:
             if feature:
                 await self.enable_feature(radio, feature)
             else:
                 await self.disable_feature(radio, feature)
-
 
     async def enable_feature(self, radio: str, feature: str) -> None:
         """
@@ -467,6 +465,9 @@ class AccessPoint:
             self._radios[radio]["events"] = list(enabled_events)
 
         await self.disable_events(radio)
+
+        self._logger.debug(f"{self._name}:{radio}: Enable events {events}")
+
         await self.send(radio, "start;" + ";".join(events))
 
     async def disable_events(self, radio="all", events: list = []) -> None:
@@ -480,6 +481,8 @@ class AccessPoint:
                 self._radios[r]["events"] = list(set(self._radios[r]["events"]) - set(events))
         else:
             self._radios[radio]["events"] = list(set(self._radios[radio]["events"]) - set(events))
+
+        self._logger.debug(f"{self._name}:{radio}: Disable events {events}")
 
         await self.send(radio, "stop;" + ";".join(events))
 
