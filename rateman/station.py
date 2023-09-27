@@ -7,6 +7,7 @@ import asyncio
 import logging
 from contextlib import suppress
 from functools import partial
+from .accesspoint import AccessPoint
 
 from . import rate_control
 from .exception import (
@@ -32,14 +33,14 @@ class Station:
     def __init__(
         self,
         mac_addr: str,
-        ap: "AccessPoint",
+        ap: AccessPoint,
         radio: str,
         iface: str,
         timestamp: int,
         rc_mode: str,
         tpc_mode: str,
         supported_rates: list,
-        airtimes_ns: int,
+        airtimes_ns: list,
         overhead_mcs: int,
         overhead_legacy: int,
         rc_alg="minstrel_ht_kernel_space",
