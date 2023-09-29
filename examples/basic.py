@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # Enable only 'txs' and 'stats' events
     for ap in aps:
         loop.run_until_complete(ap.disable_events())
-        loop.run_until_complete(ap.enable_events(["txs", "stats"]))
+        loop.run_until_complete(ap.enable_events(events=["txs", "stats"]))
 
     # add a simple print callback to see the incoming data
     def print_event(ap, ev, context=None):
