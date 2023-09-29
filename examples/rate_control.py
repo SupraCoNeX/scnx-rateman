@@ -41,7 +41,7 @@ if __name__ == "__main__":
     # start 'example_rc' rate control algorithm. This will import from the example_rc.py file.
     for ap in aps:
         loop.run_until_complete(ap.enable_tprc_echo(True))
-        for sta in ap.get_stations():
+        for sta in ap.stations():
             # loop.run_until_complete(sta.start_rate_control("example_rc", {"interval_ms": 1000}))
             loop.run_until_complete(
                 sta.start_rate_control(
