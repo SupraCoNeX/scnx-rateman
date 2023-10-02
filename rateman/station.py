@@ -7,8 +7,6 @@ import asyncio
 import logging
 from contextlib import suppress
 from functools import partial
-from .accesspoint import AccessPoint
-
 from . import rate_control
 from .exception import (
     RateControlError,
@@ -33,7 +31,7 @@ class Station:
     def __init__(
         self,
         mac_addr: str,
-        ap: AccessPoint,
+        ap,
         radio: str,
         iface: str,
         timestamp: int,
