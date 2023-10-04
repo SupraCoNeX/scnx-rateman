@@ -7,7 +7,6 @@ import asyncio
 import logging
 from contextlib import suppress
 from functools import partial
-
 from . import rate_control
 from .exception import (
     RateControlError,
@@ -32,14 +31,14 @@ class Station:
     def __init__(
         self,
         mac_addr: str,
-        ap: "AccessPoint",
+        ap,
         radio: str,
         iface: str,
         timestamp: int,
         rc_mode: str,
         tpc_mode: str,
         supported_rates: list,
-        airtimes_ns: int,
+        airtimes_ns: list,
         overhead_mcs: int,
         overhead_legacy: int,
         rc_alg="minstrel_ht_kernel_space",
@@ -68,6 +67,7 @@ class Station:
         self._rate_control_algorithm = rc_alg
         self._rate_control_options = rc_opts
         self._rc = None
+        self._rc_features = None
         self._log = logger if logger else logging.getLogger()
 
     @property
@@ -77,6 +77,14 @@ class Station:
     @property
     def logger(self) -> logging.Logger:
         return self._log
+
+    @property
+    def rc_features(self):
+        return self._rc_features
+    
+    @property
+    def rc_ctx(self):
+        return self._rc_ctx
 
     @property
     def last_seen(self) -> int:
@@ -259,10 +267,14 @@ class Station:
                     await self.reset_kernel_rate_stats()
                     self.reset_rate_stats()
         else:
-            configure, rc = rate_control.load(rc_alg)
-            ctx = await configure(self, **rc_opts)
+            self._rc_features = rate_control.load(rc_alg)
 
-            self._rc = self._loop.create_task(rc(ctx), name=f"rc_{self._mac_addr}_{rc_alg}")
+            configure = self._rc_features["configure"]
+            run = self._rc_features["run"]
+
+            self._rc_ctx = await configure(self, **rc_opts)
+
+            self._rc = self._loop.create_task(run(self._rc_ctx), name=f"rc_{self._mac_addr}_{rc_alg}")
             rc_task = self._rc
             rc_task.add_done_callback(partial(handle_rc_exception, self))
 

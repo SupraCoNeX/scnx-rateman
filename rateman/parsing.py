@@ -148,6 +148,7 @@ def parse_group_info(fields):
 
 
 async def process_line(ap, line):
+
     fields = validate_line(ap, line)
 
     if not fields:
@@ -204,6 +205,8 @@ TXS_REGEX = re.compile(
 )
 RXS_REGEX = re.compile(base_regex("rxs") + r"(;[0-9a-f]{0,8}){5}")
 STATS_REGEX = re.compile(base_regex("stats") + r"(;[0-9a-f]+){7}")
+RESET_STATS_REGEX = re.compile(base_regex("reset_stats"))
+RC_MODE_REGEX = re.compile(base_regex("rc_mode")+ r"(;[0-9a-f]+){1}")
 BEST_RATES_REGEX = re.compile(base_regex("best_rates") + r"(;[0-9a-f]{1,3}){5}")
 SAMPLE_RATES_REGEX = re.compile(base_regex("sample_rates") + r"(;[0-9a-f]{1,3}){15}")
 STA_ADD_REGEX = re.compile(
@@ -226,7 +229,7 @@ def validate_line(ap, line: str) -> list:
         return None
 
     # ensure monotonic timestamps
-    if not ap.update_timestamp(fields[1]):
+    if not ap.update_timestamp(fields[1]) and fields[2] != "reset_stats":
         return None
 
     try:
@@ -245,6 +248,13 @@ def validate_rxs(line: str, fields: list) -> list:
 
 def validate_stats(line: str, fields: list) -> list:
     return fields if STATS_REGEX.fullmatch(line) else None
+
+def validate_reset_stats(line: str, fields: list) -> list:
+    return fields if RESET_STATS_REGEX.fullmatch(line) else None
+
+def validate_rc_mode(line: str, fields: list) -> list:
+    return fields if RC_MODE_REGEX.fullmatch(line) else None
+
 
 
 def validate_sta(line: str, fields: list) -> list:
@@ -278,6 +288,8 @@ VALIDATORS = {
     "sta": validate_sta,
     "best_rates": validate_best_rates,
     "sample_rates": validate_sample_rates,
+    "reset_stats": validate_reset_stats,
+    "rc_mode": validate_rc_mode,
     "#error": validate_error
 }
 

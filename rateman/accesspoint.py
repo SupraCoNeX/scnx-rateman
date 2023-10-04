@@ -323,10 +323,33 @@ class AccessPoint:
         # Check for diff in capabilities and update accordingly
         if sta.mac_addr not in self._radios[sta.radio]["stations"]:
             self._logger.debug(f"{self._name}:{sta.radio}: Adding {sta}")
-
             self._radios[sta.radio]["stations"][sta.mac_addr] = sta
+            return
+        
+        sta = self._radios[sta.radio]["stations"][sta.mac_addr]
+
+        try:
+            resume_rc = sta.rc_features["resume"]
+
+            if resume_rc:
+                self._logger.debug(f"{self._name}:{sta.radio}: Issuing rate control resume for {sta} provided with {resume_rc}")
+                self._loop.create_task(resume_rc(sta.rc_ctx))
+        except:
+            pass
+
 
     def remove_station(self, mac: str, radio: str):
+        try:
+            sta = self._radios[radio]["stations"][mac]
+            pause_rc = sta.rc_features["pause"]
+            
+            if pause_rc:
+                self._logger.debug(f"{self._name}:{sta.radio}: Issuing rate control pause for {sta} provided with {pause_rc}")
+                self._loop.create_task(pause_rc(sta.rc_ctx))
+                return
+        except:
+            pass
+
         try:
             sta = self._radios[radio]["stations"].pop(mac)
         except KeyError:

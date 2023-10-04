@@ -50,7 +50,7 @@ class RateMan:
             "rxs": [],
             "sta": [],
             "best_rates": [],
-            "sample_rates": []
+            "sample_rates": [],
         }
 
         self._accesspoints = dict()
