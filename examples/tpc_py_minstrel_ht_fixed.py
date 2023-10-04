@@ -37,12 +37,11 @@ if __name__ == "__main__":
     # establish connections and set up state
     loop.run_until_complete(rm.initialize())
 
-    # start 'manual_mrr_setter' user space rate control algorithm.
     file_handles = {}
 
-    def write_event(ap, ev, context):
-        context.write(f"{ev}\n")
-    
+    def write_event(ap, ev, file):
+        file.write(f"{ev}\n")
+
     for ap in aps:
         file_handles[ap.name] = open(f"{ap.name}.csv", 'w')
         rm.add_raw_data_callback(write_event, file_handles[ap.name])
@@ -83,5 +82,5 @@ if __name__ == "__main__":
     finally:
         loop.run_until_complete(rm.stop())
         for _, file_handle in file_handles.items():
-                file_handle.close()
+            file_handle.close()
         print("DONE")

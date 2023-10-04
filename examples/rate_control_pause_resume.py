@@ -12,10 +12,11 @@ from common import parse_arguments, setup_logger
 
 
 if __name__ == "__main__":
-    log = setup_logger("manual_mrr_setter")
+    log = setup_logger("rate_control_pause_resume")
     args = parse_arguments()
-    aps = rateman.from_strings(args.accesspoints, logger=log)
 
+    # create rateman.AccessPoint objects
+    aps = rateman.from_strings(args.accesspoints, logger=log)
     if args.ap_file:
         aps += rateman.from_file(args.ap_file, logger=log)
 
@@ -37,22 +38,22 @@ if __name__ == "__main__":
     # establish connections and set up state
     loop.run_until_complete(rm.initialize())
 
-    # start 'manual_mrr_setter' user space rate control algorithm.
+    # Fail if any AP connection could not be established
     for ap in aps:
-        loop.run_until_complete(ap.set_feature("wl2", "tpc", "1"))
+        if not ap.connected:
+            sys.exit(1)
+
+    # start 'example_rc' rate control algorithm. This will import from the example_rc.py file.
+    for ap in aps:
+        loop.run_until_complete(ap.enable_tprc_echo(True))
         for sta in ap.stations():
-            loop.run_until_complete(
-                sta.start_rate_control(
-                    "manual_mrr_setter",
-                    {"control_type": "tpc", "multi_rate_retry": "round_robin;1;19.0"},
-                )
-            )
+            loop.run_until_complete(sta.start_rate_control("example_rc_pause_resume", {"interval_ms": 1000}))
 
     # Enable 'txs' events so we can see our rate setting in action. Note, this requires traffic to
     # produce events. pinging the station across the wireless link can help with that.
     for ap in aps:
-        loop.run_until_complete(ap.disable_events(["stats", "rxs", "tprc_echo"]))
-        loop.run_until_complete(ap.enable_events(["txs"]))
+        loop.run_until_complete(ap.disable_events())
+        loop.run_until_complete(ap.enable_events(events=["txs", "stats"]))
 
     # add a simple print callback to see the txs events
     def print_event(ap, ev, context=None):
@@ -62,7 +63,22 @@ if __name__ == "__main__":
 
     try:
         print("Running rateman... (Press CTRL+C to stop)")
-        loop.run_forever()
+        while True:
+            # Let everything run for 5s
+            loop.run_until_complete(asyncio.sleep(5))
+
+            # Pause the RC algorithms 
+            for ap in aps:
+                for sta in ap.stations(): 
+                    loop.run_until_complete(sta.pause_rate_control())
+
+            # Wait for 3s
+            loop.run_until_complete(asyncio.sleep(3))
+            
+            # Resume the RC algorithms
+            for ap in aps:
+                for sta in ap.stations():
+                    loop.run_until_complete(sta.resume_rate_control())
     except KeyboardInterrupt:
         print("Stopping...")
     finally:

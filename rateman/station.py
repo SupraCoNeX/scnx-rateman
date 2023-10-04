@@ -5,6 +5,7 @@
 
 import asyncio
 import logging
+import weakref
 from contextlib import suppress
 from functools import partial
 from . import rate_control
@@ -36,6 +37,8 @@ class Station:
         iface: str,
         timestamp: int,
         rc_mode: str,
+        update_freq: int,
+        sample_freq: int,
         tpc_mode: str,
         supported_rates: list,
         airtimes_ns: list,
@@ -54,6 +57,8 @@ class Station:
         self._airtimes_ns = airtimes_ns
         self._last_seen = timestamp
         self._rc_mode = rc_mode
+        self._kernel_update_freq = update_freq
+        self._kernel_sample_freq = sample_freq
         self._tpc_mode = tpc_mode
         self._overhead_mcs = overhead_mcs
         self._overhead_legacy = overhead_legacy
@@ -136,6 +141,59 @@ class Station:
         Return the station's currently active `rc_mode` (`auto` or `manual`).
         """
         return self._rc_mode
+
+    @property
+    def kernel_stats_update_freq(self) -> int:
+        """
+        Return the frequency, with which the kernel rate statistics for this station get updated on
+        the remote device.
+        """
+        return self._kernel_update_freq
+
+    async def set_kernel_stats_update_freq(self, freq: int) -> None:
+        """
+        Set the frequency, at wich the kernel rate statistics for this station will be updated on
+        the remote device.
+        """
+        if freq > 100:
+            freq = 100
+
+        self._kernel_update_freq = freq
+
+        # the stats update frequency is effectively a lower bound to the sampling frequency due to
+        # the way kernel Minstrel-HT is implemented
+        if self._kernel_sample_freq < freq:
+            self._kernel_sample_freq = freq
+
+        await self._accesspoint.send(
+            self._radio,
+            f"rc_mode;{self._mac_addr};{self._rc_mode};{freq:x};{self._kernel_sample_freq:x}"
+        )
+
+    @property
+    def kernel_sample_freq(self) -> int:
+        """
+        Return the frequency, with which the kernel implementation of Minstrel-HT samples new rates
+        for this station. Only applies if `rc_mode=auto`.
+        """
+        return self._kernel_sample_freq
+
+    async def set_kernel_sample_freq(self, freq: int) -> None:
+        """
+        Set the frequency, at wich the kernel Minstrel-HT implementation samples rates
+        (if `rc_mode=auto`).
+        """
+        if freq > 100:
+            freq = 100
+
+        if freq < self._kernel_update_freq:
+            freq = self._kernel_update_freq
+
+        self._kernel_sample_freq = freq
+        await self._accesspoint.send(
+            self._radio,
+            f"rc_mode;{self._mac_addr};{self._rc_mode};{self._kernel_update_freq:x};{freq:x}"
+        )
 
     @property
     def tpc_mode(self) -> str:
@@ -240,7 +298,7 @@ class Station:
         algorithm is expedted to happen in `run()`, which takes as its sole argument the object that
         `configure()` returned.
 
-        This function will raise a `rateman.RateControlError` if there is an error loading the rate
+        This function will raise a :class:`.RateControlError` if there is an error loading the rate
         control algorithm's Python module.
         '''
         Parameters
@@ -268,6 +326,12 @@ class Station:
                 if rc_opts.get("reset_rate_stats", False):
                     await self.reset_kernel_rate_stats()
                     self.reset_rate_stats()
+
+                if "update_freq" in rc_opts:
+                    await self.set_kernel_stats_update_freq(rc_opts["update_freq"])
+
+                if "sample_freq" in rc_opts:
+                    await self.set_kernel_sample_freq(rc_opts["sample_freq"])
         else:
             self._rc_module = rate_control.load(rc_alg)
 

@@ -7,8 +7,13 @@ import rateman
 
 def dump_stas(ap, radio, interface):
     for sta in [sta for sta in ap.stations(radio) if sta.interface == interface]:
-        print(f"        + {sta.mac_addr}"
-              f" [rc={sta.rc_mode} tpc={sta.tpc_mode} rc_alg={sta.rate_control[0]}]")
+        rc = sta.rate_control[0]
+        if rc == "minstrel_ht_kernel_space":
+            update_freq = sta.kernel_stats_update_freq
+            sample_freq = sta.kernel_sample_freq
+            rc += f" (update_freq={update_freq}Hz sample_freq={sample_freq}Hz)"
+
+        print(f"        + {sta.mac_addr} [rc={sta.rc_mode} tpc={sta.tpc_mode} rc_alg={rc}]")
 
 
 def dump_interfaces(ap, radio):
@@ -27,10 +32,7 @@ def dump_radios(ap):
                 radio=radio,
                 drv=ap.driver(radio),
                 ev=",".join(ap.enabled_events(radio)),
-                features=", ".join([
-                    f"{f}={'on' if s else 'off'}"
-                    for f, s in ap._radios[radio]["features"].items()
-                ])
+                features=", ".join([f"{f}={s}" for f, s in ap._radios[radio]["features"].items()])
             )
         )
         dump_interfaces(ap, radio)

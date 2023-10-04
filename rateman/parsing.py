@@ -12,7 +12,7 @@ from .exception import UnsupportedAPIVersionError, ParsingError
 
 __all__ = ["process_api", "process_line", "process_header", "parse_sta"]
 
-API_VERSION = 2
+API_VERSION = (2, 9)
 
 
 # utility function to parse signed integers from hex strings in two's complement format
@@ -29,25 +29,27 @@ def parse_s32(s):
     return twos_complement(s, 32)
 
 
-def check_orca_version(ap, line, fields):
+def check_orca_version(ap, version, line):
     if (
         (not re.fullmatch(r"\*;0;orca_version;[0-9a-f]+;[0-9a-f]+", line)) or
-        (int(fields[3], 16) != API_VERSION)
+        version != API_VERSION
     ):
-        raise UnsupportedAPIVersionError(ap, API_VERSION, fields[3])
+        raise UnsupportedAPIVersionError(ap, API_VERSION, version)
 
 
-def process_api(ap, fields):
-    if len(fields) < 4:
+def process_api(ap, fields, line):
+    if len(fields) < 5:
         return
 
     match fields[2]:
         case "orca_version":
-            check_orca_version(ap, int(fields[3]))
+            check_orca_version(ap, (int(fields[3], 16), int(fields[4], 16)), line)
         case "group":
             ap.add_supported_rates(*parse_group_info(fields))
         case "sample_table":
             ap.sample_table = fields[5:]
+        case _:
+            raise ParsingError(ap, f"Unknown line type '{fields[2]}'")
 
 
 def parse_tpc_range_block(ap, blk: list) -> list:
@@ -69,6 +71,7 @@ def parse_tpc(ap: AccessPoint, cap: list) -> dict:
 
     tpc = {
         "type": cap[0],
+        "regulatory_limit": cap[-1],
         "txpowers": []
     }
 
@@ -84,15 +87,21 @@ def parse_tpc(ap: AccessPoint, cap: list) -> dict:
     return tpc
 
 
+def parse_features(ap: AccessPoint, features: list) -> dict:
+
+    return {feature: setting for feature, setting in [f.split(",") for f in features]}
+
+
 def process_phy_info(ap, fields):
+    n_features = int(fields[6], 16)
+
     ap.add_radio(
         fields[0],             # radio
         fields[3],             # driver
         fields[4].split(","),  # interfaces
-        fields[5].split(",") if len(fields[5]) != 0 else [],  # active events
-        fields[6].split(",") if len(fields[6]) != 0 else [],  # active features
-        fields[7].split(",") if len(fields[7]) != 0 else [],  # inactive features
-        parse_tpc(ap, fields[8:])  # tx power range blocks
+        fields[5].split(","),  # active monitor events
+        parse_features(ap, fields[7:7 + n_features]),
+        parse_tpc(ap, fields[7 + n_features:])  # tx power range blocks
     )
 
 
@@ -112,14 +121,11 @@ async def process_sta_info(ap, fields):
 
 
 async def process_header(ap):
-    first = True
     async for line in ap.api_info():
-        if line.startswith("*;0;"):
-            if first:
-                check_orca_version(ap, line, line.split(";"))
-                first = False
-            else:
-                process_api(ap, line.split(";"))
+        if line.startswith("*;0;#"):
+            continue
+        elif line.startswith("*;0;"):
+            process_api(ap, line.split(";"), line)
         elif "0;add;" in line:
             process_phy_info(ap, line.split(";"))
         elif "0;sta;add;" in line:
@@ -342,7 +348,9 @@ def parse_sta(ap, fields: list):
     tpc_mode = fields[7]
     overhead_mcs = int(fields[8], 16)
     overhead_legacy = int(fields[9], 16)
-    mcs_groups = fields[10:]
+    update_freq = int(fields[10], 16)
+    sample_freq = int(fields[11], 16)
+    mcs_groups = fields[12:]
 
     for i, grp_idx in enumerate(ap.supported_rates):
         mask = int(mcs_groups[i], 16)
@@ -358,6 +366,8 @@ def parse_sta(ap, fields: list):
         iface,
         timestamp,
         rc_mode,
+        update_freq,
+        sample_freq,
         tpc_mode,
         supported_rates,
         airtimes_ns,

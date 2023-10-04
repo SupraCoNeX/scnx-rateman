@@ -208,63 +208,49 @@ class AccessPoint:
         """
         return self._radios[radio]["features"].keys()
 
-    async def _set_feature(self, radio, feature, state):
+    async def _set_feature(self, radio, feature, val):
         try:
             if feature not in self._radios[radio]["features"]:
                 raise UnsupportedFeatureException(self, radio, feature)
-            elif self._radios[radio]["features"][feature] == state:
+            elif self._radios[radio]["features"][feature] == val:
                 return
         except KeyError as e:
             raise AccessPointError(self, f"No such radio '{radio}'") from e
 
-        self._radios[radio]["features"][feature] = state
-        await self.send(radio, f"set_feature;{feature};{'on' if state else 'off'}")
+        self._radios[radio]["features"][feature] = val
+        await self.send(radio, f"set_feature;{feature};{val}")
 
-    async def set_features(self, radio, features={'tpc': False}):
-        for feature in features:
-            if feature:
-                await self.enable_feature(radio, feature)
-            else:
-                await self.disable_feature(radio, feature)
+    # async def set_features(self, radio, features={'tpc': False}):
+    #     for feature in features:
+    #         if feature:
+    #             await self.enable_feature(radio, feature)
+    #         else:
+    #             await self.disable_feature(radio, feature)
 
-    async def enable_feature(self, radio: str, feature: str) -> None:
+    async def set_feature(self, radio: str, feature: str, val: str) -> None:
         """
-        Enable a given radio's feature.
+        Configure a given radio's feature.
 
         Parameters
         ----------
         radio : str
-            The radio for which to enable the feature
+            The radio for which to configure the feature
         feature : str
-            The feature to enable
+            The feature to configure
+        val: str
+            The setting for the feature
 
         This will raise a :class:`.AccessPointError` if the radio is unknown and a
         :class:`.UnsupportedFeatureException` if the radio does not support the feature.
         """
         await self._set_feature(radio, feature, True)
 
-    async def disable_feature(self, radio: str, feature: str):
-        """
-        Disable a given radio's feature.
-
-        Parameters
-        ----------
-        radio : str
-            The radio for which to disable the feature.
-        feature : str
-            The feature to disable.
-
-        This will raise a :class:`AccessPointError` if the radio is unknown and a
-        :class:`UnsupportedFeatureException` if the radio does not support the feature.
-        """
-        await self._set_feature(radio, feature, False)
-
-    def add_radio(self, radio: str, driver: str, ifaces: list, events: list, active_features: list,
-                  inactive_features: list, tpc: dict) -> None:
+    def add_radio(self, radio: str, driver: str, ifaces: list, events: list, features: dict,
+                  tpc: dict) -> None:
         self._logger.debug(
             f"{self._name}: adding radio '{radio}', driver={driver}, "
-            f"interfaces={ifaces}, events={events}, active_features={active_features} "
-            f"inactive_features={inactive_features}, tpc={tpc}"
+            f"interfaces={ifaces}, events={events}, "
+            f"features={', '.join([f + ':' + s for f, s in features.items()])} "
         )
 
         if radio not in self._radios:
@@ -274,9 +260,7 @@ class AccessPoint:
             "driver": driver,
             "interfaces": ifaces,
             "events": events,
-            "features": {
-                f: (f in active_features) for f in (active_features + inactive_features) if f
-            },
+            "features": features,
             "tpc": tpc,
             "stations": {}
         })
