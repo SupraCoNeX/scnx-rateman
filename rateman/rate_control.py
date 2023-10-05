@@ -1,6 +1,10 @@
 from importlib import import_module
+from collections import namedtuple
 
 from .exception import RateControlError
+
+
+RCAlgorithm = namedtuple("RCAlgorithm", "configure run pause resume")
 
 
 def load(rc_alg):
@@ -14,11 +18,7 @@ def load(rc_alg):
         if not configure or not run:
             raise RateControlError(rc_alg, "Module does not expose 'configure' and 'run' functions")
 
-        return {
-            "configure": configure,
-            "run": run,
-            "pause": pause,
-            "resume": resume
-        }
+        return RCAlgorithm(configure, run, pause, resume)
+
     except ImportError as e:
         raise RateControlError(rc_alg, "Failed to load module") from e

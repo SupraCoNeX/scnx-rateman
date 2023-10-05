@@ -67,7 +67,9 @@ class Station:
         self._rate_control_algorithm = rc_alg
         self._rate_control_options = rc_opts
         self._rc = None
-        self._rc_features = None
+        self._rc_module = None
+        self._rc_ctx = None
+        self._rc_pause_on_disassoc = False
         self._log = logger if logger else logging.getLogger()
 
     @property
@@ -77,14 +79,6 @@ class Station:
     @property
     def logger(self) -> logging.Logger:
         return self._log
-
-    @property
-    def rc_features(self):
-        return self._rc_features
-    
-    @property
-    def rc_ctx(self):
-        return self._rc_ctx
 
     @property
     def last_seen(self) -> int:
@@ -196,6 +190,14 @@ class Station:
         return (self._rate_control_algorithm, self._rate_control_options)
 
     @property
+    def pause_rc_on_disassoc(self):
+        return self._rc_pause_on_disassoc
+
+    @pause_rc_on_disassoc.setter
+    def pause_rc_on_disassoc(self, val: bool):
+        self._rc_pause_on_disassoc = val
+
+    @property
     def log(self) -> logging.Logger:
         return self._log
 
@@ -267,21 +269,46 @@ class Station:
                     await self.reset_kernel_rate_stats()
                     self.reset_rate_stats()
         else:
-            self._rc_features = rate_control.load(rc_alg)
+            self._rc_module = rate_control.load(rc_alg)
 
-            configure = self._rc_features["configure"]
-            run = self._rc_features["run"]
+            configure = self._rc_module.configure
+            run = self._rc_module.run
 
             self._rc_ctx = await configure(self, **rc_opts)
 
             self._rc = self._loop.create_task(run(self._rc_ctx), name=f"rc_{self._mac_addr}_{rc_alg}")
-            rc_task = self._rc
-            rc_task.add_done_callback(partial(handle_rc_exception, self))
+            self._rc.add_done_callback(partial(handle_rc_exception, self))
 
         self._rate_control_algorithm = rc_alg
         self._rate_control_options = rc_opts
 
-        return rc_task
+        return self._rc
+
+    async def pause_rate_control(self):
+        if not self._rc_module.pause:
+            raise RateControlConfigError(
+                self,
+                self._rate_control_algorithm,
+                "Trying to pause rate control scheme that does not support pause/resume."
+            )
+
+        self._log.debug(f"{self}: Pause rate control {self._rate_control_algorithm}")
+        await self._rc_module.pause(self._rc_ctx)
+
+        # Attach a callback to clean up the paused RC task in case the STA object gets garbage
+        # collected before the RC task is finished.
+        weakref.finalize(self, cleanup_sta_rc, self)
+
+    async def resume_rate_control(self):
+        if not self._rc_module.resume:
+            raise RateControlConfigError(
+                self,
+                self._rate_control_algorithm,
+                "Trying to resume rate control scheme that does not support pause/resume."
+            )
+
+        self._log.debug(f"{self}: Resume rate control {self._rate_control_algorithm}")
+        await self._rc_module.resume(self._rc_ctx)
 
     @property
     def lowest_supported_rate(self):
@@ -532,3 +559,7 @@ def handle_rc_exception(sta: Station, future):
 
 async def cleanup_failed_rc(sta: Station):
     await sta.stop_rate_control()
+
+
+def cleanup_sta_rc(sta: Station):
+    sta.loop.create_task(cleanup_failed_rc(sta))

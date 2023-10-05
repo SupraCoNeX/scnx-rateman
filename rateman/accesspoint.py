@@ -318,7 +318,7 @@ class AccessPoint:
         else:
             return []
 
-    def add_station(self, sta):
+    async def add_station(self, sta):
         # TODO: maybe handle sta;updates here, too?
         # Check for diff in capabilities and update accordingly
         if sta.mac_addr not in self._radios[sta.radio]["stations"]:
@@ -328,36 +328,24 @@ class AccessPoint:
         
         sta = self._radios[sta.radio]["stations"][sta.mac_addr]
 
-        try:
-            resume_rc = sta.rc_features["resume"]
+        # TODO: How do we decide whether we want to resume or not?
+        await sta.resume_rate_control()
 
-            if resume_rc:
-                self._logger.debug(f"{self._name}:{sta.radio}: Issuing rate control resume for {sta} provided with {resume_rc}")
-                self._loop.create_task(resume_rc(sta.rc_ctx))
-        except:
-            pass
-
-
-    def remove_station(self, mac: str, radio: str):
-        try:
-            sta = self._radios[radio]["stations"][mac]
-            pause_rc = sta.rc_features["pause"]
-            
-            if pause_rc:
-                self._logger.debug(f"{self._name}:{sta.radio}: Issuing rate control pause for {sta} provided with {pause_rc}")
-                self._loop.create_task(pause_rc(sta.rc_ctx))
-                return
-        except:
-            pass
-
+    async def remove_station(self, mac: str, radio: str) -> Station:
         try:
             sta = self._radios[radio]["stations"].pop(mac)
         except KeyError:
             return None
 
+        self._logger.debug(f"{self._name}:{sta.radio}: Removing {sta}")
+
         sta.disassociate()
 
-        self._logger.debug(f"{self._name}:{sta.radio}: Removed {sta}")
+        if sta.pause_rc_on_disassoc:
+            await sta.pause_rate_control()
+        else:
+            await sta.stop_rate_control()
+
         return sta
 
     def update_timestamp(self, timestamp_str):
