@@ -98,7 +98,7 @@ class RateMan:
                 raise e
             except UnsupportedAPIVersionError as e:
                 await ap.disconnect()
-                self._logger.error(f"Diconnecting from {ap}: {e}")
+                self._logger.error(f"Diconnected from {ap}: {e}")
                 raise e
             except Exception as e:
                 tb = traceback.extract_tb(e.__traceback__)[-1]

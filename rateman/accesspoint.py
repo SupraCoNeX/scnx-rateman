@@ -429,8 +429,6 @@ class AccessPoint:
         self._writer = None
         self._connected = False
 
-        self._logger.debug(f"{self}: disconnected")
-
     async def apply_system_config(self, radio="all", new_config=None):
 
         if radio == "all":

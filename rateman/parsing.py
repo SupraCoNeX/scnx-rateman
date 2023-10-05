@@ -148,7 +148,6 @@ def parse_group_info(fields):
 
 
 async def process_line(ap, line):
-
     fields = validate_line(ap, line)
 
     if not fields:
