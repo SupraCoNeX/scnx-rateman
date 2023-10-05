@@ -205,11 +205,15 @@ class RateMan:
             for _, (ap, _) in self._accesspoints.items()
         ]
 
-        _, pending = await asyncio.wait(tasks, timeout=timeout)
+        done, pending = await asyncio.wait(tasks, timeout=timeout)
         for task in pending:
             with suppress(asyncio.CancelledError):
                 task.cancel()
                 await task
+
+        for task in done:
+            if task.exception():
+                self._logger.error(f"{task.exception()}")
 
         for (addr, port), (ap, _) in self._accesspoints.items():
             if ap.connected:
