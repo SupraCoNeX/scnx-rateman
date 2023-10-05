@@ -38,17 +38,16 @@ if __name__ == "__main__":
     # establish connections and set up state
     loop.run_until_complete(rm.initialize())
 
+    # Fail if any AP connection could not be established
+    for ap in aps:
+        if not ap.connected:
+            sys.exit(1)
+
     # start 'example_rc' rate control algorithm. This will import from the example_rc.py file.
     for ap in aps:
         loop.run_until_complete(ap.enable_tprc_echo(True))
         for sta in ap.stations():
-            # loop.run_until_complete(sta.start_rate_control("example_rc", {"interval_ms": 1000}))
-            loop.run_until_complete(
-                sta.start_rate_control(
-                    "manual_mrr_setter",
-                    {"multi_rate_retry": "lowest;1", "update_interval_ns": 10_000_000},
-                )
-            )
+            loop.run_until_complete(sta.start_rate_control("example_rc", {"interval_ms": 1000}))
 
     # Enable 'txs' events so we can see our rate setting in action. Note, this requires traffic to
     # produce events. pinging the station across the wireless link can help with that.
@@ -69,5 +68,4 @@ if __name__ == "__main__":
         print("Stopping...")
     finally:
         loop.run_until_complete(rm.stop())
-        trace_file.close()
         print("DONE")
