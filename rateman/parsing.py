@@ -106,8 +106,8 @@ def process_phy_info(ap, fields):
     ap.add_radio(
         fields[0],             # radio
         fields[3],             # driver
-        fields[4].split(","),  # interfaces
-        fields[5].split(","),  # active monitor events
+        [i for i in fields[4].split(",") if i],  # interfaces
+        [e for e in fields[5].split(",") if e],  # active monitor events
         parse_features(ap, fields[7:7 + n_features]),
         parse_tpc(ap, fields[7 + n_features:])  # tx power range blocks
     )
