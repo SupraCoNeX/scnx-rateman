@@ -104,6 +104,9 @@ class AccessPoint:
 
     @property
     def api_version(self) -> tuple[int, int, int]:
+        """
+        Return the ORCA API version supported by the accesspoint.
+        """
         return self._api_version
 
     @property
