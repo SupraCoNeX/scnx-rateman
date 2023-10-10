@@ -12,7 +12,11 @@ from .exception import UnsupportedAPIVersionError, ParsingError
 
 __all__ = ["process_api", "process_line", "process_header", "parse_sta"]
 
-API_VERSION = (2, 9)
+API_VERSION = (2, 0)
+
+
+def vstr(v):
+    return f"{v[0]}.{v[1]}.{v[2]}"
 
 
 # utility function to parse signed integers from hex strings in two's complement format
@@ -29,13 +33,15 @@ def parse_s32(s):
     return twos_complement(s, 32)
 
 
-def check_orca_version(ap, version, line):
-    if (
-        (not re.fullmatch(r"\*;0;orca_version;[0-9a-f]+;[0-9a-f]+", line)) or
-        version != API_VERSION
-    ):
-        raise UnsupportedAPIVersionError(ap, API_VERSION, version)
-
+def check_orca_version(ap, version):
+    if version != API_VERSION:
+        if version[0] > API_VERSION[0]:
+            raise UnsupportedAPIVersionError(ap, API_VERSION, version)
+        elif version[1] > API_VERSION[1]:
+            ap.logger.warning(
+                f"{ap}: ORCA API version is newer than rateman's "
+                f"({vstr(version)} vs {vstr(API_VERSION)}). Some features may not be supported."
+            )
 
 def process_api(ap, fields, line):
     if len(fields) < 5:
@@ -43,7 +49,9 @@ def process_api(ap, fields, line):
 
     match fields[2]:
         case "orca_version":
-            check_orca_version(ap, (int(fields[3], 16), int(fields[4], 16)), line)
+            version = (int(fields[3], 16), int(fields[4], 16), int(fields[5], 16))
+            check_orca_version(ap, version)
+            ap._api_version = version
         case "group":
             ap.add_supported_rates(*parse_group_info(fields))
         case "sample_table":
