@@ -340,7 +340,10 @@ class Station:
 
             self._rc_ctx = await configure(self, **rc_opts)
 
-            self._rc = self._loop.create_task(run(self._rc_ctx), name=f"rc_{self._mac_addr}_{rc_alg}")
+            self._rc = self._loop.create_task(
+                run(self._rc_ctx),
+                name=f"rc_{self._mac_addr}_{rc_alg}"
+            )
             self._rc.add_done_callback(partial(handle_rc_exception, self))
 
         self._rate_control_algorithm = rc_alg

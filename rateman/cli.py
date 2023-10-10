@@ -46,10 +46,10 @@ def show_state(rm):
   connected: %(conn)s
   version: %(version)s
   radios:""" % dict(
-        name=ap.name,
-        conn=("yes" if ap.connected else "no"),
-        version=f"{version[0]}.{version[1]}.{version[2]}" if version else "N/A"
-))
+            name=ap.name,
+            conn=("yes" if ap.connected else "no"),
+            version=f"{version[0]}.{version[1]}.{version[2]}" if version else "N/A"
+        ))
         dump_radios(ap)
 
 

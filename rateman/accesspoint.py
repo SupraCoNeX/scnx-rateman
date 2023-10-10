@@ -317,7 +317,7 @@ class AccessPoint:
             self._logger.debug(f"{self._name}:{sta.radio}: Adding {sta}")
             self._radios[sta.radio]["stations"][sta.mac_addr] = sta
             return
-        
+
         sta = self._radios[sta.radio]["stations"][sta.mac_addr]
 
         # TODO: How do we decide whether we want to resume or not?

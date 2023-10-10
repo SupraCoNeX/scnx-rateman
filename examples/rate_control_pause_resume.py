@@ -47,7 +47,9 @@ if __name__ == "__main__":
     for ap in aps:
         loop.run_until_complete(ap.enable_tprc_echo(True))
         for sta in ap.stations():
-            loop.run_until_complete(sta.start_rate_control("example_rc_pause_resume", {"interval_ms": 1000}))
+            loop.run_until_complete(
+                sta.start_rate_control("example_rc_pause_resume", {"interval_ms": 1000})
+            )
 
     # Enable 'txs' events so we can see our rate setting in action. Note, this requires traffic to
     # produce events. pinging the station across the wireless link can help with that.
@@ -67,14 +69,14 @@ if __name__ == "__main__":
             # Let everything run for 5s
             loop.run_until_complete(asyncio.sleep(5))
 
-            # Pause the RC algorithms 
+            # Pause the RC algorithms
             for ap in aps:
-                for sta in ap.stations(): 
+                for sta in ap.stations():
                     loop.run_until_complete(sta.pause_rate_control())
 
             # Wait for 3s
             loop.run_until_complete(asyncio.sleep(3))
-            
+
             # Resume the RC algorithms
             for ap in aps:
                 for sta in ap.stations():

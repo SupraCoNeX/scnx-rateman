@@ -43,6 +43,7 @@ def check_orca_version(ap, version):
                 f"({vstr(version)} vs {vstr(API_VERSION)}). Some features may not be supported."
             )
 
+
 def process_api(ap, fields, line):
     if len(fields) < 5:
         return
@@ -219,7 +220,7 @@ TXS_REGEX = re.compile(
 RXS_REGEX = re.compile(base_regex("rxs") + r"(;[0-9a-f]{0,8}){5}")
 STATS_REGEX = re.compile(base_regex("stats") + r"(;[0-9a-f]+){7}")
 RESET_STATS_REGEX = re.compile(base_regex("reset_stats"))
-RC_MODE_REGEX = re.compile(base_regex("rc_mode")+ r"(;[0-9a-f]+){1}")
+RC_MODE_REGEX = re.compile(base_regex("rc_mode") + r"(;[0-9a-f]+){1}")
 BEST_RATES_REGEX = re.compile(base_regex("best_rates") + r"(;[0-9a-f]{1,3}){5}")
 SAMPLE_RATES_REGEX = re.compile(base_regex("sample_rates") + r"(;[0-9a-f]{1,3}){15}")
 STA_ADD_REGEX = re.compile(
@@ -262,12 +263,13 @@ def validate_rxs(line: str, fields: list) -> list:
 def validate_stats(line: str, fields: list) -> list:
     return fields if STATS_REGEX.fullmatch(line) else None
 
+
 def validate_reset_stats(line: str, fields: list) -> list:
     return fields if RESET_STATS_REGEX.fullmatch(line) else None
 
+
 def validate_rc_mode(line: str, fields: list) -> list:
     return fields if RC_MODE_REGEX.fullmatch(line) else None
-
 
 
 def validate_sta(line: str, fields: list) -> list:
