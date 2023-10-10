@@ -40,10 +40,16 @@ def dump_radios(ap):
 
 def show_state(rm):
     for ap in rm.accesspoints:
+        version = ap.api_version
         print("""
 %(name)s:
   connected: %(conn)s
-  radios:""" % dict(name=ap.name, conn=("yes" if ap.connected else "no")))
+  version: %(version)s
+  radios:""" % dict(
+        name=ap.name,
+        conn=("yes" if ap.connected else "no"),
+        version=f"{version[0]}.{version[1]}.{version[2]}" if version else "N/A"
+))
         dump_radios(ap)
 
 

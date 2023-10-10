@@ -45,6 +45,7 @@ class AccessPoint:
             Log
         """
         self._name = name
+        self._api_version = None
         self._addr = addr
         self._rcd_port = rcd_port
         self._supp_rates = {}
@@ -100,6 +101,10 @@ class AccessPoint:
         Return the accesspoint's name.
         """
         return self._name
+
+    @property
+    def api_version(self) -> tuple[int, int, int]:
+        return self._api_version
 
     @property
     def addr(self) -> str:
