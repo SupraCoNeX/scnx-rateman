@@ -3,7 +3,7 @@ ________         _____
 ___  __ \______ ___  /______ _______ ___ ______ ________
 __  /_/ /_  __ `/_  __/_  _ \__  __ `__ \_  __ `/__  __ \
 _  _, _/ / /_/ / / /_  /  __/_  / / / / // /_/ / _  / / /
-/_/ |_|  \__,_/  \__/  \___/ /_/ /_/ /_/ \__,_/  /_/ /_/      
+/_/ |_|  \__,_/  \__/  \___/ /_/ /_/ /_/ \__,_/  /_/ /_/
 ```
 
 **...provides a Python API to control IEEE 8021.11 transmit rate & power per station across a WiFi network using orca-rcd**
@@ -26,6 +26,8 @@ In order to write a user space resource control scheme, one simply needs to crea
   `configure()` is expected to terminate and return anything that the resource control scheme needs for operation. Its returned `object` is passed to `run()` as argument directly.
 
 - `run()` has the following signature `async def run(args: object) -> None:` and is intended to run indefinitely. To this end, it gets scheduled in its own `asyncio` task after `configure()` returns and should contain some form of infinite loop.
+
+In addition to `configure()` and `run()`, resource control schemes can optionally expose two additional functions, `pause()` and `resume()`. As the names suggest, these permit to stop the resource control mechanism without destroying its state so that operation can resume at a later time. Their function signatures are the same as for `run()`. While the resource control scheme is paused, resource control for the station is handled as though it was in automatic rate and power control mode. In order to make rateman pause the resource control scheme instead of stopping it when the station disassociates, mark the station for pause/resume operation by calling `sta.pause_rc_on_disassoc(True)`. Note, that rateman will automatically switch rate and power control to `auto` for the station when the resource control scheme is paused. However, it is up to the resource control scheme's `resume()` function to re-enable the appropriate rate and/or power control modes as in `configure()`.
 
 ### User Space Resource Control Funtions
 These are the relevant functions that `Station` objects expose for performing resource control:
@@ -70,7 +72,7 @@ The examples directory contains simple examples showcasing Rateman's capabilitie
 python scnx-rateman/examples/basic.py <NAME>:<IPADDR>:<RCDPORT>
 ```
 
-where 
+where
 
 - `NAME` is an arbitrary name used to identify the device on which orca-rcd runs,
 - `IPADDR` is that device's IP address, and
