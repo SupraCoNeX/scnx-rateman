@@ -85,10 +85,10 @@ def parse_tpc(ap: AccessPoint, cap: list) -> dict:
     }
 
     n_ranges = int(cap[1], 16)
-    ranges = cap[2:]
+    ranges = cap[2:-1]
 
     if n_ranges != len(ranges):
-        raise ParsingError(ap, f"Expected {n_ranges} tpc ranges but only {len(ranges)} were found")
+        raise ParsingError(ap, f"Expected {n_ranges} tpc ranges but {len(ranges)} were found")
 
     for blk in ranges:
         tpc["txpowers"] += parse_tpc_range_block(ap, blk)
