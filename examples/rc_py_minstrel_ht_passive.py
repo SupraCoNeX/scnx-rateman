@@ -40,12 +40,12 @@ if __name__ == "__main__":
     # start 'py-minstrel-ht' user space rate control algorithm.
     file_handles = {}
 
-    def write_event(ap, ev, context):
+    def log_event(ap, ev, context):
         context.write(f"{ev}\n")
 
     for ap in aps:
         file_handles[ap.name] = open(f"{ap.name}.csv", "w")
-        rm.add_raw_data_callback(write_event, file_handles[ap.name])
+        rm.add_raw_data_callback(log_event, file_handles[ap.name])
 
         for sta in ap.stations():
             loop.run_until_complete(

@@ -39,12 +39,12 @@ if __name__ == "__main__":
 
     file_handles = {}
 
-    def write_event(ap, ev, file):
-        file.write(f"{ev}\n")
+    def log_event(ap, ev, context):
+        context.write(f"{ev}\n")
 
     for ap in aps:
         file_handles[ap.name] = open(f"{ap.name}.csv", 'w')
-        rm.add_raw_data_callback(write_event, file_handles[ap.name])
+        rm.add_raw_data_callback(log_event, file_handles[ap.name])
 
         for sta in ap.stations():
             loop.run_until_complete(
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     # produce events. pinging the station across the wireless link can help with that.
     for ap in aps:
         loop.run_until_complete(ap.disable_events())
-        loop.run_until_complete(ap.enable_events(["txs", "rxs"]))
+        loop.run_until_complete(ap.enable_events(events=["txs", "rxs"]))
 
     # add a simple print callback to see the txs events
     def print_event(ap, ev, context=None):

@@ -251,7 +251,7 @@ class AccessPoint:
         This will raise a :class:`.AccessPointError` if the radio is unknown and a
         :class:`.UnsupportedFeatureException` if the radio does not support the feature.
         """
-        await self._set_feature(radio, feature, True)
+        await self._set_feature(radio, feature, val)
 
     def add_radio(self, radio: str, driver: str, ifaces: list, events: list, features: dict,
                   tpc: dict) -> None:

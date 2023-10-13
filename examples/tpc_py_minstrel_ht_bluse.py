@@ -39,8 +39,8 @@ if __name__ == "__main__":
 
     file_handles = {}
 
-    def log_event(ap, ev, file):
-        file.write(f"{ev}\n")
+    def log_event(ap, ev, context):
+        context.write(f"{ev}\n")
 
     for ap in aps:
         file_handles[ap.name] = open(f"{ap.name}.csv", 'w')
@@ -65,7 +65,10 @@ if __name__ == "__main__":
                             "falbck_prob": 0.3,
                             "opt_pwr_offset": 1,
                             "ref_prob_thres": 1,
-                            "weight": 1
+                            "weight": 1,
+                            "sample_update_thresh": 8,
+                            "opt_update_thresh": 15,
+                            "outdate_stats": False,
                         }
                     }
                 )
@@ -75,7 +78,7 @@ if __name__ == "__main__":
     # produce events. pinging the station across the wireless link can help with that.
     for ap in aps:
         loop.run_until_complete(ap.disable_events())
-        loop.run_until_complete(ap.enable_events(["txs", "rxs"]))
+        loop.run_until_complete(ap.enable_events(events=["txs", "rxs"]))
 
     # add a simple print callback to see the txs events
     def print_event(ap, ev, context=None):

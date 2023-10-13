@@ -37,8 +37,14 @@ if __name__ == "__main__":
     # establish connections and set up state
     loop.run_until_complete(rm.initialize())
 
-    # start 'manual_mrr_setter' user space rate control algorithm.
+    file_handles = {}
+
+    def log_event(ap, ev, context):
+        context.write(f"{ev}\n")
+
     for ap in aps:
+        file_handles[ap.name] = open(f"{ap.name}.csv", 'w')
+        rm.add_raw_data_callback(log_event, file_handles[ap.name])
         for sta in ap.stations():
             loop.run_until_complete(
                 sta.start_rate_control(
@@ -56,7 +62,7 @@ if __name__ == "__main__":
     # produce events. pinging the station across the wireless link can help with that.
     for ap in aps:
         loop.run_until_complete(ap.disable_events())
-        loop.run_until_complete(ap.enable_events(["txs"]))
+        loop.run_until_complete(ap.enable_events(events=["txs"]))
 
     # add a simple print callback to see the txs events
     def print_event(ap, ev, context=None):
@@ -71,4 +77,6 @@ if __name__ == "__main__":
         print("Stopping...")
     finally:
         loop.run_until_complete(rm.stop())
+        for _, file_handle in file_handles.items():
+            file_handle.close()
         print("DONE")
