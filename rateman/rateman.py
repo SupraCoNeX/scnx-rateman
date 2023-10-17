@@ -241,7 +241,10 @@ class RateMan:
                 await ap.disable_events(radio, ap.enabled_events(radio))
 
             for sta in stas:
-                await sta.start_rate_control("minstrel_ht_kernel_space", None)
+                await sta.start_rate_control(
+                    "minstrel_ht_kernel_space",
+                    {"update_freq": 20, "sample_freq": 50}
+                )
 
             await ap.disconnect()
 
