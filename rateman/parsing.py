@@ -10,7 +10,7 @@ from .station import Station
 from .accesspoint import AccessPoint
 from .exception import UnsupportedAPIVersionError, ParsingError
 
-__all__ = ["process_api", "process_line", "process_header", "parse_sta"]
+__all__ = ["process_api", "process_line", "process_header", "parse_sta", "split_rate_index"]
 
 API_VERSION = (2, 0)
 
@@ -54,7 +54,7 @@ def process_api(ap, fields, line):
             check_orca_version(ap, version)
             ap._api_version = version
         case "group":
-            ap.add_supported_rates(*parse_group_info(fields))
+            ap.add_rate_info(*parse_rate_group(ap, fields))
         case "sample_table":
             ap.sample_table = fields[5:]
         case _:
@@ -140,25 +140,35 @@ async def process_header(ap):
             await process_sta_info(ap, line.split(";"))
 
 
-def parse_group_info(fields):
+def parse_rate_group(ap, fields):
     fields = list(filter(None, fields))
-    group_ind = fields[3]
+    grp = fields[3]
 
     airtimes_hex = fields[9:]
     rate_offsets = [str(ii) for ii in range(len(airtimes_hex))]
-    rate_inds = list(map(lambda jj: group_ind + jj, rate_offsets))
+    rate_inds = list(map(lambda jj: grp + jj, rate_offsets))
     airtimes_ns = [int(ii, 16) for ii in airtimes_hex]
 
-    group_info = {
-        "rate_inds": rate_inds,
+    match fields[7]:
+        case "0":
+            bandwidth = 20
+        case "1":
+            bandwidth = 40
+        case "2":
+            bandwidth = 80
+        case _:
+            raise ParsingError(ap, f"Unknown value for rate group bandwidth '{fields[6]}'")
+
+    info = {
+        "indices": rate_inds,
         "airtimes_ns": airtimes_ns,
         "type": fields[5],
-        "nss": fields[6],
-        "bandwidth": fields[7],
-        "guard_interval": fields[8],
+        "nss": int(fields[6]),
+        "bandwidth": bandwidth,
+        "sgi": fields[8] == "1",
     }
 
-    return group_ind, group_info
+    return grp, info
 
 
 async def process_line(ap, line):
@@ -361,12 +371,12 @@ def parse_sta(ap, fields: list):
     sample_freq = int(fields[11], 16)
     mcs_groups = fields[12:]
 
-    for i, grp_idx in enumerate(ap.supported_rates):
+    for i, grp_idx in enumerate(ap._rate_info):
         mask = int(mcs_groups[i], 16)
         for ofs in range(10):
             if mask & (1 << ofs):
                 supported_rates.append(f"{grp_idx}{ofs}")
-                airtimes_ns.append(ap.supported_rates[grp_idx]["airtimes_ns"][ofs])
+                airtimes_ns.append(ap._rate_info[grp_idx]["airtimes_ns"][ofs])
 
     return Station(
         mac,
@@ -384,3 +394,10 @@ def parse_sta(ap, fields: list):
         overhead_legacy,
         logger=ap.logger
     )
+
+
+def split_rate_index(r) -> tuple[str, str]:
+    if len(r) < 2:
+        return "0", r
+
+    return r[:-1], r[-1]

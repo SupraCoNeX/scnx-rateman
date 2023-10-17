@@ -48,7 +48,7 @@ class AccessPoint:
         self._api_version = None
         self._addr = addr
         self._rcd_port = rcd_port
-        self._supp_rates = {}
+        self._rate_info = {}
         self._radios = {}
         self._connected = False
         self._latest_timestamp = 0
@@ -135,12 +135,28 @@ class AccessPoint:
     def logger(self):
         return self._logger
 
-    @property
-    def supported_rates(self) -> dict:
+    def get_rate_info(self, rate) -> dict:
         """
-        Return the indices of the accesspoint's supported MCS rates in the ORCA format.
+        Return a dictionary containing the following information about the given rate:
+        `airtime` - the airtime (in ns) of transmission of an average packet at that rate
+        `type` - which class of rates the rate belongs to (`ofdm`, `cck`, `ht`, or `vht`)
+        `nss` - the number of spatial streams used at that rate
+        `bandwidth` - the rate's channel bandwidth (in MHz)
+        `sgi` - boolean indicating whether the rate uses Short Guard Interval
         """
-        return self._supp_rates
+        grp, idx = split_rate_index(rate)
+
+        if grp in self._rate_info and idx in self._rate_info[grp]["indeces"]:
+            info = self._rate_info[grp]
+            return {
+                "airtime": info["airtimes_ns"][info["indices"].index(rate)],
+                "type": info["type"],
+                "nss": info["nss"],
+                "bandwidth": info["bandwidth"],
+                "sgi": info["sgi"]
+            }
+
+        return None
 
     @property
     def connected(self) -> dict:
@@ -560,9 +576,9 @@ class AccessPoint:
             self._logger.debug(f"{self._name}:{radio}:{sta}: Resetting in-kernel rate statistics")
             await self.send(radio, f"reset_stats;{sta}")
 
-    def add_supported_rates(self, group_ind, group_info):
-        if group_ind not in self._supp_rates:
-            self._supp_rates.update({group_ind: group_info})
+    def add_rate_info(self, grp, info):
+        if grp not in self._rate_info:
+            self._rate_info.update({grp: info})
 
     async def _set_all_stations_mode(self, radio, which, mode):
         if mode not in ["manual", "auto"]:
