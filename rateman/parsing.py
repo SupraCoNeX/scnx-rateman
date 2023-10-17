@@ -115,17 +115,22 @@ def process_phy_info(ap, fields):
 
 async def process_sta_info(ap, fields):
     # TODO: handle sta;update
-    if fields[3] in ["add", "dump"]:
-        sta = parse_sta(ap, fields)
-        await ap.add_station(sta)
+    match fields[3]:
+        case "add" | "dump":
+            sta = parse_sta(ap, fields)
+            await ap.add_station(sta)
 
-        if sta.rc_mode == "auto":
-            await sta.start_rate_control("minstrel_ht_kernel_space", None)
+            if sta.rc_mode == "auto":
+                await sta.start_rate_control("minstrel_ht_kernel_space", None)
 
-    elif fields[3] == "remove":
-        sta = ap.remove_station(mac=fields[4], radio=fields[0])
-        if sta:
-            await sta.stop_rate_control()
+        case "remove":
+            sta = ap.remove_station(mac=fields[4], radio=fields[0])
+            if sta:
+                await sta.stop_rate_control()
+
+        case "update":
+            sta = parse_sta(ap, fields)
+            await ap.update_station(sta)
 
 
 async def process_header(ap):

@@ -328,9 +328,17 @@ class AccessPoint:
             return
 
         sta = self._radios[sta.radio]["stations"][sta.mac_addr]
-
-        # TODO: How do we decide whether we want to resume or not?
         await sta.resume_rate_control()
+
+    async def update_station(self, sta):
+        if sta.mac_addr not in self._radios[sta.radio]["stations"]:
+            await self.add_station(sta)
+            return
+
+        old_sta = sta.accesspoint.get_sta(sta.mac_addr, radio=sta.radio)
+
+        # TODO: do we have to update more than the supported rate set?
+        old_sta._supported_rates = sta.supported_rates
 
     async def remove_station(self, mac: str, radio: str) -> Station:
         try:
