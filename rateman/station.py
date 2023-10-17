@@ -1,8 +1,3 @@
-# -*- coding: UTF8 -*-
-# Copyright SupraCoNeX
-#     https://www.supraconex.org
-#
-
 import asyncio
 import logging
 import weakref
