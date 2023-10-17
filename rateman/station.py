@@ -279,9 +279,14 @@ class Station:
         )
 
         if self._rc:
-            self._rc.cancel()
-            with suppress(asyncio.CancelledError):
-                await self._rc
+            try:
+                self._rc.cancel()
+                with suppress(asyncio.CancelledError):
+                    await self._rc
+            except Exception as e:
+                self._log.error(
+                    f"{self}: Rate control '{self._rate_control_algorithm}' failed: {e.__repr__()}"
+                )
 
         self._rc = None
         self._rate_control_algorithm = None
