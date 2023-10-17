@@ -5,6 +5,32 @@ import logging
 import rateman
 
 
+def dump_sta_rate_set(sta):
+    supported = sta.supported_rates
+    begin = None
+    prev = None
+    ranges = []
+
+    for grp, info in sta.accesspoint._rate_info.items():
+        for rate in info["indices"]:
+            if rate in supported:
+                if not begin:
+                    begin = rate
+            else:
+                if begin:
+                    ranges.append(f"{begin}-{prev}")
+
+                begin = None
+
+            prev = rate
+
+    if prev in supported:
+        if begin:
+            ranges.append(f"{begin}-{prev}")
+
+    print("          supported rates: " + ", ".join(ranges))
+
+
 def dump_stas(ap, radio, interface):
     for sta in [sta for sta in ap.stations(radio) if sta.interface == interface]:
         rc = sta.rate_control[0]
@@ -14,6 +40,7 @@ def dump_stas(ap, radio, interface):
             rc += f" (update_freq={update_freq}Hz sample_freq={sample_freq}Hz)"
 
         print(f"        + {sta.mac_addr} [rc={sta.rc_mode} tpc={sta.tpc_mode} rc_alg={rc}]")
+        dump_sta_rate_set(sta)
 
 
 def dump_interfaces(ap, radio):
@@ -35,6 +62,7 @@ def dump_radios(ap):
                 features=", ".join([f"{f}={s}" for f, s in ap._radios[radio]["features"].items()])
             )
         )
+
         dump_interfaces(ap, radio)
 
 
