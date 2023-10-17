@@ -244,13 +244,6 @@ class AccessPoint:
         self._radios[radio]["features"][feature] = val
         await self.send(radio, f"set_feature;{feature};{val}")
 
-    # async def set_features(self, radio, features={'tpc': False}):
-    #     for feature in features:
-    #         if feature:
-    #             await self.enable_feature(radio, feature)
-    #         else:
-    #             await self.disable_feature(radio, feature)
-
     async def set_feature(self, radio: str, feature: str, val: str) -> None:
         """
         Configure a given radio's feature.
