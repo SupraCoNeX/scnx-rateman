@@ -363,7 +363,6 @@ def update_rate_stats(ap, fields: list) -> None:
 
 def parse_sta(ap, fields: list):
     supported_rates = []
-    airtimes_ns = []
     radio = fields[0]
     timestamp = int(fields[1], 16)
     mac = fields[4]
@@ -381,7 +380,6 @@ def parse_sta(ap, fields: list):
         for ofs in range(10):
             if mask & (1 << ofs):
                 supported_rates.append(f"{grp_idx}{ofs}")
-                airtimes_ns.append(ap._rate_info[grp_idx]["airtimes_ns"][ofs])
 
     return Station(
         mac,
@@ -390,11 +388,10 @@ def parse_sta(ap, fields: list):
         iface,
         timestamp,
         rc_mode,
+        tpc_mode,
         update_freq,
         sample_freq,
-        tpc_mode,
         supported_rates,
-        airtimes_ns,
         overhead_mcs,
         overhead_legacy,
         logger=ap.logger

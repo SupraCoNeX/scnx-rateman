@@ -32,11 +32,10 @@ class Station:
         iface: str,
         timestamp: int,
         rc_mode: str,
+        tpc_mode: str,
         update_freq: int,
         sample_freq: int,
-        tpc_mode: str,
         supported_rates: list,
-        airtimes_ns: list,
         overhead_mcs: int,
         overhead_legacy: int,
         rc_alg="minstrel_ht_kernel_space",
@@ -49,7 +48,6 @@ class Station:
         self._radio = radio
         self._iface = iface
         self._supported_rates = supported_rates
-        self._airtimes_ns = airtimes_ns
         self._last_seen = timestamp
         self._rc_mode = rc_mode
         self._kernel_update_freq = update_freq
@@ -217,10 +215,6 @@ class Station:
         Return a list of all the transmission rates this station supports.
         """
         return self._supported_rates
-
-    @property
-    def airtimes_ns(self) -> list:
-        return self._airtimes_ns
 
     @property
     def mac_addr(self) -> str:
