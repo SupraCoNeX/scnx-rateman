@@ -1,7 +1,4 @@
-# -*- coding: UTF8 -*-
-# Copyright SupraCoNeX
-#     https://www.supraconex.org
-#
+#!/usr/bin/env python
 
 import asyncio
 import sys
@@ -12,8 +9,8 @@ from common import parse_arguments, setup_logger
 
 
 if __name__ == "__main__":
-    log = setup_logger("rate_control_pause_resume")
     args = parse_arguments()
+    log = setup_logger("rate_control_pause_resume", args.verbose)
 
     # create rateman.AccessPoint objects
     aps = rateman.from_strings(args.accesspoints, logger=log)
@@ -43,12 +40,13 @@ if __name__ == "__main__":
         if not ap.connected:
             sys.exit(1)
 
-    # start 'example_rc' rate control algorithm. This will import from the example_rc.py file.
+    # start 'rc_pause_resume' rate control algorithm.
+    # This will import from the rc_pause_resume.py file.
     for ap in aps:
         loop.run_until_complete(ap.enable_tprc_echo(True))
         for sta in ap.stations():
             loop.run_until_complete(
-                sta.start_rate_control("example_rc_pause_resume", {"interval_ms": 1000})
+                sta.start_rate_control("rc_pause_resume", {"interval_ms": 1000})
             )
 
     # Enable 'txs' events so we can see our rate setting in action. Note, this requires traffic to

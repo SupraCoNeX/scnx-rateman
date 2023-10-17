@@ -62,4 +62,5 @@ async def pause(ctx):
 # The optional resume() function is called to resume a paused rate control algorithm. It receives
 # the same argument as run().
 async def resume(ctx):
+    await ctx["sta"].set_manual_rc_mode(True)
     ctx["paused"] = False

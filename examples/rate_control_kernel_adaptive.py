@@ -1,7 +1,4 @@
-# -*- coding: UTF8 -*-
-# Copyright SupraCoNeX
-#     https://www.supraconex.org
-#
+#!/usr/bin/env python
 
 import asyncio
 import sys
@@ -12,8 +9,8 @@ from common import parse_arguments, setup_logger
 
 
 if __name__ == "__main__":
-    log = setup_logger("kernel_minstrel_dynamic_freqs")
     args = parse_arguments()
+    log = setup_logger("kernel_adaptive", args.verbose)
     aps = rateman.from_strings(args.accesspoints, logger=log)
 
     if args.ap_file:
@@ -62,7 +59,7 @@ if __name__ == "__main__":
     }
 
     # add a callback to print the timestamp of incoming 'best_rates' events. These are emitted once
-    # per stats update
+    # per stats update (Note that stats updates are only performed if there is traffic!)
     def print_stats_update_timestamp(ap, ev, context=None):
         fields = ev.split(";")
         if fields[2] == "best_rates":

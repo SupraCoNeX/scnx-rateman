@@ -1,7 +1,4 @@
-# -*- coding: UTF8 -*-
-# Copyright SupraCoNeX
-#     https://www.supraconex.org
-#
+#!/usr/bin/env python
 
 import asyncio
 import sys
@@ -12,8 +9,8 @@ from common import parse_arguments, setup_logger
 
 
 if __name__ == "__main__":
-    log = setup_logger("py_minstrel_ht")
     args = parse_arguments()
+    log = setup_logger("py_minstrel_ht_blues", args.verbose)
     aps = rateman.from_strings(args.accesspoints, logger=log)
 
     if args.ap_file:
@@ -55,8 +52,20 @@ if __name__ == "__main__":
                         "reset_rate_stats": True,
                         "kern_sample_table": True,
                         "tpc": {
-                            "mode": "fixed",
-                            "ref_pwr": 11
+                            "mode": "blues",
+                            "ref_pwr": 11,
+                            "pwr_inc": 3,
+                            "pwr_dec": 1,
+                            "power_sample_interval_ms": 80,
+                            "inc_prob_tol": 0.2,
+                            "dec_prob_tol": 0.1,
+                            "falbck_prob": 0.3,
+                            "opt_pwr_offset": 1,
+                            "ref_prob_thres": 1,
+                            "weight": 1,
+                            "sample_update_thresh": 8,
+                            "opt_update_thresh": 15,
+                            "outdate_stats": False,
                         }
                     }
                 )

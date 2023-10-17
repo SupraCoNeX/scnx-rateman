@@ -1,7 +1,4 @@
-# -*- coding: UTF8 -*-
-# Copyright SupraCoNeX
-#     https://www.supraconex.org
-#
+#!/usr/bin/env python
 
 import asyncio
 import sys
@@ -12,8 +9,8 @@ from common import parse_arguments, setup_logger
 
 
 if __name__ == "__main__":
-    log = setup_logger("rate_control_fail")
     args = parse_arguments()
+    log = setup_logger("rate_control_fail", args.verbose)
     aps = rateman.from_strings(args.accesspoints, logger=log)
 
     if args.ap_file:
@@ -37,7 +34,8 @@ if __name__ == "__main__":
     # establish connections and set up state
     loop.run_until_complete(rm.initialize())
 
-    # start 'example_rc' rate control algorithm. This will import from the example_rc.py file.
+    # start 'rc_failing' rate control algorithm.
+    # This will import from the rc_failing.py file.
     for ap in aps:
         for sta in ap.stations():
             loop.run_until_complete(

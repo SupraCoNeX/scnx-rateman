@@ -7,8 +7,8 @@ from common import parse_arguments, setup_logger
 
 
 if __name__ == "__main__":
-    log = setup_logger("basic")
     args = parse_arguments()
+    log = setup_logger("basic", args.verbose)
     aps = rateman.from_strings(args.accesspoints, logger=log)
 
     if args.ap_file:

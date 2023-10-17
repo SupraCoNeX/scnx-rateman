@@ -1,7 +1,4 @@
-# -*- coding: UTF8 -*-
-# Copyright SupraCoNeX
-#     https://www.supraconex.org
-#
+#!/usr/bin/env python
 
 import asyncio
 import sys
@@ -12,8 +9,8 @@ from common import parse_arguments, setup_logger
 
 
 if __name__ == "__main__":
-    log = setup_logger("manual_mrr_setter")
     args = parse_arguments()
+    log = setup_logger("py_thompson_sampling", args.verbose)
     aps = rateman.from_strings(args.accesspoints, logger=log)
 
     if args.ap_file:
@@ -37,15 +34,10 @@ if __name__ == "__main__":
     # establish connections and set up state
     loop.run_until_complete(rm.initialize())
 
-    # start 'manual_mrr_setter' user space rate control algorithm.
+    # start 'py_thompson_sampling' user space rate control algorithm.
     for ap in aps:
         for sta in ap.stations():
-            loop.run_until_complete(
-                sta.start_rate_control(
-                    "manual_mrr_setter",
-                    {"multi_rate_retry": "fastest,random,slowest;4,4,4"},
-                )
-            )
+            loop.run_until_complete(sta.start_rate_control("py_thompson_sampling", {}))
 
     # Enable 'txs' events so we can see our rate setting in action. Note, this requires traffic to
     # produce events. pinging the station across the wireless link can help with that.
@@ -58,7 +50,6 @@ if __name__ == "__main__":
         print(f"{ap.name} > {ev}")
 
     rm.add_raw_data_callback(print_event)
-
     try:
         print("Running rateman... (Press CTRL+C to stop)")
         loop.run_forever()

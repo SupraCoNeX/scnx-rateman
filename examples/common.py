@@ -7,25 +7,7 @@ from rateman.accesspoint import AccessPoint
 
 def parse_arguments():
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument(
-        "-g",
-        "--rc-algorithm",
-        metavar="RC_ALG",
-        type=str,
-        choices=["minstrel_ht_kernel_space", "py_minstrel_ht", "manual_mrr_setter"],
-        default="minstrel_ht_kernel_space",
-        help="Rate control algorithm to run.",
-    )
-
-    arg_parser.add_argument(
-        "-o",
-        "--rc-options",
-        metavar="RC_OPTS",
-        type=dict,
-        default={},
-        help="Rate control options",
-    )
-
+    arg_parser.add_argument("-v", "--verbose", action="store_true")
     arg_parser.add_argument(
         "-A",
         "--ap-file",
@@ -46,9 +28,9 @@ def parse_arguments():
     return arg_parser.parse_args()
 
 
-def setup_logger(name, log_lvl=logging.DEBUG):
+def setup_logger(name, verbose=False):
     logging.basicConfig(format="[LOG] %(asctime)s - %(name)s - %(message)s")
     logger = logging.getLogger(name)
-    logger.setLevel(log_lvl)
+    logger.setLevel(logging.DEBUG if verbose else logging.INFO)
 
     return logger

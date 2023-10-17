@@ -1,7 +1,4 @@
-# -*- coding: UTF8 -*-
-# Copyright SupraCoNeX
-#     https://www.supraconex.org
-#
+#!/usr/bin/env python
 
 import asyncio
 import sys
@@ -12,8 +9,8 @@ from common import parse_arguments, setup_logger
 
 
 if __name__ == "__main__":
-    log = setup_logger("py_minstrel_ht")
     args = parse_arguments()
+    log = setup_logger("py_minstrel_ht", args.verbose)
     aps = rateman.from_strings(args.accesspoints, logger=log)
 
     if args.ap_file:
@@ -45,7 +42,6 @@ if __name__ == "__main__":
     for ap in aps:
         file_handles[ap.name] = open(f"{ap.name}.csv", 'w')
         rm.add_raw_data_callback(log_event, file_handles[ap.name])
-
         for sta in ap.stations():
             loop.run_until_complete(
                 sta.start_rate_control(
@@ -54,23 +50,8 @@ if __name__ == "__main__":
                         "filter": "Butterworth",
                         "reset_rate_stats": True,
                         "kern_sample_table": True,
-                        "tpc": {
-                            "mode": "blues",
-                            "ref_pwr": 11,
-                            "pwr_inc": 3,
-                            "pwr_dec": 1,
-                            "power_sample_interval_ms": 80,
-                            "inc_prob_tol": 0.2,
-                            "dec_prob_tol": 0.1,
-                            "falbck_prob": 0.3,
-                            "opt_pwr_offset": 1,
-                            "ref_prob_thres": 1,
-                            "weight": 1,
-                            "sample_update_thresh": 8,
-                            "opt_update_thresh": 15,
-                            "outdate_stats": False,
-                        }
-                    }
+                        "preloading": False,
+                    },
                 )
             )
 
@@ -78,7 +59,7 @@ if __name__ == "__main__":
     # produce events. pinging the station across the wireless link can help with that.
     for ap in aps:
         loop.run_until_complete(ap.disable_events())
-        loop.run_until_complete(ap.enable_events(events=["txs", "rxs"]))
+        loop.run_until_complete(ap.enable_events(events=["txs"]))
 
     # add a simple print callback to see the txs events
     def print_event(ap, ev, context=None):

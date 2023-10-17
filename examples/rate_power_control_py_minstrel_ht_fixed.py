@@ -1,7 +1,4 @@
-# -*- coding: UTF8 -*-
-# Copyright SupraCoNeX
-#     https://www.supraconex.org
-#
+#!/usr/bin/env python
 
 import asyncio
 import sys
@@ -12,8 +9,8 @@ from common import parse_arguments, setup_logger
 
 
 if __name__ == "__main__":
-    log = setup_logger("py_minstrel_ht")
     args = parse_arguments()
+    log = setup_logger("py_minstrel_ht_fixed", args.verbose)
     aps = rateman.from_strings(args.accesspoints, logger=log)
 
     if args.ap_file:
@@ -45,6 +42,7 @@ if __name__ == "__main__":
     for ap in aps:
         file_handles[ap.name] = open(f"{ap.name}.csv", 'w')
         rm.add_raw_data_callback(log_event, file_handles[ap.name])
+
         for sta in ap.stations():
             loop.run_until_complete(
                 sta.start_rate_control(
@@ -53,8 +51,11 @@ if __name__ == "__main__":
                         "filter": "Butterworth",
                         "reset_rate_stats": True,
                         "kern_sample_table": True,
-                        "preloading": False,
-                    },
+                        "tpc": {
+                            "mode": "fixed",
+                            "ref_pwr": 11
+                        }
+                    }
                 )
             )
 
@@ -62,7 +63,7 @@ if __name__ == "__main__":
     # produce events. pinging the station across the wireless link can help with that.
     for ap in aps:
         loop.run_until_complete(ap.disable_events())
-        loop.run_until_complete(ap.enable_events(events=["txs"]))
+        loop.run_until_complete(ap.enable_events(events=["txs", "rxs"]))
 
     # add a simple print callback to see the txs events
     def print_event(ap, ev, context=None):
