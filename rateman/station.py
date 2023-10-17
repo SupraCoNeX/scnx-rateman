@@ -371,8 +371,8 @@ class Station:
         # collected before the RC task is finished.
         weakref.finalize(self, cleanup_sta_rc, self)
 
-        self.set_manual_rc_mode(True)
-        self.set_manual_tpc_mode(True)
+        await self.set_manual_rc_mode(False)
+        await self.set_manual_tpc_mode(False)
 
     async def resume_rate_control(self):
         if not self._rc_module.resume:

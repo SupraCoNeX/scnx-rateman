@@ -97,7 +97,6 @@ def parse_tpc(ap: AccessPoint, cap: list) -> dict:
 
 
 def parse_features(ap: AccessPoint, features: list) -> dict:
-
     return {feature: setting for feature, setting in [f.split(",") for f in features]}
 
 
