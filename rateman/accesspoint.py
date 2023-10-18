@@ -144,9 +144,11 @@ class AccessPoint:
         `bandwidth` - the rate's channel bandwidth (in MHz)
         `sgi` - boolean indicating whether the rate uses Short Guard Interval
         """
-        grp, idx = split_rate_index(rate)
+        grp = rate[:-1]
+        if not grp:
+            grp = "0"
 
-        if grp in self._rate_info and idx in self._rate_info[grp]["indeces"]:
+        if grp in self._rate_info and rate in self._rate_info[grp]["indeces"]:
             info = self._rate_info[grp]
             return {
                 "airtime": info["airtimes_ns"][info["indices"].index(rate)],
