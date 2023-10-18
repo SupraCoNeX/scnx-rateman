@@ -342,17 +342,17 @@ class AccessPoint:
 
     async def remove_station(self, mac: str, radio: str) -> Station:
         try:
-            sta = self._radios[radio]["stations"].pop(mac)
+            sta = self._radios[radio]["stations"][mac]
         except KeyError:
             return None
-
-        self._logger.debug(f"{self._name}:{sta.radio}: Removing {sta}")
 
         sta.disassociate()
 
         if sta.pause_rc_on_disassoc:
             await sta.pause_rate_control()
         else:
+            self._logger.debug(f"{self._name}:{sta.radio}: Removing {sta}")
+            self._radios[radio]["stations"].remove(mac)
             await sta.stop_rate_control()
 
         return sta
@@ -573,7 +573,10 @@ class AccessPoint:
         if sta == "all":
             self._logger.debug(f"{self._name}:{radio}: Resetting in-kernel rate statistics")
             await self.send(radio, f"reset_stats;all")
-        elif sta in self._radios[radio]["stations"]:
+        elif (
+            sta in self._radios[radio]["stations"] and
+            self._radios[radio]["stations"][sta].associated
+        ):
             self._logger.debug(f"{self._name}:{radio}:{sta}: Resetting in-kernel rate statistics")
             await self.send(radio, f"reset_stats;{sta}")
 
@@ -591,13 +594,13 @@ class AccessPoint:
 
         if radio == "*":
             for r in self._radios:
-                for sta in self.stations(r):
+                for sta in [s for s in self.stations(r) if s.associated]:
                     if which == "rc_mode":
                         sta._rc_mode = mode
                     else:
                         sta._tpc_mode = mode
         else:
-            for sta in self.stations(radio):
+            for sta in [s for s in self.stations(radio) if s.associated]:
                 if which == "rc_mode":
                     sta._rc_mode = mode
                 else:

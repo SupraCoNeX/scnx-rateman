@@ -68,6 +68,7 @@ class Station:
         self._rc_module = None
         self._rc_ctx = None
         self._rc_pause_on_disassoc = False
+        self._rc_paused = False
         self._log = logger if logger else logging.getLogger()
 
     @property
@@ -77,6 +78,14 @@ class Station:
     @property
     def logger(self) -> logging.Logger:
         return self._log
+
+    @property
+    def associated(self) -> bool:
+        return self._accesspoint and self._radio
+
+    @property
+    def rc_paused(self) -> bool:
+        return self._rc_paused
 
     @property
     def last_seen(self) -> int:
@@ -251,6 +260,17 @@ class Station:
     def __repr__(self):
         return f"STA[{self._mac_addr}]"
 
+    def associate(self, ap, radio: str):
+        if self.associated:
+            raise StationError(
+                self,
+                f"Cannot associate with {ap}:{radio}: "
+                f"Already associated with {self._accesspoint}:{self._radio}"
+            )
+
+        self._radio = radio
+        self._accesspoint = ap
+
     def disassociate(self):
         self._radio = None
         self._accesspoint = None
@@ -363,8 +383,14 @@ class Station:
         # collected before the RC task is finished.
         weakref.finalize(self, cleanup_sta_rc, self)
 
-        await self.set_manual_rc_mode(False)
-        await self.set_manual_tpc_mode(False)
+        if self.associated:
+            await self.set_manual_rc_mode(False)
+            await self.set_manual_tpc_mode(False)
+        else:
+            self._rc_mode = "auto"
+            self._tpc_mode = "auto"
+
+        self._rc_paused = True
 
     async def resume_rate_control(self):
         if not self._rc_module.resume:
@@ -374,8 +400,12 @@ class Station:
                 "Trying to resume rate control scheme that does not support pause/resume."
             )
 
+        if not self.associated:
+            raise StationError(self, f"Not associated")
+
         self._log.debug(f"{self}: Resume rate control {self._rate_control_algorithm}")
         await self._rc_module.resume(self._rc_ctx)
+        self._rc_paused = False
 
     @property
     def lowest_supported_rate(self):

@@ -38,6 +38,8 @@ def dump_stas(ap, radio, interface):
             update_freq = sta.kernel_stats_update_freq
             sample_freq = sta.kernel_sample_freq
             rc += f" (update_freq={update_freq}Hz sample_freq={sample_freq}Hz)"
+        elif sta.rc_paused:
+            rc += " (paused)"
 
         print(f"        + {sta.mac_addr} [rc={sta.rc_mode} tpc={sta.tpc_mode} rc_alg={rc}]")
         dump_sta_rate_set(sta)

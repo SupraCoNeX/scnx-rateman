@@ -237,7 +237,7 @@ class RateMan:
 
             stas = []
             for radio in ap.radios:
-                stas += ap.stations(radio)
+                stas += [sta for sta in ap.stations(radio) if sta.associated]
                 await ap.disable_events(radio, ap.enabled_events(radio))
 
             for sta in stas:
