@@ -124,9 +124,7 @@ async def process_sta_info(ap, fields):
                 await sta.start_rate_control("minstrel_ht_kernel_space", None)
 
         case "remove":
-            sta = ap.remove_station(mac=fields[4], radio=fields[0])
-            if sta:
-                await sta.stop_rate_control()
+            sta = await ap.remove_station(mac=fields[4], radio=fields[0])
 
         case "update":
             sta = parse_sta(ap, fields)
@@ -194,7 +192,7 @@ async def process_line(ap, line):
                     [parse_s32(r) for r in fields[5:]],
                 )
         case "sta":
-            process_sta_info(ap, fields)
+            await process_sta_info(ap, fields)
         case "#error":
             ap.handle_error(fields[3])
 

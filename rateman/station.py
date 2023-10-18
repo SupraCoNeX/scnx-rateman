@@ -298,6 +298,7 @@ class Station:
                 )
 
         self._rc = None
+        self._rc_pause_on_disassoc = False
         self._rate_control_algorithm = None
         self._rate_control_options = None
 

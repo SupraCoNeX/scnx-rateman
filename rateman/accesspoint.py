@@ -144,9 +144,13 @@ class AccessPoint:
         `bandwidth` - the rate's channel bandwidth (in MHz)
         `sgi` - boolean indicating whether the rate uses Short Guard Interval
         """
-        grp, idx = split_rate_index(rate)
+        grp = rate[:-1]
 
-        if grp in self._rate_info and idx in self._rate_info[grp]["indeces"]:
+        if not grp:
+            grp = "0"
+            rate = grp + rate
+        
+        if grp in self._rate_info and rate in self._rate_info[grp]["indices"]:
             info = self._rate_info[grp]
             return {
                 "airtime": info["airtimes_ns"][info["indices"].index(rate)],
@@ -322,13 +326,19 @@ class AccessPoint:
     async def add_station(self, sta):
         # TODO: maybe handle sta;updates here, too?
         # Check for diff in capabilities and update accordingly
+        old_sta = self.get_sta(sta.mac_addr)
+        
+        if old_sta:
+            if not old_sta.associated:
+                old_sta.associate(self, sta.radio)
+
+            if old_sta.rc_paused:
+                await old_sta.resume_rate_control()
+            return
+
         if sta.mac_addr not in self._radios[sta.radio]["stations"]:
             self._logger.debug(f"{self._name}:{sta.radio}: Adding {sta}")
             self._radios[sta.radio]["stations"][sta.mac_addr] = sta
-            return
-
-        sta = self._radios[sta.radio]["stations"][sta.mac_addr]
-        await sta.resume_rate_control()
 
     async def update_station(self, sta):
         if sta.mac_addr not in self._radios[sta.radio]["stations"]:
@@ -351,8 +361,8 @@ class AccessPoint:
         if sta.pause_rc_on_disassoc:
             await sta.pause_rate_control()
         else:
-            self._logger.debug(f"{self._name}:{sta.radio}: Removing {sta}")
-            self._radios[radio]["stations"].remove(mac)
+            self._logger.debug(f"{self._name}:{radio}: Removing {sta}")
+            del self._radios[radio]["stations"][mac]
             await sta.stop_rate_control()
 
         return sta
