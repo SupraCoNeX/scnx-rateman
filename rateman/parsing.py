@@ -194,7 +194,7 @@ async def process_line(ap, line):
                     [parse_s32(r) for r in fields[5:]],
                 )
         case "sta":
-            process_sta_info(ap, fields)
+            await process_sta_info(ap, fields)
         case "#error":
             ap.handle_error(fields[3])
 
