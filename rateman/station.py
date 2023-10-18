@@ -332,7 +332,10 @@ class Station:
             configure = self._rc_module.configure
             run = self._rc_module.run
 
-            self._rc_ctx = await configure(self, **rc_opts)
+            if rc_opts:
+                self._rc_ctx = await configure(self, **rc_opts)
+            else:
+                self._rc_ctx = await configure(self)
 
             self._rc = self._loop.create_task(
                 run(self._rc_ctx),

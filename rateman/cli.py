@@ -165,7 +165,10 @@ def main():
     for ap in rm.accesspoints:
         for sta in ap.stations():
             print(f"Starting rate control scheme '{args.algorithm}' for {sta}")
-            loop.run_until_complete(sta.start_rate_control(args.algorithm, args.options))
+            try:
+                loop.run_until_complete(sta.start_rate_control(args.algorithm, args.options))
+            except Exception as e:
+                logger.error(f"Error starting rc algorithm '{args.algorithm}' for {sta}: {e}")
 
     print("Running rateman... (Press CTRL+C to stop)")
 
