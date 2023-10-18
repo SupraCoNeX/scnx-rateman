@@ -194,13 +194,7 @@ async def process_line(ap, line):
                     [parse_s32(r) for r in fields[5:]],
                 )
         case "sta":
-            # TODO: handle sta;update
-            if fields[3] in ["add", "dump"]:
-                await ap.add_station(parse_sta(ap, fields))
-            elif fields[3] == "remove":
-                sta = await ap.remove_station(mac=fields[4], radio=fields[0])
-                if sta:
-                    await sta.stop_rate_control()
+            process_sta_info(ap, fields)
         case "#error":
             ap.handle_error(fields[3])
 
@@ -237,12 +231,9 @@ RESET_STATS_REGEX = re.compile(base_regex("reset_stats"))
 RC_MODE_REGEX = re.compile(base_regex("rc_mode") + r"(;[0-9a-f]+){1}")
 BEST_RATES_REGEX = re.compile(base_regex("best_rates") + r"(;[0-9a-f]{1,3}){5}")
 SAMPLE_RATES_REGEX = re.compile(base_regex("sample_rates") + r"(;[0-9a-f]{1,3}){15}")
-STA_ADD_REGEX = re.compile(
-    base_regex("sta;add") + ";" + PHY_REGEX + r"(;(manual|auto)){2}(;[0-9a-f]{1,3}){44}"
-)
-STA_UPDATE_REGEX = re.compile(
-    base_regex("sta;update") + ";" + PHY_REGEX + r"(;(manual|auto)){2}(;[0-9a-f]{1,3}){44}"
-)
+STA_INFO_REGEX = r"(;(manual|auto)){2}(;[0-9a-f]{1,3}){46}"
+STA_ADD_REGEX = re.compile(base_regex("sta;add") + ";" + PHY_REGEX + STA_INFO_REGEX)
+STA_UPDATE_REGEX = re.compile(base_regex("sta;update") + ";" + PHY_REGEX + STA_INFO_REGEX)
 STA_REMOVE_REGEX = re.compile(base_regex("sta;remove") + r";.*")
 CMD_ECHO_REGEX = re.compile(
     ";".join([PHY_REGEX, TIMESTAMP_REGEX]) + ";(" + "|".join(COMMANDS) + ");.*"
