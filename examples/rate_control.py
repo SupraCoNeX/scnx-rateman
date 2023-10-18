@@ -5,7 +5,7 @@ import sys
 import rateman
 import time
 
-from common import parse_arguments, setup_logger 
+from common import parse_arguments, setup_logger
 
 
 if __name__ == "__main__":
