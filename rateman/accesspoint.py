@@ -447,34 +447,6 @@ class AccessPoint:
         self._writer = None
         self._connected = False
 
-    async def apply_system_config(self, radio="all", new_config=None):
-
-        if radio == "all":
-            for radio in self._radios:
-                await self.apply_system_config(radio, new_config)
-            return
-
-        if radio not in self._radios:
-            return
-
-        if not self._connected:
-            raise AccessPointNotConnectedError(self, "Cannot apply system config")
-
-        if new_config:
-            self._radios[radio]["config"] = new_config
-
-        cfg = self._radios[radio]["config"]
-        if not cfg:
-            return
-
-        self._logger.debug(f"{self._name}:{radio}: applying system config: {cfg}")
-
-        if "sensitivity_control" in cfg:
-            await self.set_sensitivity_control(cfg["sensitivity_control"], radio)
-
-        if "mt76_force_rate_retry" in cfg:
-            await self.mt76_force_rate_retry(cfg["mt76_force_rate_retry"], radio)
-
     async def enable_events(self, radio="all", events: list = ['txs']) -> None:
         """
         Enable the given events for the given radio. If `radio` is `"*"` or
@@ -534,38 +506,6 @@ class AccessPoint:
 
         self._logger.debug(f"{self._name}:{radio}: debugfs: setting {path}={value}")
         await self.send(radio, f"debugfs;{path};{value}")
-
-    async def mt76_force_rate_retry(self, enable, radio="all"):
-        if radio == "all":
-            for radio in self._radios:
-                await self.mt76_force_rate_retry(enable, radio)
-
-            return
-
-        if "mt76" in self._radios[radio]["driver"]:
-            await self.debugfs_set("mt76/force_rate_retry", 1 if enable else 0, radio)
-
-    async def set_sensitivity_control(self, enable: bool, radio="all") -> None:
-        if radio == "all":
-            for radio in self._radios:
-                await self.set_sensitivity_control(enable, radio)
-
-            return
-
-        if radio not in self._radios:
-            return
-
-        self._logger.debug(
-            f"{self._name}:{radio}: "
-            f"{'En' if enable else 'Dis'}abling hardware sensitivity control"
-        )
-
-        val = 1 if enable else 0
-
-        if self._radios[radio]["driver"] == "ath9k":
-            await self.send(radio, f"debugfs;ath9k/ani;{val}")
-        elif self._radios[radio]["driver"] == "mt76":
-            await self.send(radio, f"debugfs;mt76/scs;{val}")
 
     async def reset_kernel_rate_stats(self, radio="all", sta="all") -> None:
         """
