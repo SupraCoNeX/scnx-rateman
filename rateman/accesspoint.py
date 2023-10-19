@@ -322,15 +322,20 @@ class AccessPoint:
             return []
 
     async def add_station(self, sta):
-        # TODO: maybe handle sta;updates here, too?
-        # Check for diff in capabilities and update accordingly
+        old_sta = self.get_sta(sta.mac_addr)
+        if old_sta:
+            old_sta.associate(self, sta.radio)
+
+            # The station's supported rate set may have changed while it was disassociated
+            old_sta.supported_rates = sta.supported_rates
+
+            if old_sta.rc_paused:
+                await sta.resume_rate_control()
+            return
+
         if sta.mac_addr not in self._radios[sta.radio]["stations"]:
             self._logger.debug(f"{self._name}:{sta.radio}: Adding {sta}")
             self._radios[sta.radio]["stations"][sta.mac_addr] = sta
-            return
-
-        sta = self._radios[sta.radio]["stations"][sta.mac_addr]
-        await sta.resume_rate_control()
 
     async def update_station(self, sta):
         if sta.mac_addr not in self._radios[sta.radio]["stations"]:

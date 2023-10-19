@@ -265,13 +265,6 @@ class Station:
         return f"STA[{self._mac_addr}]"
 
     def associate(self, ap, radio: str):
-        if self.associated:
-            raise StationError(
-                self,
-                f"Cannot associate with {ap}:{radio}: "
-                f"Already associated with {self._accesspoint}:{self._radio}"
-            )
-
         self._radio = radio
         self._accesspoint = ap
 
