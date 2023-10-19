@@ -145,8 +145,10 @@ class AccessPoint:
         `sgi` - boolean indicating whether the rate uses Short Guard Interval
         """
         grp = rate[:-1]
+
         if not grp:
             grp = "0"
+            rate = grp + rate
 
         if grp in self._rate_info and rate in self._rate_info[grp]["indices"]:
             info = self._rate_info[grp]
@@ -330,7 +332,7 @@ class AccessPoint:
             old_sta.supported_rates = sta.supported_rates
 
             if old_sta.rc_paused:
-                await sta.resume_rate_control()
+                await old_sta.resume_rate_control()
             return
 
         if sta.mac_addr not in self._radios[sta.radio]["stations"]:
@@ -358,7 +360,7 @@ class AccessPoint:
         if sta.pause_rc_on_disassoc:
             await sta.pause_rate_control()
         else:
-            self._logger.debug(f"{self._name}:{sta.radio}: Removing {sta}")
+            self._logger.debug(f"{self._name}:{radio}: Removing {sta}")
             self._radios[radio]["stations"].remove(mac)
             await sta.stop_rate_control()
 
