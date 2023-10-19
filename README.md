@@ -6,7 +6,7 @@ _  _, _/ / /_/ / / /_  /  __/_  / / / / // /_/ / _  / / /
 /_/ |_|  \__,_/  \__/  \___/ /_/ /_/ /_/ \__,_/  /_/ /_/
 ```
 
-**...provides a Python API to control IEEE 8021.11 transmit rate & power per station across a WiFi network using orca-rcd**
+**...provides a Python API to control IEEE 802.11 transmit rate & power per station across a WiFi network using orca-rcd**
 
 
 ## User Space Resource Control Interface
