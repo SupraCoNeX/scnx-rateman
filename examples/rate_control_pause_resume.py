@@ -53,7 +53,7 @@ if __name__ == "__main__":
     # produce events. pinging the station across the wireless link can help with that.
     for ap in aps:
         loop.run_until_complete(ap.disable_events())
-        loop.run_until_complete(ap.enable_events(events=["txs", "stats"]))
+        loop.run_until_complete(ap.enable_events(events=["txs"]))
 
     # add a simple print callback to see the txs events
     def print_event(ap, ev, context=None):
