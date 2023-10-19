@@ -114,7 +114,6 @@ def process_phy_info(ap, fields):
 
 
 async def process_sta_info(ap, fields):
-    # TODO: handle sta;update
     match fields[3]:
         case "add" | "dump":
             sta = parse_sta(ap, fields)

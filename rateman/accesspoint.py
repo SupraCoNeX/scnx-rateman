@@ -148,7 +148,7 @@ class AccessPoint:
         if not grp:
             grp = "0"
 
-        if grp in self._rate_info and rate in self._rate_info[grp]["indeces"]:
+        if grp in self._rate_info and rate in self._rate_info[grp]["indices"]:
             info = self._rate_info[grp]
             return {
                 "airtime": info["airtimes_ns"][info["indices"].index(rate)],
