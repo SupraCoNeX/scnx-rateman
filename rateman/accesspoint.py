@@ -340,7 +340,7 @@ class AccessPoint:
         old_sta = sta.accesspoint.get_sta(sta.mac_addr, radio=sta.radio)
 
         # TODO: do we have to update more than the supported rate set?
-        old_sta._supported_rates = sta.supported_rates
+        old_sta.supported_rates = sta.supported_rates
 
     async def remove_station(self, mac: str, radio: str) -> Station:
         try:

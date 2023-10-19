@@ -225,6 +225,10 @@ class Station:
         """
         return self._supported_rates
 
+    @supported_rates.setter
+    def supported_rates(self, rates: list):
+        self._supported_rates = rates
+
     @property
     def mac_addr(self) -> str:
         """
