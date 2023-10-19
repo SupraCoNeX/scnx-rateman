@@ -3,6 +3,7 @@ import sys
 import asyncio
 import logging
 import rateman
+import traceback
 
 
 def dump_sta_rate_set(sta):
@@ -170,7 +171,11 @@ def main():
             try:
                 loop.run_until_complete(sta.start_rate_control(args.algorithm, args.options))
             except Exception as e:
-                logger.error(f"Error starting rc algorithm '{args.algorithm}' for {sta}: {e}")
+                tb = traceback.extract_tb(e.__traceback__)[-1]
+                logger.error(
+                    f"Error starting rc algorithm '{args.algorithm}' for {sta}: "
+                    f"{e} (({tb.filename}:{tb.lineno}))"
+                )
 
     print("Running rateman... (Press CTRL+C to stop)")
 
