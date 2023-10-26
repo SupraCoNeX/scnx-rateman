@@ -643,18 +643,19 @@ def handle_rc_exception(sta: Station, future):
     except asyncio.CancelledError:
         return
 
-    if not exception:
+    # Do not handle KeyboardInterrupt since it will be handled by rateman, which will also stop rc
+    if not exception or exception.isinstance(KeyboardInterrupt):
         return
 
     rc_alg, _ = sta.rate_control
 
     sta.log.error(f"{sta}: Rate control '{rc_alg}' raised an exception: {exception.__repr__()}")
-    sta.loop.create_task(cleanup_failed_rc(sta))
+    sta.loop.create_task(cleanup_rc(sta))
 
 
-async def cleanup_failed_rc(sta: Station):
+async def cleanup_rc(sta: Station):
     await sta.stop_rate_control()
 
 
 def cleanup_sta_rc(sta: Station):
-    sta.loop.create_task(cleanup_failed_rc(sta))
+    sta.loop.create_task(cleanup_rc(sta))
