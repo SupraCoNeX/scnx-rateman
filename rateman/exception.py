@@ -6,16 +6,6 @@ class RateManError(Exception):
         return self._msg
 
 
-class RadioConfigError(RateManError):
-    def __init__(self, ap, radio, msg):
-        super().__init__(msg)
-        self._ap = ap,
-        self._radio = radio
-
-    def __repr__(self):
-        return f"{self._ap.name}:{self._radio}: {msg}"
-
-
 class RateControlError(RateManError):
     def __init__(self, rc_alg, msg):
         super().__init__(msg)
@@ -106,11 +96,30 @@ class AccessPointError(RateManError):
         return f"{self._ap}: {self._msg}"
 
 
-class RadioError(RateManError):
+class RadioError(AccessPointError):
     def __init__(self, ap, radio, msg):
-        super().__init__(msg)
-        self._ap = ap
+        super().__init__(ap, msg)
         self._radio = radio
 
     def __repr__(self):
         return f"{self._ap}:{self._radio}: {self._msg}"
+
+
+class RadioConfigError(AccessPointError):
+    def __init__(self, ap, radio, msg):
+        super().__init__(ap, msg)
+        self._radio = radio
+
+    def __repr__(self):
+        return f"{self._ap.name}:{self._radio}: {msg}"
+
+
+class RadioUnavailableError(RadioError):
+    def __init__(self, ap, radio):
+        super().__init__(ap, radio, None)
+
+    def __str__(self):
+        return f"{self._ap.name}:{self._radio}: Radio unavailable"
+
+    def __repr__(self):
+        return f"{self._ap}:{self._radio}: Radio unavailable"

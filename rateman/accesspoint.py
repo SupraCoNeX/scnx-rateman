@@ -13,6 +13,7 @@ from functools import reduce
 from .station import Station
 from .exception import (
     RadioConfigError,
+    RadioUnavailableError,
     AccessPointNotConnectedError,
     UnsupportedFeatureException,
     AccessPointError
@@ -43,6 +44,7 @@ class AccessPoint:
             Port over which the Rate Control API is accessed. Defaults to 21059
         logger : logging.Logger
             Log
+
         """
         self._name = name
         self._api_version = None
@@ -98,28 +100,28 @@ class AccessPoint:
     @property
     def name(self) -> str:
         """
-        Return the accesspoint's name.
+        The accesspoint's name.
         """
         return self._name
 
     @property
     def api_version(self) -> tuple[int, int, int]:
         """
-        Return the ORCA API version supported by the accesspoint.
+        The ORCA API version supported by the accesspoint.
         """
         return self._api_version
 
     @property
     def addr(self) -> str:
         """
-        Return the accesspoint's IP address
+        The accesspoint's IP address.
         """
         return self._addr
 
     @property
     def port(self) -> int:
         """
-        Return the port the ORCA-RCD instance on the accesspoint listens on.
+        The port on which the ORCA-RCD instance on the accesspoint listens.
         """
         return self._rcd_port
 
@@ -135,14 +137,40 @@ class AccessPoint:
     def logger(self):
         return self._logger
 
+    @property
+    def connected(self) -> dict:
+        """
+        Whether rateman is connected to the accesspoint.
+        """
+        return self._connected
+
+    @connected.setter
+    def connected(self, connection_status):
+        self._connected = connection_status
+
+    @property
+    def radios(self) -> dict:
+        """
+        The access point's radios dictionary.
+        """
+        return self._radios
+
+    @property
+    def sample_table(self) -> list:
+        return self._sample_table
+
+    @sample_table.setter
+    def sample_table(self, sample_table_data):
+        self._sample_table = [list(map(int, row.split(","))) for row in sample_table_data]
+
     def get_rate_info(self, rate) -> dict:
         """
         Return a dictionary containing the following information about the given rate:
-        `airtime` - the airtime (in ns) of transmission of an average packet at that rate
-        `type` - which class of rates the rate belongs to (`ofdm`, `cck`, `ht`, or `vht`)
-        `nss` - the number of spatial streams used at that rate
-        `bandwidth` - the rate's channel bandwidth (in MHz)
-        `sgi` - boolean indicating whether the rate uses Short Guard Interval
+          - `airtime` - the transmission time (in ns) of an average packet at the rate
+          - `type` - which class of rates the rate belongs to (`ofdm`, `cck`, `ht`, or `vht`)
+          - `nss` - the number of spatial streams used at that rate
+          - `bandwidth` - the rate's channel bandwidth (in MHz)
+          - `sgi` - boolean indicating whether the rate uses Short Guard Interval
         """
         grp = rate[:-1]
 
@@ -161,34 +189,6 @@ class AccessPoint:
             }
 
         return None
-
-    @property
-    def connected(self) -> dict:
-        """
-        Return the state of the connection to the ORCA-RCD instance on the accesspoint.
-        """
-        return self._connected
-
-    @connected.setter
-    def connected(self, connection_status):
-        self._connected = connection_status
-
-    @property
-    def radios(self) -> dict:
-        """
-        Return the dictionary of the accesspoint's radios.
-        """
-        return self._radios
-
-    @property
-    def sample_table(self) -> list:
-        return self._sample_table
-
-    @sample_table.setter
-    def sample_table(self, sample_table_data):
-        self._sample_table = []
-        for row in sample_table_data:
-            self._sample_table.append(list(map(int, row.split(","))))
 
     def stations(self, radio="all") -> list[Station]:
         """
@@ -234,7 +234,10 @@ class AccessPoint:
         """
         Return the list of supported features of a given radio.
         """
-        return self._radios[radio]["features"].keys()
+        try:
+            return self._radios[radio]["features"].keys()
+        except KeyError as e:
+            raise RadioUnavailableError(self, radio) from e
 
     async def _set_feature(self, radio, feature, val):
         try:
@@ -243,14 +246,16 @@ class AccessPoint:
             elif self._radios[radio]["features"][feature] == val:
                 return
         except KeyError as e:
-            raise AccessPointError(self, f"No such radio '{radio}'") from e
+            raise RadioUnavailableError(self, radio) from e
 
         self._radios[radio]["features"][feature] = val
         await self.send(radio, f"set_feature;{feature};{val}")
 
     async def set_feature(self, radio: str, feature: str, val: str) -> None:
         """
-        Configure a given radio's feature.
+        Configure a given radio's feature. This will raise a :class:`.RadioUnavailableError` if the
+        radio is unknown and a :class:`.UnsupportedFeatureException` if the radio does not support
+        the feature.
 
         Parameters
         ----------
@@ -258,11 +263,9 @@ class AccessPoint:
             The radio for which to configure the feature
         feature : str
             The feature to configure
-        val: str
+        val : str
             The setting for the feature
 
-        This will raise a :class:`.AccessPointError` if the radio is unknown and a
-        :class:`.UnsupportedFeatureException` if the radio does not support the feature.
         """
         await self._set_feature(radio, feature, val)
 
@@ -298,30 +301,33 @@ class AccessPoint:
 
     def interfaces(self, radio: str) -> list:
         """
-        Return the list of virtual interfaces running on the given radio.
+        Return the list of virtual interfaces running on the given radio. Raises a
+        :class:`.RadioUnavailableError` if the radio is unknown.
         """
         try:
             return self._radios[radio]["interfaces"]
         except KeyError as e:
-            raise RadioConfigError(f"{self._name}: No such radio '{radio}'") from e
+            raise RadioUnavailableError(self, radio) from e
 
     def driver(self, radio: str) -> str:
         """
-        Return the name of the given radio's driver.
+        Return the name of the given radio's driver. Raises a :class:`.RadioUnavailableError` if the
+        radio is unknown.
         """
         try:
             return self._radios[radio]["driver"]
         except KeyError as e:
-            raise RadioConfigError(f"{self._name}: No such radio '{radio}'") from e
+            raise RadioUnavailableError(f"{self._name}: No such radio '{radio}'") from e
 
     def txpowers(self, radio: str) -> list:
         """
-        Return the list of transmit power levels supported by the given radio.
+        Return the list of transmit power levels supported by the given radio. Raises a
+        :class:`.RadioUnavailableError` if the radio is unknown.
         """
-        if self._radios[radio]["tpc"]:
-            return self._radios[radio]["tpc"]["txpowers"]
-        else:
-            return []
+        if radio not in self._radios:
+            raise RadioUnavailableError(self, radio)
+
+        return self._radios[radio]["tpc"]["txpowers"] if self._radios[radio]["tpc"] else []
 
     async def add_station(self, sta):
         old_sta = self.get_sta(sta.mac_addr)
@@ -517,7 +523,7 @@ class AccessPoint:
         if radio in ["*", "all"]:
             radio = "*"
         elif radio not in self._radios:
-            return
+            raise RadioUnavailableError(self, radio)
 
         if sta == "all":
             self._logger.debug(f"{self._name}:{radio}: Resetting in-kernel rate statistics")

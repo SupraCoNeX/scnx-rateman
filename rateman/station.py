@@ -312,7 +312,7 @@ class Station:
 
         This function will raise a :class:`.RateControlError` if there is an error loading the rate
         control algorithm's Python module.
-        '''
+
         Parameters
         ----------
         rc_alg : str
