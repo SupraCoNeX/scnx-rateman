@@ -367,7 +367,7 @@ class AccessPoint:
             await sta.pause_rate_control()
         else:
             self._logger.debug(f"{self._name}:{radio}: Removing {sta}")
-            self._radios[radio]["stations"].remove(mac)
+            del self._radios[radio]["stations"][mac]
             await sta.stop_rate_control()
 
         return sta
