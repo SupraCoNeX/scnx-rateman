@@ -421,9 +421,12 @@ class Station:
         if not txpwr:
             txpwr = -1
 
-        self._stats[rate][txpwr]["attempts"] += attempts
-        self._stats[rate][txpwr]["success"] += succ
-        self._stats[rate][txpwr]["timestamp"] = timestamp
+        try:
+            self._stats[rate][txpwr]["attempts"] += attempts
+            self._stats[rate][txpwr]["success"] += succ
+            self._stats[rate][txpwr]["timestamp"] = timestamp
+        except KeyError:
+            return
 
         # If the station is not in manual TPC mode, i.e., the driver decides on TX power, we
         # also update the counters for the TX power index -1, which is the index to set for letting

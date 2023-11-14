@@ -5,6 +5,7 @@
 
 import asyncio
 import re
+from itertools import pairwise
 
 from .station import Station
 from .accesspoint import AccessPoint
@@ -320,31 +321,23 @@ def update_rate_stats(ap, fields: list) -> None:
     timestamp = int(fields[1], 16)
     num_frames = int(fields[4], 16)
     num_ack = int(fields[5], 16)
-    mrr = [tuple(s.split(",")) for s in fields[7:]]
-    rates = [r if r != "" else None for (r, _, _) in mrr]
-    counts = [int(c, 16) if c != "" else None for (_, c, _) in mrr]
-    ind_txpwr = [int(t, 16) if t != "" else None for (_, _, t) in mrr]
-    txpowers = [supported_txpowers[ind] if ind else None for ind in ind_txpwr]
 
-    attempts = [(num_frames * c) if c else 0 for c in counts]
+    for (i, (cur_stage, next_stage)) in enumerate(pairwise(fields[7:])):
+        mrr_stage = cur_stage.split(",")
 
-    suc_rate_ind = 3
-    for i, atmpt in enumerate(attempts):
-        if atmpt == 0:
-            suc_rate_ind = i - 1
+        rate = mrr_stage[0].zfill(2)
+        count = int(mrr_stage[1], 16)
+        if txpwr_idxstr := mrr_stage[2]:
+            txpwr = supported_txpowers[int(txpwr_idxstr, 16)]
+        else:
+            txpwr = None
+
+        attempts = num_frames * count
+        successful = (i == 3) or (next_stage == ",,")
+
+        sta.update_rate_stats(timestamp, rate, txpwr, attempts, num_frames if successful else 0)
+        if successful:
             break
-
-    if suc_rate_ind < 0:
-        suc_rate_ind = 0
-
-    succ = [0, 0, 0, 0]
-    succ[suc_rate_ind] = num_ack
-    rates = [f"0{rate}" if (rate and len(rate) == 1) else rate for rate in rates]
-
-    for i, rate in enumerate(rates):
-        if not rate:
-            break
-        sta.update_rate_stats(timestamp, rate, txpowers[i], attempts[i], succ[i])
 
     sta.update_ampdu(num_frames)
 
