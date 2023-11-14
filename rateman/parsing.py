@@ -76,7 +76,9 @@ def parse_tpc_range_block(ap, blk: list) -> list:
 
 
 def parse_tpc(ap: AccessPoint, cap: list) -> dict:
-    if cap[0] == "not":
+    if len(cap) < 3:
+        return None
+    elif cap[2] == "not":
         return None
 
     tpc = {
