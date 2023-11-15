@@ -21,9 +21,13 @@ def vstr(v):
 
 
 # utility function to parse signed integers from hex strings in two's complement format
-def twos_complement(hexstr, bits):
+def twos_complement(hexstr, bitwidth):
     val = int(hexstr, 16)
-    return val - (1 << bits) if val & (1 << (bits - 1)) else val
+    return val - (1 << bitwidth) if val & (1 << (bitwidth - 1)) else val
+
+
+def parse_s8(s):
+    return twos_complement(s, 8)
 
 
 def parse_s16(s):
@@ -190,8 +194,8 @@ async def process_line(ap, line):
             if sta and fields[1] != "7f":
                 sta.update_rssi(
                     int(fields[1], 16),
-                    parse_s32(fields[4]),
-                    [parse_s32(r) for r in fields[5:]],
+                    parse_s8(fields[4]),
+                    [parse_s8(r) for r in fields[5:]],
                 )
         case "sta":
             await process_sta_info(ap, fields)
