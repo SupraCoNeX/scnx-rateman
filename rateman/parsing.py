@@ -226,7 +226,7 @@ TXS_REGEX = re.compile(
     base_regex("txs") + r"(;[0-9a-f]{1,2}){2};[01](;[0-9a-f]{0,4}(,[0-9a-f]{0,4}){2}){4}"
 )
 RXS_REGEX = re.compile(base_regex("rxs") + r"(;[0-9a-f]{0,8}){5}")
-STATS_REGEX = re.compile(base_regex("stats") + r"(;[0-9a-f]+){7}")
+STATS_REGEX = re.compile(base_regex("stats") + r";[0-9a-f]{1,3}" + r"(;[0-9a-f]++){6}")
 RESET_STATS_REGEX = re.compile(base_regex("reset_stats"))
 RC_MODE_REGEX = re.compile(base_regex("rc_mode") + r"(;[0-9a-f]+){1}")
 BEST_RATES_REGEX = re.compile(base_regex("best_rates") + r"(;[0-9a-f]{1,3}){5}")
@@ -234,9 +234,9 @@ SAMPLE_RATES_REGEX = re.compile(base_regex("sample_rates") + r"(;[0-9a-f]{1,3}){
 STA_INFO_REGEX = r"(;(manual|auto)){2}(;[0-9a-f]{1,3}){46}"
 STA_ADD_REGEX = re.compile(base_regex("sta;add") + ";" + PHY_REGEX + STA_INFO_REGEX)
 STA_UPDATE_REGEX = re.compile(base_regex("sta;update") + ";" + PHY_REGEX + STA_INFO_REGEX)
-STA_REMOVE_REGEX = re.compile(base_regex("sta;remove") + r";.*")
+STA_REMOVE_REGEX = re.compile(base_regex("sta;remove") + r";.*+")
 CMD_ECHO_REGEX = re.compile(
-    ";".join([PHY_REGEX, TIMESTAMP_REGEX]) + ";(" + "|".join(COMMANDS) + ");.*"
+    ";".join([PHY_REGEX, TIMESTAMP_REGEX]) + ";(" + "|".join(COMMANDS) + ");.*+"
 )
 ERROR_REGEX = re.compile(r"\*;0;#error;.*")
 
@@ -314,6 +314,15 @@ VALIDATORS = {
 }
 
 
+def parse_mrr_stage(s):
+    mrr_stage = s.split(",")
+    rate = mrr_stage[0].zfill(2)
+    count = int(mrr_stage[1], 16)
+    txpwr_idx = int(mrr_stage[2], 16) if mrr_stage[2] else None
+
+    return mrr_stage[0].zfill(2), int(mrr_stage[1], 16), txpwr_idx
+
+
 def update_rate_stats(ap, fields: list) -> None:
     sta = ap.get_sta(fields[3], radio=fields[0])
     supported_txpowers = ap.txpowers(sta.radio)
@@ -323,23 +332,22 @@ def update_rate_stats(ap, fields: list) -> None:
     timestamp = int(fields[1], 16)
     num_frames = int(fields[4], 16)
     num_ack = int(fields[5], 16)
+    successful = False
 
-    for (i, (cur_stage, next_stage)) in enumerate(pairwise(fields[7:])):
-        mrr_stage = cur_stage.split(",")
-
-        rate = mrr_stage[0].zfill(2)
-        count = int(mrr_stage[1], 16)
-        if txpwr_idxstr := mrr_stage[2]:
-            txpwr = supported_txpowers[int(txpwr_idxstr, 16)]
-        else:
-            txpwr = None
-
+    for (cur_stage, next_stage) in pairwise(fields[7:]):
+        rate, count, txpwr_idx = parse_mrr_stage(cur_stage)
+        txpwr = supported_txpowers[txpwr_idx] if txpwr_idx else None
         attempts = num_frames * count
-        successful = (i == 3) or (next_stage == ",,")
+        successful = next_stage == ",,"
 
-        sta.update_rate_stats(timestamp, rate, txpwr, attempts, num_frames if successful else 0)
+        sta.update_rate_stats(timestamp, rate, txpwr, attempts, num_ack if successful else 0)
         if successful:
             break
+
+    if not successful and ((last_stage := fields[10]) != ",,"):
+        rate, count, txpwr_idx = parse_mrr_stage(last_stage)
+        txpwr = supported_txpowers[txpwr_idx] if txpwr_idx else None
+        sta.update_rate_stats(timestamp, rate, txpwr, num_frames * count, num_ack)
 
     sta.update_ampdu(num_frames)
 
