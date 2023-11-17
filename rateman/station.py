@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import weakref
+import numpy
 from contextlib import suppress
 from functools import partial
 from . import rate_control
@@ -412,30 +413,13 @@ class Station:
         """
         return self._supported_rates[0]
 
-    def update_rate_stats(self, timestamp: int, rate: str, txpwr: int, attempts: int, succ: int):
-        if rate == "110" or timestamp < self._last_seen:
-            return
-
+    def update_rate_stats(self, timestamp: int, rates: list[int], txpwrs: list[int],
+                          attempts: list[int], succ: list[int]):
         self._last_seen = timestamp
 
-        if not txpwr:
-            txpwr = -1
-
-        try:
-            self._stats[rate][txpwr]["attempts"] += attempts
-            self._stats[rate][txpwr]["success"] += succ
-            self._stats[rate][txpwr]["timestamp"] = timestamp
-        except KeyError:
-            return
-
-        # If the station is not in manual TPC mode, i.e., the driver decides on TX power, we
-        # also update the counters for the TX power index -1, which is the index to set for letting
-        # the driver make the transmit power decision. This is done because user space rate control
-        # algorithms that do not set TX power will fetch the stats at txpwr == -1.
-        if self._tpc_mode == "auto" and txpwr != -1:
-            self._stats[rate][-1]["attempts"] += attempts
-            self._stats[rate][-1]["success"] += succ
-            self._stats[rate][-1]["timestamp"] = timestamp
+        self._stats[rates, txpwrs, 0] = numpy.add(self._stats[rates, txpwrs, 0], attempts)
+        self._stats[rates, txpwrs, 1] = numpy.add(self._stats[rates, txpwrs, 1], succ)
+        self._stats[rates, txpwrs, 2] = timestamp
 
     def reset_ampdu_stats(self):
         self._ampdu_subframes = 0
@@ -468,13 +452,16 @@ class Station:
         Reset packet transmission attempts and success statistics for all supported rates and
         transmit power levels.
         """
-        self._stats = {
-            rate: {
-                txpwr: {"attempts": 0, "success": 0, "timestamp": 0}
-                for txpwr in [-1] + self._accesspoint.txpowers(self._radio)
-            }
-            for rate in self._supported_rates
-        }
+
+        #
+
+        # rates: 0 through 0x299 + "non-rate" at 0x29a
+        # txpwrs: supported tx powers plus general value '-1'
+        # 3 values per rate + txpwr: attempts, successes, timestamp of last use
+        self._stats = numpy.zeros(
+            (0x29b, len(self._accesspoint.txpowers(self._radio)) + 1, 3),
+            dtype=numpy.uint
+        )
 
     async def reset_kernel_rate_stats(self):
         """

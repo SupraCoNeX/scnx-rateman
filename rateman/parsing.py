@@ -5,6 +5,7 @@
 
 import asyncio
 import re
+import numpy
 from itertools import pairwise
 
 from .station import Station
@@ -184,7 +185,7 @@ async def process_line(ap, line):
 
     match fields[2]:
         case "txs":
-            update_rate_stats(ap, fields)
+            update_rate_stats_from_txs(ap, fields)
         case "rxs":
             sta = ap.get_sta(fields[3], radio=fields[0])
             if sta and fields[1] != "7f":
@@ -315,41 +316,48 @@ VALIDATORS = {
 
 
 def parse_mrr_stage(s):
-    mrr_stage = s.split(",")
-    rate = mrr_stage[0].zfill(2)
-    count = int(mrr_stage[1], 16)
-    txpwr_idx = int(mrr_stage[2], 16) if mrr_stage[2] else None
+    rate, count, txpwr_idx = s.split(",")
+    return (
+        int(rate, 16) if rate else -1,
+        int(count, 16) if count else 0,
+        int(txpwr_idx, 16) if txpwr_idx else -1
+    )
 
-    return mrr_stage[0].zfill(2), int(mrr_stage[1], 16), txpwr_idx
 
-
-def update_rate_stats(ap, fields: list) -> None:
+def update_rate_stats_from_txs(ap, fields: list) -> None:
     sta = ap.get_sta(fields[3], radio=fields[0])
     supported_txpowers = ap.txpowers(sta.radio)
     if not sta:
         return
 
     timestamp = int(fields[1], 16)
+
+    # check if data is more recent than what we have, otherwise don't bother parsing
+    if sta.last_seen > timestamp:
+        return
+
     num_frames = int(fields[4], 16)
     num_ack = int(fields[5], 16)
     successful = False
 
-    for (cur_stage, next_stage) in pairwise(fields[7:]):
-        rate, count, txpwr_idx = parse_mrr_stage(cur_stage)
-        txpwr = supported_txpowers[txpwr_idx] if txpwr_idx else None
-        attempts = num_frames * count
-        successful = next_stage == ",,"
-
-        sta.update_rate_stats(timestamp, rate, txpwr, attempts, num_ack if successful else 0)
-        if successful:
-            break
-
-    if not successful and ((last_stage := fields[10]) != ",,"):
-        rate, count, txpwr_idx = parse_mrr_stage(last_stage)
-        txpwr = supported_txpowers[txpwr_idx] if txpwr_idx else None
-        sta.update_rate_stats(timestamp, rate, txpwr, num_frames * count, num_ack)
-
     sta.update_ampdu(num_frames)
+
+    rates = [-1] * 4
+    txpwrs = [-1] * 4
+    attempts = [0] * 4
+    success = [0] * 4
+
+    for i in range(4):
+        rates[i], count, txpwrs[i] = parse_mrr_stage(fields[i + 7])
+        attempts[i] = num_frames * count
+        successful = fields[i + 7] == ",,"
+        success[i] = num_ack if successful else 0
+
+    rates[3], count, txpwrs[3] = parse_mrr_stage(fields[10])
+    attempts[3] = num_frames * count
+    success[3] = num_ack if count > 0 else 0
+
+    sta.update_rate_stats(timestamp, rates, txpwrs, attempts, success)
 
 
 def parse_sta(ap, fields: list):
