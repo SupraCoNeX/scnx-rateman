@@ -453,9 +453,11 @@ class Station:
         transmit power levels.
         """
 
-        #
-
-        # rates: 0 through 0x299 + "non-rate" at 0x29a
+        # rates: 0 through 0x299. We add one rate slot at the end, because that will be used for the
+        #        "non-rate" -1. Using this extra slot allows us to unconditionally write data for 4
+        #        MRR stages regardless if they have valid data or not. The assumption is that this
+        #        is faster than checking whether a MRR stage has been used. We use rate index -1 for
+        #        empty MRR stages. This will write bogus data into the extra rate slot.
         # txpwrs: supported tx powers plus general value '-1'
         # 3 values per rate + txpwr: attempts, successes, timestamp of last use
         self._stats = numpy.zeros(

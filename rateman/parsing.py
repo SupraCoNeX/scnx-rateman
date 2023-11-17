@@ -350,12 +350,9 @@ def update_rate_stats_from_txs(ap, fields: list) -> None:
     for i in range(4):
         rates[i], count, txpwrs[i] = parse_mrr_stage(fields[i + 7])
         attempts[i] = num_frames * count
-        successful = fields[i + 7] == ",,"
+        successful = (i == 3) or (fields[i + 8] == ",,")
         success[i] = num_ack if successful else 0
 
-    rates[3], count, txpwrs[3] = parse_mrr_stage(fields[10])
-    attempts[3] = num_frames * count
-    success[3] = num_ack if count > 0 else 0
 
     sta.update_rate_stats(timestamp, rates, txpwrs, attempts, success)
 
