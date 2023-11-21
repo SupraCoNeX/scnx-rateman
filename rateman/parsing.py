@@ -181,9 +181,7 @@ def parse_rate_group(ap, fields):
 
 
 async def process_line(ap, line):
-    fields = validate_line(ap, line)
-
-    if not fields:
+    if not (fields := validate_line(ap, line)):
         return None
 
     match fields[2]:
@@ -226,9 +224,6 @@ def base_regex(line_type: str) -> str:
     return ";".join([PHY_REGEX, TIMESTAMP_REGEX, line_type, MACADDR_REGEX])
 
 
-TXS_REGEX = re.compile(
-    base_regex("txs") + r"(;[0-9a-f]{1,2}){2};[01](;[0-9a-f]{0,4}(,[0-9a-f]{0,4}){2}){4}"
-)
 RXS_REGEX = re.compile(base_regex("rxs") + r"(;[0-9a-f]{0,8}){5}")
 STATS_REGEX = re.compile(base_regex("stats") + r";[0-9a-f]{1,3}" + r"(;[0-9a-f]++){6}")
 RESET_STATS_REGEX = re.compile(base_regex("reset_stats"))
@@ -262,7 +257,8 @@ def validate_line(ap, line: str) -> list:
 
 
 def validate_txs(line: str, fields: list) -> list:
-    return fields if TXS_REGEX.fullmatch(line) else None
+    # validating 'txs' lines using regex is relatively expensive, so we stick to counting fields
+    return fields if len(fields) == 11 else None
 
 
 def validate_rxs(line: str, fields: list) -> list:
