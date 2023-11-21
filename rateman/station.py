@@ -413,11 +413,6 @@ class Station:
         return self._supported_rates[0]
 
     def update_rate_stats(self, timestamp: int, rate: str, txpwr: int, attempts: int, succ: int):
-        if rate == "110" or timestamp < self._last_seen:
-            return
-
-        self._last_seen = timestamp
-
         if not txpwr:
             txpwr = -1
 
