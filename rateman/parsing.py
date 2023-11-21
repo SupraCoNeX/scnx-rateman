@@ -13,7 +13,7 @@ from .exception import UnsupportedAPIVersionError, ParsingError
 
 __all__ = ["process_api", "process_line", "process_header", "parse_sta", "split_rate_index"]
 
-API_VERSION = (2, 0)
+API_VERSION = (2, 1)
 
 
 def vstr(v):
@@ -108,7 +108,7 @@ def parse_features(ap: AccessPoint, features: list) -> dict:
 
 
 def process_phy_info(ap, fields):
-    n_features = int(fields[6], 16)
+    n_features = int(fields[6], 16) if fields[6] else 0
 
     ap.add_radio(
         fields[0],             # radio
@@ -188,7 +188,7 @@ async def process_line(ap, line):
 
     match fields[2]:
         case "txs":
-            update_rate_stats(ap, fields)
+            update_rate_stats_from_txs(ap, fields)
         case "rxs":
             sta = ap.get_sta(fields[3], radio=fields[0])
             if sta and fields[1] != "7f":
@@ -327,7 +327,7 @@ def parse_mrr_stage(s):
     return mrr_stage[0].zfill(2), int(mrr_stage[1], 16), txpwr_idx
 
 
-def update_rate_stats(ap, fields: list) -> None:
+def update_rate_stats_from_txs(ap, fields: list) -> None:
     sta = ap.get_sta(fields[3], radio=fields[0])
     supported_txpowers = ap.txpowers(sta.radio)
     if not sta:
