@@ -168,6 +168,9 @@ def main():
     loop.run_until_complete(rm.initialize())
     print("OK")
 
+    if args.events:
+        loop.run_until_complete(ap.enable_events(events=["txs", "rxs", "stats"]))
+
     if args.show_state:
         show_state(rm)
         loop.run_until_complete(rm.stop())
