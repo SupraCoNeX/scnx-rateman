@@ -61,18 +61,22 @@ class AccessPoint:
         self._writer = None
         self._task = None
         self._first_non_header_line = None
+        self._record_rcd_trace = False
+        self._rcd_trace_file = None
 
     async def api_info(self, timeout=0.5):
         it = aiter(self._reader)
         while True:
             try:
                 async with asyncio.timeout(timeout):
-                    line = (await anext(it)).decode("utf-8").rstrip()
+                    line = (await anext(it)).decode("utf-8")
+                    if self._record_rcd_trace:
+                        self._rcd_trace_file.write(line)
 
                 if line.startswith("*") or ";0;add" in line or ";0;sta" in line:
-                    yield line
+                    yield line.rstrip()
                 else:
-                    self._first_non_header_line = line
+                    self._first_non_header_line = line.rstrip()
                     return
             except UnicodeError:
                 continue
@@ -87,7 +91,10 @@ class AccessPoint:
 
         async for data in self._reader:
             try:
-                yield data.decode("utf-8").rstrip()
+                line = data.decode("utf-8")
+                if self._record_rcd_trace:
+                    self._rcd_trace_file.write(line)
+                yield line.rstrip()
             except UnicodeError:
                 continue
 
@@ -189,6 +196,21 @@ class AccessPoint:
             }
 
         return None
+
+    def start_recording_rcd_trace(self, path):
+        """
+        Record incoming ORCA events in a file at the given path.
+        """
+        self.stop_recording_rcd_trace()
+
+        self._rcd_trace_file = open(path, "w")
+        self._record_rcd_trace = True
+
+    def stop_recording_rcd_trace(self):
+        if self._rcd_trace_file:
+            self._rcd_trace_file.close()
+
+        self._record_rcd_trace = False
 
     def stations(self, radio="all") -> list[Station]:
         """
@@ -432,6 +454,9 @@ class AccessPoint:
         self._logger.debug(f"{self._name}: Connected at {self._addr}:{self._rcd_port}")
 
     async def disconnect(self, timeout=3.0):
+        if self._rcd_trace_file:
+            self.stop_recording_rcd_trace()
+
         if not self._writer:
             return
 

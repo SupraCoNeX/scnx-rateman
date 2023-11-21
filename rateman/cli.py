@@ -124,6 +124,12 @@ def main():
         "-e", "--events", action="store_true", help="Print the events rateman receives"
     )
     arg_parser.add_argument(
+        "-r",
+        "--record-trace",
+        action="store_true",
+        help="Store incoming events in trace files named after the accesspoints"
+    )
+    arg_parser.add_argument(
         "--show-state", action="store_true",
         help="Connect to APs and output their state. This is useful for testing"
     )
@@ -154,6 +160,9 @@ def main():
 
     for ap in aps:
         rm.add_accesspoint(ap)
+
+        if args.record_trace:
+            ap.start_recording_rcd_trace(f"{ap.name}_trace.csv")
 
     print("Initializing rateman...", end="")
     loop.run_until_complete(rm.initialize())
