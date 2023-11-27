@@ -10,10 +10,9 @@ from common import parse_arguments, setup_logger
 
 if __name__ == "__main__":
     args = parse_arguments()
-    log = setup_logger("rate_control", args.verbose)
-
-    # create rateman.AccessPoint objects
+    log = setup_logger("py_minstrel_ht_fixed", args.verbose)
     aps = rateman.from_strings(args.accesspoints, logger=log)
+
     if args.ap_file:
         aps += rateman.from_file(args.ap_file, logger=log)
 
@@ -35,22 +34,36 @@ if __name__ == "__main__":
     # establish connections and set up state
     loop.run_until_complete(rm.initialize())
 
-    # Fail if any AP connection could not be established
-    for ap in aps:
-        if not ap.connected:
-            sys.exit(1)
+    file_handles = {}
 
-    # start 'rc_example' rate control algorithm. This will import from the rc_example.py file.
+    def log_event(ap, ev, context):
+        context.write(f"{ev}\n")
+
     for ap in aps:
-        loop.run_until_complete(ap.enable_tprc_echo(True))
+        file_handles[ap.name] = open(f"{ap.name}.csv", 'w')
+        rm.add_raw_data_callback(log_event, file_handles[ap.name])
+
         for sta in ap.stations():
-            loop.run_until_complete(sta.start_rate_control("rc_example", {"interval_ms": 1000}))
+            loop.run_until_complete(
+                sta.start_rate_control(
+                    "py_minstrel_ht",
+                    {
+                        "filter": "Butterworth",
+                        "reset_rate_stats": True,
+                        "kern_sample_table": True,
+                        "tpc": {
+                            "mode": "fixed",
+                            "ref_pwr": 11
+                        }
+                    }
+                )
+            )
 
     # Enable 'txs' events so we can see our rate setting in action. Note, this requires traffic to
     # produce events. pinging the station across the wireless link can help with that.
     for ap in aps:
         loop.run_until_complete(ap.disable_events())
-        loop.run_until_complete(ap.enable_events(events=["txs", "stats"]))
+        loop.run_until_complete(ap.enable_events(events=["txs", "rxs"]))
 
     # add a simple print callback to see the txs events
     def print_event(ap, ev, context=None):
@@ -65,4 +78,6 @@ if __name__ == "__main__":
         print("Stopping...")
     finally:
         loop.run_until_complete(rm.stop())
+        for _, file_handle in file_handles.items():
+            file_handle.close()
         print("DONE")

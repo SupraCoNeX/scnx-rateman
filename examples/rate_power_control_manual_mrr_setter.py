@@ -10,10 +10,9 @@ from common import parse_arguments, setup_logger
 
 if __name__ == "__main__":
     args = parse_arguments()
-    log = setup_logger("rate_control", args.verbose)
-
-    # create rateman.AccessPoint objects
+    log = setup_logger("manual_mrr_setter_tpc", args.verbose)
     aps = rateman.from_strings(args.accesspoints, logger=log)
+
     if args.ap_file:
         aps += rateman.from_file(args.ap_file, logger=log)
 
@@ -35,22 +34,39 @@ if __name__ == "__main__":
     # establish connections and set up state
     loop.run_until_complete(rm.initialize())
 
-    # Fail if any AP connection could not be established
-    for ap in aps:
-        if not ap.connected:
-            sys.exit(1)
+    rc_started = False
 
-    # start 'rc_example' rate control algorithm. This will import from the rc_example.py file.
     for ap in aps:
-        loop.run_until_complete(ap.enable_tprc_echo(True))
-        for sta in ap.stations():
-            loop.run_until_complete(sta.start_rate_control("rc_example", {"interval_ms": 1000}))
+        # enable TPC for all radios which support it
+        for radio in ap.radios:
+            try:
+                loop.run_until_complete(ap.set_feature(radio, "tpc", "1"))
+                for sta in ap.stations(radio):
+                    loop.run_until_complete(
+                        sta.start_rate_control(
+                            "manual_mrr_setter",
+                            {"control_type": "tpc", "multi_rate_retry": "round_robin;1;19.0"},
+                        )
+                    )
+                    rc_started = True
+            except rateman.UnsupportedFeatureException as e:
+                log.warning(f"{e}")
+                continue
+
+    # make sure we were able to start RC for at least one station, exit otherwise
+    if not rc_started:
+        print(
+            "Unable to start RC. Maybe TPC is not supported or no station is associated?",
+            file=sys.stderr
+        )
+        loop.run_until_complete(rm.stop())
+        sys.exit(1)
 
     # Enable 'txs' events so we can see our rate setting in action. Note, this requires traffic to
     # produce events. pinging the station across the wireless link can help with that.
     for ap in aps:
-        loop.run_until_complete(ap.disable_events())
-        loop.run_until_complete(ap.enable_events(events=["txs", "stats"]))
+        loop.run_until_complete(ap.disable_events(events=["stats", "rxs", "tprc_echo"]))
+        loop.run_until_complete(ap.enable_events(events=["txs"]))
 
     # add a simple print callback to see the txs events
     def print_event(ap, ev, context=None):

@@ -3,12 +3,14 @@
 import asyncio
 import sys
 import rateman
+import time
+
 from common import parse_arguments, setup_logger
 
 
 if __name__ == "__main__":
     args = parse_arguments()
-    log = setup_logger("basic", args.verbose)
+    log = setup_logger("py_thompson_sampling", args.verbose)
     aps = rateman.from_strings(args.accesspoints, logger=log)
 
     if args.ap_file:
@@ -32,18 +34,22 @@ if __name__ == "__main__":
     # establish connections and set up state
     loop.run_until_complete(rm.initialize())
 
-    # Enable only 'txs' and 'stats' events
+    # start 'py_thompson_sampling' user space rate control algorithm.
     for ap in aps:
-        loop.run_until_complete(ap.disable_events())
-        loop.run_until_complete(ap.enable_events(events=["txs", "stats"]))
+        for sta in ap.stations():
+            loop.run_until_complete(sta.start_rate_control("py_thompson_sampling", {}))
 
-    # add a simple print callback to see the incoming data
+    # Enable 'txs' events so we can see our rate setting in action. Note, this requires traffic to
+    # produce events. pinging the station across the wireless link can help with that.
+    for ap in aps:
+        loop.run_until_complete(ap.disable_events(events=["stats", "rxs", "tprc_echo"]))
+        loop.run_until_complete(ap.enable_events(events=["txs"]))
+
+    # add a simple print callback to see the txs events
     def print_event(ap, ev, context=None):
         print(f"{ap.name} > {ev}")
 
     rm.add_raw_data_callback(print_event)
-
-    # run indefinitely
     try:
         print("Running rateman... (Press CTRL+C to stop)")
         loop.run_forever()

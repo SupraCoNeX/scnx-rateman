@@ -3,350 +3,394 @@
 #     https://www.supraconex.org
 #
 
-r"""
-Parsing Rate Control API Output Lines
--------------------------------------
+import asyncio
+import re
+from itertools import pairwise
 
-This is the main processing module that provides functions to asynchronously 
-monitor network status and set rates.
-
-"""
-import logging
 from .station import Station
+from .accesspoint import AccessPoint
+from .exception import UnsupportedAPIVersionError, ParsingError
 
-__all__ = [
-    "process_api",
-    "parse_group_info",
-    "process_line",
-    "update_pckt_count_txs",
-    "parse_sta",
-    "parse_s16",
-    "parse_s32",
-]
+__all__ = ["process_api", "process_line", "process_header", "parse_sta", "split_rate_index"]
+
+API_VERSION = (2, 1)
+
+
+def vstr(v):
+    return f"{v[0]}.{v[1]}.{v[2]}"
+
 
 # utility function to parse signed integers from hex strings in two's complement format
-def twos_complement(hexstr, bits):
+def twos_complement(hexstr, bitwidth):
     val = int(hexstr, 16)
-    return val - (1 << bits) if val & (1 << (bits - 1)) else val
+    return val - (1 << bitwidth) if val & (1 << (bitwidth - 1)) else val
 
 
-parse_s16 = lambda s: twos_complement(s, 16)
-parse_s32 = lambda s: twos_complement(s, 32)
+def parse_s8(s):
+    return twos_complement(s, 8)
 
 
-def process_api(ap, fields):
-    if len(fields) < 4:
+def parse_s16(s):
+    return twos_complement(s, 16)
+
+
+def parse_s32(s):
+    return twos_complement(s, 32)
+
+
+def check_orca_version(ap, version):
+    if version != API_VERSION:
+        if version[0] > API_VERSION[0]:
+            raise UnsupportedAPIVersionError(ap, API_VERSION, version)
+        elif version[1] > API_VERSION[1]:
+            ap.logger.warning(
+                f"{ap}: ORCA API version is newer than rateman's "
+                f"({vstr(version)} vs {vstr(API_VERSION)}). Some features may not be supported."
+            )
+
+
+def process_api(ap, fields, line):
+    if len(fields) < 5:
         return
 
-    line_type = fields[2]
+    match fields[2]:
+        case "orca_version":
+            version = (int(fields[3], 16), int(fields[4], 16), int(fields[5], 16))
+            check_orca_version(ap, version)
+            ap._api_version = version
+        case "group":
+            ap.add_rate_info(*parse_rate_group(ap, fields))
+        case "sample_table":
+            ap.sample_table = fields[5:]
+        case _:
+            raise ParsingError(ap, f"Unknown line type '{fields[2]}'")
 
-    if line_type == "group":
-        group_ind, group_info = parse_group_info(fields)
-        ap.add_supp_rates(group_ind, group_info)
-    elif line_type == "sample_table":
-        ap.sample_table = fields[5:]
+
+def parse_tpc_range_block(ap, blk: list) -> list:
+    fields = blk.split(",")
+    if len(fields) != 4:
+        raise ParsingError(ap, f"Malformed TPC range block '{blk}'")
+
+    start_idx = int(fields[0], 16)
+    n_indeces = int(fields[1], 16)
+    start_lvl = int(fields[2], 16)
+    width = int(fields[3], 16)
+
+    return [(start_lvl + idx) * width * .25 for idx in range(start_idx, start_idx + n_indeces + 1)]
 
 
-def parse_group_info(fields):
-    """
-    Obtain maximum offset for a given MCS rate group available for an AP.
+def parse_tpc(ap: AccessPoint, cap: list) -> dict:
+    if len(cap) < 3:
+        return None
+    elif cap[2] == "not":
+        return None
 
-    Parameters
-    ----------
-    fields : list
-        Fields obtained by spliting a data line received from the AP
-        over the Rate Control API.
+    tpc = {
+        "type": cap[0],
+        "regulatory_limit": cap[-1],
+        "txpowers": []
+    }
 
-    Returns
-    -------
-    group_idx : str
-        Index of MCS rate group.
-    max_offset : str
-        Maximum allowable offset - determines which rates are available
-        in the group for the AP.
+    n_ranges = int(cap[1], 16)
+    ranges = cap[2:-1]
 
-    """
+    if n_ranges != len(ranges):
+        raise ParsingError(ap, f"Expected {n_ranges} tpc ranges but {len(ranges)} were found")
+
+    for blk in ranges:
+        tpc["txpowers"] += parse_tpc_range_block(ap, blk)
+
+    return tpc
+
+
+def parse_features(ap: AccessPoint, features: list) -> dict:
+    return {feature: setting for feature, setting in [f.split(",") for f in features]}
+
+
+def process_phy_info(ap, fields):
+    n_features = int(fields[6], 16) if fields[6] else 0
+
+    ap.add_radio(
+        fields[0],             # radio
+        fields[3],             # driver
+        [i for i in fields[4].split(",") if i],  # interfaces
+        [e for e in fields[5].split(",") if e],  # active monitor events
+        parse_features(ap, fields[7:7 + n_features]),
+        parse_tpc(ap, fields[7 + n_features:])  # tx power range blocks
+    )
+
+
+async def process_sta_info(ap, fields):
+    match fields[3]:
+        case "add" | "dump":
+            sta = parse_sta(ap, fields)
+            await ap.add_station(sta)
+
+            if sta.rc_mode == "auto":
+                await sta.start_rate_control("minstrel_ht_kernel_space", None)
+
+        case "remove":
+            sta = await ap.remove_station(mac=fields[4], radio=fields[0])
+
+        case "update":
+            sta = parse_sta(ap, fields)
+            await ap.update_station(sta)
+
+
+async def process_header(ap):
+    async for line in ap.api_info():
+        if line.startswith("*;0;#"):
+            continue
+        elif line.startswith("*;0;"):
+            process_api(ap, line.split(";"), line)
+        elif "0;add;" in line:
+            process_phy_info(ap, line.split(";"))
+        elif "0;sta;add;" in line:
+            await process_sta_info(ap, line.split(";"))
+
+
+def parse_rate_group(ap, fields):
     fields = list(filter(None, fields))
-    group_ind = fields[3]
+    grp = fields[3]
 
     airtimes_hex = fields[9:]
     rate_offsets = [str(ii) for ii in range(len(airtimes_hex))]
-    rate_inds = list(map(lambda jj: group_ind + jj, rate_offsets))
+    rate_inds = list(map(lambda jj: grp + jj, rate_offsets))
     airtimes_ns = [int(ii, 16) for ii in airtimes_hex]
 
-    group_info = {
-        "rate_inds": rate_inds,
+    match fields[7]:
+        case "0":
+            bandwidth = 20
+        case "1":
+            bandwidth = 40
+        case "2":
+            bandwidth = 80
+        case _:
+            raise ParsingError(ap, f"Unknown value for rate group bandwidth '{fields[6]}'")
+
+    info = {
+        "indices": rate_inds,
         "airtimes_ns": airtimes_ns,
         "type": fields[5],
-        "nss": fields[6],
-        "bandwidth": fields[7],
-        "guard_interval": fields[8],
+        "nss": int(fields[6]),
+        "bandwidth": bandwidth,
+        "sgi": fields[8] == "1",
     }
 
-    return group_ind, group_info
+    return grp, info
 
 
-def process_line(ap, line):
-    """
-
-    Execute respective functions based on the trace line received from the AP.
-
-    Parameters
-    ----------
-    ap : AccessPoint object
-
-    line : str
-        Trace line.
-
-    """
-
-    fields = line.split(";")
-
-    if fields[0] == "*":
-        process_api(ap, fields)
+async def process_line(ap, line):
+    if not (fields := validate_line(ap, line)):
         return None
 
-    # phy add lines: parse radio and interfaces
-    if len(fields) in [4,5]:
-        if fields[1] == "0" and fields[2] == "add":
-            if "ath9k" in fields[3]:
-                ap.add_radio(fields[0], "ath9k")
-            elif "mt76" in fields[3]:
-                ap.add_radio(fields[0], "mt76")
-
-            if len(fields) == 5:
-                for iface in fields[4].split(","):
-                    ap.add_interface(fields[0], iface)
-            
-            if ap.rate_control_alg != "minstrel_ht_kernel_space":
-                if "mt76" in fields[3]:
-                    ap.disable_kernel_fallback(fields[0], "mt76")
-
-            ap.reset_radio_stats(fields[0])
-            ap.enable_rc_info(fields[0])
-
-    fields = validate_line(ap, line)
-
-    if not fields:
-        return None
-
-    line_type = fields[2]
-
-    if line_type == "txs":
-        update_pckt_count_txs(ap, fields)
-    elif line_type == "rxs":
-        sta = ap.get_sta(fields[3], radio=fields[0])
-        if sta:
-            sta.update_rssi(
-                int(fields[1], 16),
-                parse_s32(fields[4]),
-                [parse_s32(r) for r in fields[5:]],
-            )
-    elif line_type == "sta" and fields[3] in ["add", "dump"]:
-        ap.add_station(parse_sta(ap, fields))
-    elif line_type == "sta" and fields[3] == "remove":
-        ap.remove_station(fields[4], fields[0])
+    match fields[2]:
+        case "txs":
+            update_rate_stats_from_txs(ap, fields)
+        case "rxs":
+            sta = ap.get_sta(fields[3], radio=fields[0])
+            if sta and fields[1] != "7f":
+                sta.update_rssi(
+                    int(fields[1], 16),
+                    parse_s8(fields[4]),
+                    [parse_s8(r) for r in fields[5:]],
+                )
+        case "sta":
+            await process_sta_info(ap, fields)
+        case "#error":
+            ap.handle_error(fields[3])
 
     return fields
 
 
-def validate_txs(fields):
-    if len(fields) != 15:
-        return None
+COMMANDS = [
+    "start",
+    "stop",
+    "set_rates",
+    "set_power",
+    "set_rates_power",
+    "reset_stats",
+    "rc_mode",
+    "tpc_mode",
+    "set_probe"
+]
 
-    # TODO: more validation of rate indeces?
-    return fields
-
-
-def validate_rxs(fields):
-    if len(fields) != 9:
-        return None
-
-    # TODO: more validation?
-    return fields
-
-
-def validate_rc_stats(fields):
-    if len(fields) != 11:
-        return None
-
-    # TODO: more validation?
-    return fields
+PHY_REGEX = r"[-a-z0-9]+"
+TIMESTAMP_REGEX = r"[0-9a-f]{16}"
+MACADDR_REGEX = r"[0-9a-f]{2}(:[0-9a-f]{2}){5}"
 
 
-def validate_sta(fields):
-    if not (len(fields) == 8 and fields[3] == "remove") and not (
-        len(fields) == 49 and fields[3] in ["add", "dump"]
-    ):
-        return None
-
-    # TODO: more validation?
-    return fields
-
-def validate_best_rates(fields):
-    if len(fields) != 9:
-        return None
-
-    # TODO: more validation?
-    return fields
-
-def validate_sample_rates(fields):
-    if len(fields) != 19:
-        return None
-
-    # TODO: more validation?
-    return fields
+def base_regex(line_type: str) -> str:
+    return ";".join([PHY_REGEX, TIMESTAMP_REGEX, line_type, MACADDR_REGEX])
 
 
+RXS_REGEX = re.compile(base_regex("rxs") + r"(;[0-9a-f]{0,8}){5}")
+STATS_REGEX = re.compile(base_regex("stats") + r";[0-9a-f]{1,3}" + r"(;[0-9a-f]++){6}")
+RESET_STATS_REGEX = re.compile(base_regex("reset_stats"))
+RC_MODE_REGEX = re.compile(base_regex("rc_mode") + r"(;[0-9a-f]+){1}")
+BEST_RATES_REGEX = re.compile(base_regex("best_rates") + r"(;[0-9a-f]{1,3}){5}")
+SAMPLE_RATES_REGEX = re.compile(base_regex("sample_rates") + r"(;[0-9a-f]{1,3}){15}")
+STA_INFO_REGEX = r"(;(manual|auto)){2}(;[0-9a-f]{1,3}){46}"
+STA_ADD_REGEX = re.compile(base_regex("sta;add") + ";" + PHY_REGEX + STA_INFO_REGEX)
+STA_UPDATE_REGEX = re.compile(base_regex("sta;update") + ";" + PHY_REGEX + STA_INFO_REGEX)
+STA_REMOVE_REGEX = re.compile(base_regex("sta;remove") + r";.*+")
+CMD_ECHO_REGEX = re.compile(
+    ";".join([PHY_REGEX, TIMESTAMP_REGEX]) + ";(" + "|".join(COMMANDS) + ");.*+"
+)
+ERROR_REGEX = re.compile(r"\*;0;#error;.*")
 
-VALIDATORS = {
-    "txs": validate_txs,
-    "stats": validate_rc_stats,
-    "rxs": validate_rxs,
-    "sta": validate_sta,
-    "best_rates": validate_best_rates,
-    "sample_rates": validate_sample_rates
-}
 
-
-def validate_line(ap, line):
+def validate_line(ap, line: str) -> list:
     fields = line.split(";")
 
     if len(fields) < 3:
         return None
 
     # ensure monotonic timestamps
-    if not ap.update_timestamp(fields[1]):
+    if not ap.update_timestamp(fields[1]) and fields[2] != "reset_stats":
         return None
 
     try:
-        return VALIDATORS[fields[2]](fields)
+        return VALIDATORS[fields[2]](line, fields)
     except KeyError:
-        return None
+        return fields if CMD_ECHO_REGEX.fullmatch(line) else None
 
 
-def update_pckt_count_txs(ap, fields):
-    """
-    Update packet transmission attempt and success counts for a given station.
+def validate_txs(line: str, fields: list) -> list:
+    # validating 'txs' lines using regex is relatively expensive, so we stick to counting fields
+    return fields if len(fields) == 11 else None
 
-    Parameters
-    ----------
-    ap : AccessPoint object
 
-    fields : list
-        Fields obtained by spliting a data line received from the AP
-        over the Rate Control API .
+def validate_rxs(line: str, fields: list) -> list:
+    return fields if RXS_REGEX.fullmatch(line) else None
 
-    """
-    radio = fields[0]
-    mac_addr = fields[3]
 
-    try:
-        sta = ap.get_stations()[mac_addr]
-    except KeyError:
+def validate_stats(line: str, fields: list) -> list:
+    return fields if STATS_REGEX.fullmatch(line) else None
+
+
+def validate_reset_stats(line: str, fields: list) -> list:
+    return fields if RESET_STATS_REGEX.fullmatch(line) else None
+
+
+def validate_rc_mode(line: str, fields: list) -> list:
+    return fields if RC_MODE_REGEX.fullmatch(line) else None
+
+
+def validate_sta(line: str, fields: list) -> list:
+    match fields[3]:
+        case "add":
+            return fields if STA_ADD_REGEX.fullmatch(line) else None
+        case "update":
+            return fields if STA_UPDATE_REGEX.fullmatch(line) else None
+        case "remove":
+            return fields if STA_REMOVE_REGEX.fullmatch(line) else None
+        case _:
+            return None
+
+
+def validate_best_rates(line: str, fields: list) -> list:
+    return fields if BEST_RATES_REGEX.fullmatch(line) else None
+
+
+def validate_sample_rates(line: str, fields: list) -> list:
+    return fields if SAMPLE_RATES_REGEX.fullmatch(line) else None
+
+
+def validate_error(line: str, fields: list) -> list:
+    return fields if ERROR_REGEX.fullmatch(line) else None
+
+
+VALIDATORS = {
+    "txs": validate_txs,
+    "stats": validate_stats,
+    "rxs": validate_rxs,
+    "sta": validate_sta,
+    "best_rates": validate_best_rates,
+    "sample_rates": validate_sample_rates,
+    "reset_stats": validate_reset_stats,
+    "rc_mode": validate_rc_mode,
+    "#error": validate_error
+}
+
+
+def parse_mrr_stage(s):
+    mrr_stage = s.split(",")
+    rate = mrr_stage[0].zfill(2)
+    count = int(mrr_stage[1], 16)
+    txpwr_idx = int(mrr_stage[2], 16) if mrr_stage[2] else None
+
+    return mrr_stage[0].zfill(2), int(mrr_stage[1], 16), txpwr_idx
+
+
+def update_rate_stats_from_txs(ap, fields: list) -> None:
+    sta = ap.get_sta(fields[3], radio=fields[0])
+    supported_txpowers = ap.txpowers(sta.radio)
+    if not sta:
         return
 
-    timestamp = fields[1]
+    timestamp = int(fields[1], 16)
     num_frames = int(fields[4], 16)
     num_ack = int(fields[5], 16)
-    probe_flag = int(fields[6], 16)
-    rate_ind1 = fields[7]
-    rate_ind2 = fields[9]
-    rate_ind3 = fields[11]
-    rate_ind4 = fields[13]
+    successful = False
 
-    count1 = int(fields[8], 16)
-    count2 = int(fields[10], 16)
-    count3 = int(fields[12], 16)
-    count4 = int(fields[14], 16)
+    for (cur_stage, next_stage) in pairwise(fields[7:]):
+        rate, count, txpwr_idx = parse_mrr_stage(cur_stage)
+        txpwr = supported_txpowers[txpwr_idx] if txpwr_idx else None
+        attempts = num_frames * count
+        successful = next_stage == ",,"
 
-    atmpts1 = num_frames * count1
-    atmpts2 = num_frames * count2
-    atmpts3 = num_frames * count3
-    atmpts4 = num_frames * count4
-
-    atmpts = [atmpts1, atmpts2, atmpts3, atmpts4]
-
-    succ = [0, 0, 0, 0]
-
-    suc_rate_ind = 3
-    for atmpt_ind, atmpt in enumerate(atmpts):
-        if atmpt == 0:
-            suc_rate_ind = atmpt_ind - 1
+        sta.update_rate_stats(timestamp, rate, txpwr, attempts, num_ack if successful else 0)
+        if successful:
             break
 
-    if suc_rate_ind < 0:
-        suc_rate_ind = 0
+    if not successful and ((last_stage := fields[10]) != ",,"):
+        rate, count, txpwr_idx = parse_mrr_stage(last_stage)
+        txpwr = supported_txpowers[txpwr_idx] if txpwr_idx else None
+        sta.update_rate_stats(timestamp, rate, txpwr, num_frames * count, num_ack)
 
-    succ[suc_rate_ind] = num_ack
-    rates = [rate_ind1, rate_ind2, rate_ind3, rate_ind4]
-    rates = [f"0{rate}" if len(rate) == 1 else rate for rate in rates]
-    info = {}
-
-    for rate_ind, rate in enumerate(rates):
-        if rate != "ffff":
-            if rate not in info:
-                info[rate] = {}
-                if sta.check_rate_entry(rate):
-                    info[rate]["attempts"] = sta.get_attempts(rate)
-                    info[rate]["success"] = sta.get_successes(rate)
-                else:
-                    info[rate]["attempts"] = 0
-                    info[rate]["success"] = 0
-
-            info[rate]["attempts"] += atmpts[rate_ind]
-            info[rate]["success"] += succ[rate_ind]
-            info[rate]["timestamp"] = timestamp
-
-    sta.update_stats(timestamp, info)
-
-    if num_frames > 1:
-        sta.ampdu_enabled = True
-
-    sta.ampdu_len += num_frames
-    sta.ampdu_packets += 1
+    sta.update_ampdu(num_frames)
 
 
-def parse_sta(ap, fields):
-    """
+def parse_sta(ap, fields: list):
+    supported_rates = []
+    radio = fields[0]
+    timestamp = int(fields[1], 16)
+    mac = fields[4]
+    iface = fields[5]
+    rc_mode = fields[6]
+    tpc_mode = fields[7]
+    overhead_mcs = int(fields[8], 16)
+    overhead_legacy = int(fields[9], 16)
+    update_freq = int(fields[10], 16)
+    sample_freq = int(fields[11], 16)
+    mcs_groups = fields[12:]
 
+    for i, grp_idx in enumerate(ap._rate_info):
+        mask = int(mcs_groups[i], 16)
+        for ofs in range(10):
+            if mask & (1 << ofs):
+                supported_rates.append(f"{grp_idx}{ofs}")
 
-    Parameters
-    ----------
-    ap : Object
-        Object of rateman.AccessPoint class over which the station is associated.
-    fields : list
-        Fields contained with line separated by ';' and containing 'sta;add'
-        or 'sta;dump' strings.
-
-    Returns
-    -------
-    sta : Object
-        Object of rateman.Station class created after a station connects to a
-        give AP.
-
-    """
-    supp_rates = []
-    airtimes_ns = []
-    mcs_groups = fields[7:]
-    overhead_mcs = int(fields[5], 16)
-    overhead_legacy = int(fields[6], 16)
-
-    for ii, group_ind in enumerate(ap.supp_rates.keys()):
-        mask = int(mcs_groups[ii], 16)
-        for jj in range(10):
-            if mask & (1 << jj):
-                supp_rates.append(f"{group_ind}{jj}")
-                airtimes_ns.append(ap.supp_rates[group_ind]["airtimes_ns"][jj])
-
-    sta = Station(
-        fields[0],
-        fields[1],
-        fields[4],
-        supp_rates,
-        airtimes_ns,
+    return Station(
+        mac,
+        ap,
+        radio,
+        iface,
+        timestamp,
+        rc_mode,
+        tpc_mode,
+        update_freq,
+        sample_freq,
+        supported_rates,
         overhead_mcs,
         overhead_legacy,
+        logger=ap.logger
     )
 
-    return sta
+
+def split_rate_index(r) -> tuple[str, str]:
+    if len(r) < 2:
+        return "0", r
+
+    return r[:-1], r[-1]

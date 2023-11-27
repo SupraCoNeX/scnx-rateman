@@ -10,7 +10,7 @@ from common import parse_arguments, setup_logger
 
 if __name__ == "__main__":
     args = parse_arguments()
-    log = setup_logger("rate_control", args.verbose)
+    log = setup_logger("rate_control_pause_resume", args.verbose)
 
     # create rateman.AccessPoint objects
     aps = rateman.from_strings(args.accesspoints, logger=log)
@@ -40,17 +40,20 @@ if __name__ == "__main__":
         if not ap.connected:
             sys.exit(1)
 
-    # start 'rc_example' rate control algorithm. This will import from the rc_example.py file.
+    # start 'rc_pause_resume' rate control algorithm.
+    # This will import from the rc_pause_resume.py file.
     for ap in aps:
         loop.run_until_complete(ap.enable_tprc_echo(True))
         for sta in ap.stations():
-            loop.run_until_complete(sta.start_rate_control("rc_example", {"interval_ms": 1000}))
+            loop.run_until_complete(
+                sta.start_rate_control("rc_pause_resume", {"interval_ms": 1000})
+            )
 
     # Enable 'txs' events so we can see our rate setting in action. Note, this requires traffic to
     # produce events. pinging the station across the wireless link can help with that.
     for ap in aps:
         loop.run_until_complete(ap.disable_events())
-        loop.run_until_complete(ap.enable_events(events=["txs", "stats"]))
+        loop.run_until_complete(ap.enable_events(events=["txs"]))
 
     # add a simple print callback to see the txs events
     def print_event(ap, ev, context=None):
@@ -60,7 +63,22 @@ if __name__ == "__main__":
 
     try:
         print("Running rateman... (Press CTRL+C to stop)")
-        loop.run_forever()
+        while True:
+            # Let everything run for 5s
+            loop.run_until_complete(asyncio.sleep(5))
+
+            # Pause the RC algorithms
+            for ap in aps:
+                for sta in ap.stations():
+                    loop.run_until_complete(sta.pause_rate_control())
+
+            # Wait for 3s
+            loop.run_until_complete(asyncio.sleep(3))
+
+            # Resume the RC algorithms
+            for ap in aps:
+                for sta in ap.stations():
+                    loop.run_until_complete(sta.resume_rate_control())
     except KeyboardInterrupt:
         print("Stopping...")
     finally:
