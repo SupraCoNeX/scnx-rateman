@@ -69,14 +69,15 @@ class AccessPoint:
         while True:
             try:
                 async with asyncio.timeout(timeout):
-                    line = (await anext(it)).decode("utf-8")
+                    data = await anext(it)
+                    line = data.decode("utf-8")
                     if self._record_rcd_trace:
                         self._rcd_trace_file.write(line)
 
                 if line.startswith("*") or ";0;add" in line or ";0;sta" in line:
                     yield line.rstrip()
                 else:
-                    self._first_non_header_line = line.rstrip()
+                    self._first_non_header_line = data
                     return
             except UnicodeError:
                 continue
