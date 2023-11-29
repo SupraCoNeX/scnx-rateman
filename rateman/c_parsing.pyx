@@ -88,7 +88,7 @@ def parse_txs(const unsigned char[:] data):
 
     # check for correct length of timestamp
     if next - cur != 16:
-        return -1
+        return None
 
     cur = next + 1
 
