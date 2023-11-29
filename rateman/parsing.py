@@ -67,17 +67,17 @@ def process_api(ap, fields, line):
             raise ParsingError(ap, f"Unknown line type '{fields[2]}'")
 
 
-def parse_tpc_range_block(ap, blk: list) -> list:
+def parse_tpc_range_block(ap, blk: str) -> list:
     fields = blk.split(",")
     if len(fields) != 4:
         raise ParsingError(ap, f"Malformed TPC range block '{blk}'")
 
     start_idx = int(fields[0], 16)
-    n_indeces = int(fields[1], 16)
-    start_lvl = int(fields[2], 16)
-    width = int(fields[3], 16)
+    n_indices = int(fields[1], 16)
+    #start_lvl = parse_s8(fields[2])
+    #width = parse_s8(fields[3])
 
-    return [(start_lvl + idx) * width * .25 for idx in range(start_idx, start_idx + n_indeces + 1)]
+    return list(range(start_idx, start_idx + n_indices))
 
 
 def parse_tpc(ap: "AccessPoint", cap: list) -> dict:
