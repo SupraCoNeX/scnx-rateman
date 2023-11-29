@@ -10,6 +10,7 @@ from itertools import pairwise
 from .station import Station
 from .accesspoint import AccessPoint
 from .exception import UnsupportedAPIVersionError, ParsingError
+from .c_parsing import parse_txs
 
 __all__ = ["process_api", "process_line", "process_header", "parse_sta", "split_rate_index"]
 
@@ -181,26 +182,29 @@ def parse_rate_group(ap, fields):
 
 
 async def process_line(ap, line):
-    if not (fields := validate_line(ap, line)):
+
+    # FIXME: This is where the AP's raw data callbacks should be called
+
+    if (result := parse_txs(line)) is not None:
+        update_rate_stats_from_txs(ap, *result)
         return None
 
-    match fields[2]:
-        case "txs":
-            update_rate_stats_from_txs(ap, fields)
-        case "rxs":
-            sta = ap.get_sta(fields[3], radio=fields[0])
-            if sta and fields[1] != "7f":
-                sta.update_rssi(
-                    int(fields[1], 16),
-                    parse_s8(fields[4]),
-                    [parse_s8(r) for r in fields[5:]],
-                )
-        case "sta":
-            await process_sta_info(ap, fields)
-        case "#error":
-            ap.handle_error(fields[3])
+    elif fields := validate_line(ap, line.decode("utf-8").rstrip()):
+        match fields[2]:
+            case "rxs":
+                sta = ap.get_sta(fields[3], radio=fields[0])
+                if sta and fields[1] != "7f":
+                    sta.update_rssi(
+                        int(fields[1], 16),
+                        parse_s8(fields[4]),
+                        [parse_s8(r) for r in fields[5:]],
+                    )
+            case "sta":
+                await process_sta_info(ap, fields)
+            case "#error":
+                ap.handle_error(fields[3])
 
-    return fields
+        return fields
 
 
 COMMANDS = [
@@ -256,11 +260,6 @@ def validate_line(ap, line: str) -> list:
         return fields if CMD_ECHO_REGEX.fullmatch(line) else None
 
 
-def validate_txs(line: str, fields: list) -> list:
-    # validating 'txs' lines using regex is relatively expensive, so we stick to counting fields
-    return fields if len(fields) == 11 else None
-
-
 def validate_rxs(line: str, fields: list) -> list:
     return fields if RXS_REGEX.fullmatch(line) else None
 
@@ -302,7 +301,6 @@ def validate_error(line: str, fields: list) -> list:
 
 
 VALIDATORS = {
-    "txs": validate_txs,
     "stats": validate_stats,
     "rxs": validate_rxs,
     "sta": validate_sta,
@@ -323,33 +321,12 @@ def parse_mrr_stage(s):
     return mrr_stage[0].zfill(2), int(mrr_stage[1], 16), txpwr_idx
 
 
-def update_rate_stats_from_txs(ap, fields: list) -> None:
-    sta = ap.get_sta(fields[3], radio=fields[0])
-    supported_txpowers = ap.txpowers(sta.radio)
+def update_rate_stats_from_txs(ap, phy, timestamp, mac, rates, txpwrs, attempts, successes) -> None:
+    sta = ap.get_sta(mac, radio=phy)
     if not sta:
         return
 
-    timestamp = int(fields[1], 16)
-    num_frames = int(fields[4], 16)
-    num_ack = int(fields[5], 16)
-    successful = False
-
-    for (cur_stage, next_stage) in pairwise(fields[7:]):
-        rate, count, txpwr_idx = parse_mrr_stage(cur_stage)
-        txpwr = supported_txpowers[txpwr_idx] if txpwr_idx else None
-        attempts = num_frames * count
-        successful = next_stage == ",,"
-
-        sta.update_rate_stats(timestamp, rate, txpwr, attempts, num_ack if successful else 0)
-        if successful:
-            break
-
-    if not successful and ((last_stage := fields[10]) != ",,"):
-        rate, count, txpwr_idx = parse_mrr_stage(last_stage)
-        txpwr = supported_txpowers[txpwr_idx] if txpwr_idx else None
-        sta.update_rate_stats(timestamp, rate, txpwr, num_frames * count, num_ack)
-
-    sta.update_ampdu(num_frames)
+    sta.update_rate_stats(timestamp, rates, txpwrs, attempts, successes)
 
 
 def parse_sta(ap, fields: list):

@@ -91,10 +91,9 @@ class AccessPoint:
 
         async for data in self._reader:
             try:
-                line = data.decode("utf-8")
                 if self._record_rcd_trace:
-                    self._rcd_trace_file.write(line)
-                yield line.rstrip()
+                    self._rcd_trace_file.write(data.decode("utf-8"))
+                yield data
             except UnicodeError:
                 continue
 

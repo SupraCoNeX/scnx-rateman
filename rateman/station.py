@@ -412,25 +412,21 @@ class Station:
         """
         return self._supported_rates[0]
 
-    def update_rate_stats(self, timestamp: int, rate: str, txpwr: int, attempts: int, succ: int):
-        if not txpwr:
-            txpwr = -1
-
-        try:
-            self._stats[rate][txpwr]["attempts"] += attempts
-            self._stats[rate][txpwr]["success"] += succ
-            self._stats[rate][txpwr]["timestamp"] = timestamp
-        except KeyError:
-            return
-
-        # If the station is not in manual TPC mode, i.e., the driver decides on TX power, we
-        # also update the counters for the TX power index -1, which is the index to set for letting
-        # the driver make the transmit power decision. This is done because user space rate control
-        # algorithms that do not set TX power will fetch the stats at txpwr == -1.
-        if self._tpc_mode == "auto" and txpwr != -1:
-            self._stats[rate][-1]["attempts"] += attempts
-            self._stats[rate][-1]["success"] += succ
-            self._stats[rate][-1]["timestamp"] = timestamp
+    def update_rate_stats(
+        self,
+        timestamp: int,
+        rates: list[str],
+        txpwrs: list[int],
+        attempts: list[int],
+        successes: list[int]
+    ):
+        for (rate, txpwr, att, succ) in zip(rates, txpwrs, attempts, successes, strict=True):
+            try:
+                self._stats[rate][txpwr]["attempts"] += att
+                self._stats[rate][txpwr]["success"] += succ
+                self._stats[rate][txpwr]["timestamp"] = timestamp
+            except KeyError:
+                continue
 
     def reset_ampdu_stats(self):
         self._ampdu_subframes = 0
