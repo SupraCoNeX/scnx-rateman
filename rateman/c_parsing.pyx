@@ -1,3 +1,6 @@
+# cython: profile=True
+
+import cython
 from libc.string cimport strlen, strchr, memcpy, memcmp
 from libc.stdio cimport printf
 from libc.stdlib cimport strtoull, strtol
@@ -5,6 +8,7 @@ from libc.stdlib cimport strtoull, strtol
 __all__ = ["parse_txs"]
 
 
+@cython.profile(False)
 cdef size_t next_field(const char *buf, char c, const char **next):
     cdef const char *sep = strchr(buf, c)
 
@@ -17,6 +21,7 @@ cdef size_t next_field(const char *buf, char c, const char **next):
     return sep - buf
 
 
+@cython.profile(False)
 cdef int parse_str(const char *buf, char *dst, size_t size):
     cdef int len = next_field(buf, b';', NULL)
 
@@ -29,6 +34,7 @@ cdef int parse_str(const char *buf, char *dst, size_t size):
     return len + 1
 
 
+@cython.profile(False)
 cdef int parse_mrr_stage(const char *buf, int *rate, int *count, int *txpwr, int *successful_at):
     cdef char *next
 
@@ -51,6 +57,7 @@ cdef int parse_mrr_stage(const char *buf, int *rate, int *count, int *txpwr, int
         return next + 1 - buf
 
 
+@cython.profile(False)
 cdef int parse_mrr(const char *buf, int *rates, int *counts, int *txpwrs, size_t len):
     cdef int ofs
     cdef int i = len - 1
