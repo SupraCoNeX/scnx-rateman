@@ -336,18 +336,16 @@ def update_rate_stats_from_txs(ap, fields: list) -> None:
 
     for (cur_stage, next_stage) in pairwise(fields[7:]):
         rate, count, txpwr_idx = parse_mrr_stage(cur_stage)
-        txpwr = supported_txpowers[txpwr_idx] if txpwr_idx else None
         attempts = num_frames * count
         successful = next_stage == ",,"
 
-        sta.update_rate_stats(timestamp, rate, txpwr, attempts, num_ack if successful else 0)
+        sta.update_rate_stats(timestamp, rate, txpwr_idx, attempts, num_ack if successful else 0)
         if successful:
             break
 
     if not successful and ((last_stage := fields[10]) != ",,"):
         rate, count, txpwr_idx = parse_mrr_stage(last_stage)
-        txpwr = supported_txpowers[txpwr_idx] if txpwr_idx else None
-        sta.update_rate_stats(timestamp, rate, txpwr, num_frames * count, num_ack)
+        sta.update_rate_stats(timestamp, rate, txpwr_idx, num_frames * count, num_ack)
 
     sta.update_ampdu(num_frames)
 
