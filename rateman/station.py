@@ -1,9 +1,11 @@
 import asyncio
 import logging
 import weakref
+from array import array
 from contextlib import suppress
 from functools import partial
 from . import rate_control
+from .c_sta_rate_stats import StationRateStats
 from .exception import (
     RateControlError,
     RateControlConfigError,
@@ -58,7 +60,7 @@ class Station:
         self._ampdu_enabled = False
         self._ampdu_aggregates = 0
         self._ampdu_subframes = 0
-        self._stats = {}
+        self._stats = None
         self.reset_rate_stats()
         self._rssi = 1
         self._rssi_vals = []
@@ -237,8 +239,17 @@ class Station:
         return self._mac_addr
 
     @property
-    def stats(self) -> dict:
-        return self._stats
+    def txpowers(self) -> list[float]:
+        return self._accesspoint.txpowers(self._radio)
+
+    def get_rate_stats(self, rate: int, txpower: int = -1) -> tuple[int, int, int]:
+        """
+        Return a tuple containg the number of transmission attempts, number of successful
+        transmissions, and the timestamp (in ms since 1970/1/1) since the last use of the given
+        rate at the given txpower.
+        """
+        print(f"sta.get_rate_stats({rate:x}, {txpower})")
+        return self._stats.get(rate, txpower)
 
     @property
     def rate_control(self) -> tuple:
@@ -412,25 +423,15 @@ class Station:
         """
         return self._supported_rates[0]
 
-    def update_rate_stats(self, timestamp: int, rate: str, txpwr: int, attempts: int, succ: int):
-        if not txpwr:
-            txpwr = -1
-
-        try:
-            self._stats[rate][txpwr]["attempts"] += attempts
-            self._stats[rate][txpwr]["success"] += succ
-            self._stats[rate][txpwr]["timestamp"] = timestamp
-        except KeyError:
-            return
-
-        # If the station is not in manual TPC mode, i.e., the driver decides on TX power, we
-        # also update the counters for the TX power index -1, which is the index to set for letting
-        # the driver make the transmit power decision. This is done because user space rate control
-        # algorithms that do not set TX power will fetch the stats at txpwr == -1.
-        if self._tpc_mode == "auto" and txpwr != -1:
-            self._stats[rate][-1]["attempts"] += attempts
-            self._stats[rate][-1]["success"] += succ
-            self._stats[rate][-1]["timestamp"] = timestamp
+    def update_rate_stats(
+        self,
+        timestamp: int,
+        rates: array,
+        txpwrs: array,
+        attempts: array,
+        successes: array
+    ):
+        self._stats.update(timestamp, rates, txpwrs, attempts, successes, 4)
 
     def reset_ampdu_stats(self):
         self._ampdu_subframes = 0
@@ -448,28 +449,15 @@ class Station:
             self._rssi = min_rssi
             self._rssi_vals = per_antenna
 
-    def get_rate_stats(self, rate: str) -> dict:
-        """
-        Return the statistics for the given rate. The returned dictionary includes the keys
-        `attempts`, `success`, and `timestamp` keyed by transmit power levels. `attempts` counts the
-        total number of transmissions attempted at the given rate for the given power level, while
-        `success` counts the number of successful transmissions. `timestamp` gives the time of the
-        last attempt made at the given rate and power level in nanoseconds since 1970/1/1 00:00:00.
-        """
-        return self._stats.get(rate, {})
-
     def reset_rate_stats(self):
         """
         Reset packet transmission attempts and success statistics for all supported rates and
         transmit power levels.
         """
-        self._stats = {
-            rate: {
-                txpwr: {"attempts": 0, "success": 0, "timestamp": 0}
-                for txpwr in [-1] + self._accesspoint.txpowers(self._radio)
-            }
-            for rate in self._supported_rates
-        }
+        self._stats = StationRateStats(
+            0x29a,
+            len(self._accesspoint.txpowers(self._radio))
+        )
 
     async def reset_kernel_rate_stats(self):
         """

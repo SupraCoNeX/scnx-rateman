@@ -44,8 +44,6 @@ class RateMan:
 
         self._raw_data_callbacks = []
         self._data_callbacks = {
-            "any": [],
-            "txs": [],
             "stats": [],
             "rxs": [],
             "sta": [],
@@ -123,7 +121,7 @@ class RateMan:
         if (cb, context) not in self._raw_data_callbacks:
             self._raw_data_callbacks.append((cb, context))
 
-    def add_data_callback(self, cb, type: str = "any", context=None):
+    def add_data_callback(self, cb, type: str, context=None):
         """
         Register a callback to be called on incoming ORCA event data.
 
@@ -132,7 +130,7 @@ class RateMan:
         cb : callable
             The callback function.
         type : str
-            Which data to call the callback on. Valid options: `"any", "txs", "stats",
+            Which data to call the callback on. Valid options: `"stats",
             "rxs", "sta", "best_rates", or "sample_rates"`.
         context : object
             Additional arguments to be passed to the callback function.
@@ -162,9 +160,6 @@ class RateMan:
                     break
 
     def execute_callbacks(self, ap: AccessPoint, fields: list[str]):
-        for (cb, ctx) in self._data_callbacks["any"]:
-            cb(ap, fields, context=ctx)
-
         try:
             for (cb, ctx) in self._data_callbacks[fields[2]]:
                 cb(ap, *fields, context=ctx)
@@ -174,14 +169,11 @@ class RateMan:
     async def rcd_connection(self, ap: AccessPoint):
         try:
             async for line in ap.events():
-                for (cb, ctx) in self._raw_data_callbacks:
-                    cb(ap, line, context=ctx)
-
-                fields = await process_line(ap, line)
-                if not fields:
-                    continue
-
-                self.execute_callbacks(ap, fields)
+                if (fields := await process_line(ap, line)) is not None:
+                    # FIXME: maybe we should move the callback logic into the AP, have it at a
+                    # per-AP basis. Then execute_callbacks() could happen as a part of
+                    # process_line() in the AP object.
+                    self.execute_callbacks(ap, fields)
         except asyncio.CancelledError as e:
             raise e
 
