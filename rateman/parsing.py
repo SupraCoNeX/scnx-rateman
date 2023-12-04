@@ -9,11 +9,10 @@ import array
 from itertools import pairwise
 
 from .station import Station
-from .accesspoint import AccessPoint
 from .exception import UnsupportedAPIVersionError, ParsingError
 from .c_parsing import parse_txs
 
-__all__ = ["process_api", "process_line", "process_header", "parse_sta", "split_rate_index"]
+__all__ = ["process_api", "process_line", "process_header", "parse_sta", "rate_group_and_offset"]
 
 API_VERSION = (2, 1)
 
@@ -81,7 +80,7 @@ def parse_tpc_range_block(ap, blk: list) -> list:
     return [(start_lvl + idx) * width * .25 for idx in range(start_idx, start_idx + n_indeces + 1)]
 
 
-def parse_tpc(ap: AccessPoint, cap: list) -> dict:
+def parse_tpc(ap: "AccessPoint", cap: list) -> dict:
     if len(cap) < 3:
         return None
     elif cap[2] == "not":
@@ -105,7 +104,7 @@ def parse_tpc(ap: AccessPoint, cap: list) -> dict:
     return tpc
 
 
-def parse_features(ap: AccessPoint, features: list) -> dict:
+def parse_features(ap: "AccessPoint", features: list) -> dict:
     return {feature: setting for feature, setting in [f.split(",") for f in features]}
 
 
@@ -152,13 +151,16 @@ async def process_header(ap):
 
 
 def parse_rate_group(ap, fields):
-    fields = list(filter(None, fields))
-    grp = fields[3]
+    grp = int(fields[4], 16)
 
-    airtimes_hex = fields[9:]
-    rate_offsets = [str(ii) for ii in range(len(airtimes_hex))]
-    rate_inds = list(map(lambda jj: grp + jj, rate_offsets))
-    airtimes_ns = [int(ii, 16) for ii in airtimes_hex]
+    n_rates = 8 if grp < 0x120 else 10
+
+    rates = array.array('I', range(n_rates))
+    airtimes = array.array('I', range(n_rates))
+
+    for i, at in enumerate(fields[9:9 + n_rates]):
+        airtimes[i] = int(at, 16)
+        rates[i] = grp + i
 
     match fields[7]:
         case "0":
@@ -168,18 +170,18 @@ def parse_rate_group(ap, fields):
         case "2":
             bandwidth = 80
         case _:
-            raise ParsingError(ap, f"Unknown value for rate group bandwidth '{fields[6]}'")
+            raise ParsingError(ap, f"Unknown value for rate group bandwidth '{fields[7]}'")
 
     info = {
-        "indices": rate_inds,
-        "airtimes_ns": airtimes_ns,
+        "rates": rates,
+        "airtimes": airtimes,
         "type": fields[5],
         "nss": int(fields[6]),
         "bandwidth": bandwidth,
         "sgi": fields[8] == "1",
     }
 
-    return grp, info
+    return int(fields[3], 16), info
 
 
 async def process_line(ap, line):
@@ -356,7 +358,7 @@ def parse_sta(ap, fields: list):
         mask = int(mcs_groups[i], 16)
         for ofs in range(10):
             if mask & (1 << ofs):
-                supported_rates.append(f"{grp_idx}{ofs}")
+                supported_rates.append(i * 16 + ofs)
 
     return Station(
         mac,
@@ -375,8 +377,7 @@ def parse_sta(ap, fields: list):
     )
 
 
-def split_rate_index(r) -> tuple[str, str]:
-    if len(r) < 2:
-        return "0", r
+def rate_group_and_offset(rate: int) -> tuple[int, int]:
+    grp = rate // 16
 
-    return r[:-1], r[-1]
+    return grp, rate - grp * 16

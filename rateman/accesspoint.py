@@ -11,6 +11,7 @@ import logging
 from functools import reduce
 
 from .station import Station
+from .parsing import rate_group_and_offset
 from .exception import (
     RadioConfigError,
     RadioUnavailableError,
@@ -50,7 +51,7 @@ class AccessPoint:
         self._api_version = None
         self._addr = addr
         self._rcd_port = rcd_port
-        self._rate_info = {}
+        self._rate_info = [{} for _ in range(0x2a)]
         self._radios = {}
         self._connected = False
         self._latest_timestamp = 0
@@ -170,30 +171,26 @@ class AccessPoint:
     def sample_table(self, sample_table_data):
         self._sample_table = [list(map(int, row.split(","))) for row in sample_table_data]
 
-    def get_rate_info(self, rate) -> dict:
+    def get_rate_info(self, rate: int) -> tuple[int, str, int, int, bool]:
         """
-        Return a dictionary containing the following information about the given rate:
-          - `airtime` - the transmission time (in ns) of an average packet at the rate
-          - `type` - which class of rates the rate belongs to (`ofdm`, `cck`, `ht`, or `vht`)
-          - `nss` - the number of spatial streams used at that rate
-          - `bandwidth` - the rate's channel bandwidth (in MHz)
-          - `sgi` - boolean indicating whether the rate uses Short Guard Interval
+        Return a tuple containing the following information about the given rate:
+          - the transmission time (in ns) of an average packet at the rate
+          - the class of the rate (`ofdm`, `cck`, `ht`, or `vht`)
+          - the number of spatial streams used at that rate
+          - the rate's channel bandwidth (in MHz)
+          - boolean indicating whether the rate uses Short Guard Interval
         """
-        grp = rate[:-1]
+        grp, ofs = rate_group_and_offset(rate)
 
-        if not grp:
-            grp = "0"
-            rate = grp + rate
-
-        if grp in self._rate_info and rate in self._rate_info[grp]["indices"]:
+        if grp < len(self._rate_info) and ofs < 10:
             info = self._rate_info[grp]
-            return {
-                "airtime": info["airtimes_ns"][info["indices"].index(rate)],
-                "type": info["type"],
-                "nss": info["nss"],
-                "bandwidth": info["bandwidth"],
-                "sgi": info["sgi"]
-            }
+            return (
+                info["airtimes"][ofs],
+                info["type"],
+                info["nss"],
+                info["bandwidth"],
+                info["sgi"]
+            )
 
         return None
 
@@ -561,8 +558,7 @@ class AccessPoint:
             await self.send(radio, f"reset_stats;{sta}")
 
     def add_rate_info(self, grp, info):
-        if grp not in self._rate_info:
-            self._rate_info.update({grp: info})
+        self._rate_info[grp] = info
 
     async def _set_all_stations_mode(self, radio, which, mode):
         if mode not in ["manual", "auto"]:
