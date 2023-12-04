@@ -1,5 +1,4 @@
 from libc.stdlib cimport calloc, free
-from libc.stdio cimport printf
 
 __all__ = ["StationRateStats"]
 
@@ -57,17 +56,22 @@ cdef class StationRateStats:
         const int[::1] successes,
         size_t len
     ):
+        cdef int ofs
+
         for i in range(len):
-            self._stats[self._offset(rates[i], txpwrs[i]) + 0] += attempts[i]
-            self._stats[self._offset(rates[i], txpwrs[i]) + 1] += successes[i]
-            self._stats[self._offset(rates[i], txpwrs[i]) + 2] = timestamp
+            ofs = self._offset(rates[i], txpwrs[i])
+            self._stats[ofs] += attempts[i]
+            self._stats[ofs + 1] += successes[i]
+            self._stats[ofs + 2] = timestamp
 
     def get(self, int rate, int txpwr):
         if rate < 0 or rate > self._max_rate_ofs or txpwr > self._max_txpwr_ofs:
             return None
 
+        ofs = self._offset(rate, txpwr)
+
         return (
-            self._stats[self._offset(rate, txpwr) + 0],
-            self._stats[self._offset(rate, txpwr) + 1],
-            self._stats[self._offset(rate, txpwr) + 2]
+            self._stats[ofs],
+            self._stats[ofs + 1],
+            self._stats[ofs + 2]
         )
