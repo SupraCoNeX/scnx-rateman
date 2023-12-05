@@ -248,7 +248,6 @@ class Station:
         transmissions, and the timestamp (in ms since 1970/1/1) since the last use of the given
         rate at the given txpower.
         """
-        print(f"sta.get_rate_stats({rate:x}, {txpower})")
         return self._stats.get(rate, txpower)
 
     @property
