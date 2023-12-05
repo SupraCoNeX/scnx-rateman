@@ -578,7 +578,7 @@ class Station:
 
         supported_pwrs = self._accesspoint.txpowers(self._radio)
         txpwrs = [supported_pwrs.index(p) for p in pwrs]
-        mrr = ";".join([f"{r:x},{c:x},{p:x}" for ((r, c), p) in zip(zip(rates, counts), txpwrs)])
+        mrr = ";".join([f"{r:x},{c:x},{p:x}" for ((r, c), p) in zip(rates, counts, txpwrs)])
         await self._accesspoint.send(self._radio, f"set_rates_power;{self._mac_addr};{mrr}")
 
     async def set_probe_rate(self, rate: int, count: int, txpwr: int = None):
