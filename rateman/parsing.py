@@ -74,10 +74,10 @@ def parse_tpc_range_block(ap, blk: str) -> list:
 
     start_idx = int(fields[0], 16)
     n_indices = int(fields[1], 16)
-    #start_lvl = parse_s8(fields[2])
-    #width = parse_s8(fields[3])
+    start_lvl = parse_s8(fields[2])
+    width = parse_s8(fields[3])
 
-    return list(range(start_idx, start_idx + n_indices))
+    return [(start_lvl + idx) * width * .25 for idx in range(start_idx, start_idx + n_indeces)]
 
 
 def parse_tpc(ap: "AccessPoint", cap: list) -> dict:
