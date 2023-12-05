@@ -511,13 +511,8 @@ class Station:
 
     def _validate_rates(self, rates: list[int]):
         for r in rates:
-            r_str = str(r)
-
-            if len(r_str) == 1:
-                r_str = "0" + r_str
-
-            if r_str not in self._supported_rates:
-                raise StationError(self, f"Unsupported rate: {r}")
+            if r not in self._supported_rates:
+                raise StationError(self, f"Unsupported rate: {r:x}")
 
     async def set_rates(self, rates: list[int], counts: list[int]):
         """
@@ -536,7 +531,7 @@ class Station:
 
         self._validate_rates(rates)
 
-        mrr = ";".join([f"{r},{c}" for (r, c) in zip(rates, counts)])
+        mrr = ";".join([f"{r:x},{c:x}" for (r, c) in zip(rates, counts)])
         await self._accesspoint.send(self._radio, f"set_rates;{self._mac_addr};{mrr}")
 
     async def set_power(self, pwrs: list[int]):
@@ -584,10 +579,10 @@ class Station:
 
         supported_pwrs = self._accesspoint.txpowers(self._radio)
         txpwrs = [supported_pwrs.index(p) for p in pwrs]
-        mrr = ";".join([f"{r},{c},{p:x}" for ((r, c), p) in zip(zip(rates, counts), txpwrs)])
+        mrr = ";".join([f"{r:x},{c:x},{p:x}" for ((r, c), p) in zip(zip(rates, counts), txpwrs)])
         await self._accesspoint.send(self._radio, f"set_rates_power;{self._mac_addr};{mrr}")
 
-    async def set_probe_rate(self, rate: str, count: int, txpwr: int = None):
+    async def set_probe_rate(self, rate: int, count: int, txpwr: int = None):
         """
         Sample a rate identified by its index `rate` for `count` attempts at transmit power level
         `txpwr`. This overwrite the first entry in the rate table for the station with the given
@@ -608,7 +603,7 @@ class Station:
 
         self._validate_rates([rate])
 
-        cmd = f"set_probe;{self._mac_addr};{rate},{count}"
+        cmd = f"set_probe;{self._mac_addr};{rate:x},{count:x}"
 
         if txpwr and txpwr != -1:
             self._validate_txpwrs([txpwr])
@@ -630,7 +625,7 @@ def handle_rc_exception(sta: Station, future):
         return
 
     # Do not handle KeyboardInterrupt since it will be handled by rateman, which will also stop rc
-    if not exception or exception.isinstance(KeyboardInterrupt):
+    if not exception or isinstance(exception, KeyboardInterrupt):
         return
 
     rc_alg, _ = sta.rate_control
