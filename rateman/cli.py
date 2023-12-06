@@ -4,7 +4,7 @@ import asyncio
 import logging
 import rateman
 import traceback
-
+from contextlib import suppress
 
 def dump_sta_rate_set(sta):
     supported = sta.supported_rates
@@ -168,7 +168,7 @@ def main():
     loop.run_until_complete(rm.initialize())
     print("OK")
 
-    if len(args.enable_events) > 0:
+    if args.enable_events:
         loop.run_until_complete(ap.enable_events(events=args.enable_events))
 
     if args.show_state:
@@ -196,6 +196,7 @@ def main():
     except KeyboardInterrupt:
         print("Stopping...")
     finally:
-        loop.run_until_complete(rm.stop())
+        with suppress(KeyboardInterrupt):
+            loop.run_until_complete(rm.stop())
         loop.close()
         print("DONE")

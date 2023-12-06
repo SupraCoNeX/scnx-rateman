@@ -223,7 +223,7 @@ class RateMan:
         """
         self._logger.debug("Stopping RateMan")
 
-        for ap in self.accesspoints:
+        for _, (ap, rcd_connection) in self._accesspoints.items():
             if not ap.connected:
                 continue
 
@@ -239,6 +239,9 @@ class RateMan:
                 )
 
             await ap.disconnect()
+            rcd_connection.cancel()
+            with suppress(asyncio.CancelledError):
+                await rcd_connection
 
         self._accesspoints = {}
 
