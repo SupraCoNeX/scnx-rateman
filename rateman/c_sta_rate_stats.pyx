@@ -20,7 +20,9 @@ cdef class StationRateStats:
         self.reset(n_rates, n_txpwrs)
 
     def __dealloc__(self):
-        free(self._stats)
+        if self._stats != NULL:
+            free(self._stats)
+            self._stats = NULL
 
     def reset(self, int n_rates, int n_txpwrs):
         if self._stats != NULL:
@@ -58,6 +60,9 @@ cdef class StationRateStats:
     ):
         cdef int ofs
 
+        if self._stats == NULL:
+            return
+
         for i in range(len):
             ofs = self._offset(rates[i], txpwrs[i])
             self._stats[ofs] += attempts[i]
@@ -65,6 +70,9 @@ cdef class StationRateStats:
             self._stats[ofs + 2] = timestamp
 
     def get(self, int rate, int txpwr):
+        if self._stats == NULL:
+            return None
+
         if rate < 0 or rate > self._max_rate_ofs or txpwr > self._max_txpwr_ofs:
             return None
 
