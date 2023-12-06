@@ -502,11 +502,21 @@ class Station:
             self._tpc_mode = mode
             self._log.debug(f"{self}: set tpc_mode={mode}")
 
-    def _validate_txpwrs(self, pwrs: list[int]):
-        supported_pwrs = self._accesspoint.txpowers(self._radio)
+    def _validate_txpwrs(self, pwrs: list[int]) -> list[int]:
+        txpwr_indeces = []
+        supported_txpowers = self.txpowers
+
         for p in pwrs:
-            if p not in supported_pwrs:
+            for i, txpwr in enumerate(supported_txpowers):
+                if p == txpwr:
+                    txpwr_indeces.append(i)
+                    i = 0
+                    break
+
+            if i != 0:
                 raise RadioError(self._accesspoint, self._radio, f"Unsupported TX power level: {p}")
+
+        return txpwr_indeces
 
     def _validate_rates(self, rates: list[int]):
         for r in rates:
@@ -547,9 +557,7 @@ class Station:
         if self._tpc_mode != "manual":
             raise StationError(self, "Need to be in manual power control mode to set TX power")
 
-        self._validate_txpwrs(pwrs)
-
-        txpwrs = ";".join([f"{self._accesspoint.txpowers(self._radio).index(p):x}" for p in pwrs])
+        txpwrs = ";".join([f"{idx:x}" for idx in self._validate_txpwrs(pwrs)])
         await self._accesspoint.send(self._radio, f"set_power;{self._mac_addr};{txpwrs}")
 
     async def set_rates_and_power(self, rates: list[int], counts: list[int], pwrs: list[int]):
