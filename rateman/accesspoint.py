@@ -459,7 +459,15 @@ class AccessPoint:
 
         for radio in self._radios:
             for sta in self.stations(radio):
-                await self.remove_station(sta.mac_addr, sta.radio)
+                rc_alg, _ = sta.rate_control
+                if rc_alg != "minstrel_ht_kernel_space":
+                    self._logger.warning(
+                        f"Disconnecting from {self} will leave {sta} without rate control"
+                    )
+                    await sta.stop_rate_control()
+
+            self._radios[radio]["stations"] = {}
+
         self._writer.close()
 
         try:
