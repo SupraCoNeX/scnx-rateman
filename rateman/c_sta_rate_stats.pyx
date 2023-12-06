@@ -37,7 +37,7 @@ cdef class StationRateStats:
         self._max_rate_ofs = n_rates
         self._max_txpwr_ofs = n_txpwrs
 
-    cdef size_t _offset(self, int rate, int txpwr):
+    cdef int _offset(self, int rate, int txpwr):
         if rate == -1:
             rate = self._max_rate_ofs
 
