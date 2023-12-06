@@ -52,16 +52,28 @@ def dump_interfaces(ap, radio):
         print(f"      - {iface}")
         dump_stas(ap, radio, iface)
 
+def format_tpc_info(ap, radio):
+    if ap._radios[radio]["tpc"] is None:
+        return "type=not"
+
+    info = f"type={ap._radios[radio]['tpc']['type']}"
+
+    txpowers = ap.txpowers(radio)
+    info += f", txpowers=(0..{len(txpowers) - 1}) {txpowers}"
+
+    return info
 
 def dump_radios(ap):
     for radio in ap.radios:
         print("""  - %(radio)s
       driver: %(drv)s
       events: %(ev)s
+      tpc: %(tpc)s
       features: %(features)s""" % dict(
                 radio=radio,
                 drv=ap.driver(radio),
                 ev=",".join(ap.enabled_events(radio)),
+                tpc=format_tpc_info(ap, radio),
                 features=", ".join([f"{f}={s}" for f, s in ap._radios[radio]["features"].items()])
             )
         )
