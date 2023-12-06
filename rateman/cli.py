@@ -121,7 +121,7 @@ def main():
         + "in the format: NAME,ADDR,RCDPORT.",
     )
     arg_parser.add_argument(
-        "-e", "--events", action="store_true", help="Print the events rateman receives"
+        "-E", "--enable-events", nargs="+", action="extend"
     )
     arg_parser.add_argument(
         "-r",
@@ -168,8 +168,8 @@ def main():
     loop.run_until_complete(rm.initialize())
     print("OK")
 
-    if args.events:
-        loop.run_until_complete(ap.enable_events(events=["txs", "rxs", "stats"]))
+    if len(args.enable_events) > 0:
+        loop.run_until_complete(ap.enable_events(events=args.enable_events))
 
     if args.show_state:
         show_state(rm)
@@ -190,10 +190,6 @@ def main():
                 )
 
     print("Running rateman... (Press CTRL+C to stop)")
-
-    if args.events:
-        # add a simple print callback to see the incoming data
-        rm.add_data_callback(lambda ap, line, **kwargs: print(f"{ap.name}> {';'.join(line)}"))
 
     try:
         loop.run_forever()
