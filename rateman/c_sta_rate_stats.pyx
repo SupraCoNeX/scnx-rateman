@@ -78,8 +78,4 @@ cdef class StationRateStats:
 
         ofs = self._offset(rate, txpwr)
 
-        return (
-            self._stats[ofs],
-            self._stats[ofs + 1],
-            self._stats[ofs + 2]
-        )
+        return self._stats[ofs], self._stats[ofs + 1], self._stats[ofs + 2]
