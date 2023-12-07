@@ -6,6 +6,7 @@ import rateman
 import traceback
 from contextlib import suppress
 
+
 def dump_sta_rate_set(sta):
     supported = sta.supported_rates
     begin = None
@@ -146,6 +147,9 @@ def main():
         help="Connect to APs and output their state. This is useful for testing"
     )
     arg_parser.add_argument(
+        "-t", "--time", type=float, default=0.0, help="run for the given number of seconds and exit"
+    )
+    arg_parser.add_argument(
         "accesspoints",
         metavar="AP",
         nargs="*",
@@ -204,7 +208,10 @@ def main():
     print("Running rateman... (Press CTRL+C to stop)")
 
     try:
-        loop.run_forever()
+        if not args.time:
+            loop.run_forever()
+        else:
+            loop.run_until_complete(asyncio.sleep(args.time))
     except KeyboardInterrupt:
         print("Stopping...")
     finally:
