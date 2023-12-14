@@ -1,7 +1,7 @@
+# cython: profile=True
 from libc.stdlib cimport calloc, free
 
 __all__ = ["StationRateStats"]
-
 
 cdef class StationRateStats:
     cdef unsigned long long *_stats
