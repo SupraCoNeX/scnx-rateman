@@ -6,8 +6,6 @@
 import asyncio
 import re
 import array
-from itertools import pairwise
-
 from .station import Station
 from .exception import UnsupportedAPIVersionError, ParsingError
 from .c_parsing import parse_txs
@@ -77,7 +75,9 @@ def parse_tpc_range_block(ap, blk: str) -> list:
     start_lvl = parse_s8(fields[2])
     width = parse_s8(fields[3])
 
-    return [(start_lvl * .25) + (idx * width * .25) for idx in range(start_idx, start_idx + n_indices)]
+    return [
+        (start_lvl * 0.25) + (idx * width * 0.25) for idx in range(start_idx, start_idx + n_indices)
+    ]
 
 
 def parse_tpc(ap: "AccessPoint", cap: list) -> dict:
@@ -86,11 +86,7 @@ def parse_tpc(ap: "AccessPoint", cap: list) -> dict:
     elif cap[2] == "not":
         return None
 
-    tpc = {
-        "type": cap[0],
-        "regulatory_limit": cap[-1],
-        "txpowers": []
-    }
+    tpc = {"type": cap[0], "regulatory_limit": cap[-1], "txpowers": []}
 
     n_ranges = int(cap[1], 16)
     ranges = cap[2:-1]
@@ -112,12 +108,12 @@ def process_phy_info(ap, fields):
     n_features = int(fields[6], 16) if fields[6] else 0
 
     ap.add_radio(
-        fields[0],             # radio
-        fields[3],             # driver
+        fields[0],  # radio
+        fields[3],  # driver
         [i for i in fields[4].split(",") if i],  # interfaces
         [e for e in fields[5].split(",") if e],  # active monitor events
-        parse_features(ap, fields[7:7 + n_features]),
-        parse_tpc(ap, fields[7 + n_features:])  # tx power range blocks
+        parse_features(ap, fields[7 : 7 + n_features]),
+        parse_tpc(ap, fields[7 + n_features :]),  # tx power range blocks
     )
 
 
@@ -155,10 +151,10 @@ def parse_rate_group(ap, fields):
 
     n_rates = 8 if grp < 0x120 else 10
 
-    rates = array.array('I', range(n_rates))
-    airtimes = array.array('I', range(n_rates))
+    rates = array.array("I", range(n_rates))
+    airtimes = array.array("I", range(n_rates))
 
-    for i, at in enumerate(fields[9:9 + n_rates]):
+    for i, at in enumerate(fields[9 : 9 + n_rates]):
         airtimes[i] = int(at, 16)
         rates[i] = grp + i
 
@@ -185,7 +181,6 @@ def parse_rate_group(ap, fields):
 
 
 async def process_line(ap, line):
-
     # FIXME: This is where the AP's raw data callbacks should be called
 
     if (result := parse_txs(line)) is not None:
@@ -219,7 +214,7 @@ COMMANDS = [
     "reset_stats",
     "rc_mode",
     "tpc_mode",
-    "set_probe"
+    "set_probe",
 ]
 
 PHY_REGEX = r"[-a-z0-9]+"
@@ -311,7 +306,7 @@ VALIDATORS = {
     "sample_rates": validate_sample_rates,
     "reset_stats": validate_reset_stats,
     "rc_mode": validate_rc_mode,
-    "#error": validate_error
+    "#error": validate_error,
 }
 
 
@@ -325,14 +320,7 @@ def parse_mrr_stage(s):
 
 
 def update_rate_stats_from_txs(
-    ap,
-    phy,
-    timestamp,
-    mac,
-    rates: array,
-    txpwrs: array,
-    attempts: array,
-    successes: array
+    ap, phy, timestamp, mac, rates: array, txpwrs: array, attempts: array, successes: array
 ) -> None:
     if (sta := ap.get_sta(mac, radio=phy)) is None:
         return
@@ -373,7 +361,7 @@ def parse_sta(ap, fields: list):
         supported_rates,
         overhead_mcs,
         overhead_legacy,
-        logger=ap.logger
+        logger=ap.logger,
     )
 
 

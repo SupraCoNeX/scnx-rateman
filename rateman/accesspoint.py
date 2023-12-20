@@ -17,7 +17,7 @@ from .exception import (
     RadioUnavailableError,
     AccessPointNotConnectedError,
     UnsupportedFeatureException,
-    AccessPointError
+    AccessPointError,
 )
 
 __all__ = ["AccessPoint", "from_file", "from_strings"]
@@ -33,6 +33,7 @@ class AccessPoint:
     Instances of this class sould be created using :func:`.from_strings` or
     :func:`.from_file`
     """
+
     def __init__(self, name, addr, rcd_port=21059, logger=None, loop=None):
         """
         Parameters
@@ -51,7 +52,7 @@ class AccessPoint:
         self._api_version = None
         self._addr = addr
         self._rcd_port = rcd_port
-        self._rate_info = [{} for _ in range(0x2a)]
+        self._rate_info = [{} for _ in range(0x2A)]
         self._radios = {}
         self._connected = False
         self._latest_timestamp = 0
@@ -189,7 +190,7 @@ class AccessPoint:
                 info["type"],
                 info["nss"],
                 info["bandwidth"],
-                info["sgi"]
+                info["sgi"],
             )
 
         return None
@@ -216,9 +217,7 @@ class AccessPoint:
         """
         if radio == "all":
             return reduce(
-                lambda a, b: a + b,
-                [self.stations(radio=radio) for radio in self._radios],
-                []
+                lambda a, b: a + b, [self.stations(radio=radio) for radio in self._radios], []
             )
         elif radio not in self._radios:
             raise AccessPointError(self, f"No such radio '{radio}'")
@@ -288,8 +287,9 @@ class AccessPoint:
         """
         await self._set_feature(radio, feature, val)
 
-    def add_radio(self, radio: str, driver: str, ifaces: list, events: list, features: dict,
-                  tpc: dict) -> None:
+    def add_radio(
+        self, radio: str, driver: str, ifaces: list, events: list, features: dict, tpc: dict
+    ) -> None:
         self._logger.debug(
             f"{self._name}: adding radio '{radio}', driver={driver}, "
             f"interfaces={ifaces}, events={events}, "
@@ -299,14 +299,16 @@ class AccessPoint:
         if radio not in self._radios:
             self._radios[radio] = {}
 
-        self._radios[radio].update({
-            "driver": driver,
-            "interfaces": ifaces,
-            "events": events,
-            "features": features,
-            "tpc": tpc,
-            "stations": {}
-        })
+        self._radios[radio].update(
+            {
+                "driver": driver,
+                "interfaces": ifaces,
+                "events": events,
+                "features": features,
+                "tpc": tpc,
+                "stations": {},
+            }
+        )
 
     def radio_for_interface(self, iface: str) -> str:
         """
@@ -479,7 +481,7 @@ class AccessPoint:
         self._writer = None
         self._connected = False
 
-    async def enable_events(self, radio="all", events: list = ['txs']) -> None:
+    async def enable_events(self, radio="all", events: list = ["txs"]) -> None:
         """
         Enable the given events for the given radio. If `radio` is `"*"` or
         `"all"`, the events will be enabled on all the accesspoint's radios.
@@ -555,8 +557,8 @@ class AccessPoint:
             self._logger.debug(f"{self._name}:{radio}: Resetting in-kernel rate statistics")
             await self.send(radio, f"reset_stats;all")
         elif (
-            sta in self._radios[radio]["stations"] and
-            self._radios[radio]["stations"][sta].associated
+            sta in self._radios[radio]["stations"]
+            and self._radios[radio]["stations"][sta].associated
         ):
             self._logger.debug(f"{self._name}:{radio}:{sta}: Resetting in-kernel rate statistics")
             await self.send(radio, f"reset_stats;{sta}")
@@ -616,6 +618,7 @@ def from_file(file: dir, logger=None) -> list:
     ORCA-RCD listening port, respectively.
     `logger` sets the :class:`logging.Logger` for the newly created :class:`.AccessPoint` s.
     """
+
     def parse_ap(ap):
         name = ap["NAME"]
         addr = ap["ADDR"]

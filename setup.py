@@ -9,6 +9,6 @@ setup(
             Extension("rateman.c_parsing", ["rateman/c_parsing.pyx"]),
             Extension("rateman.c_sta_rate_stats", ["rateman/c_sta_rate_stats.pyx"]),
         ],
-        language_level=3
-    )
+        language_level=3,
+    ),
 )

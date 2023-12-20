@@ -40,7 +40,7 @@ if __name__ == "__main__":
         context.write(f"{ev}\n")
 
     for ap in aps:
-        file_handles[ap.name] = open(f"{ap.name}.csv", 'w')
+        file_handles[ap.name] = open(f"{ap.name}.csv", "w")
         rm.add_raw_data_callback(log_event, file_handles[ap.name])
 
         for sta in ap.stations():
@@ -66,8 +66,8 @@ if __name__ == "__main__":
                             "sample_update_thresh": 8,
                             "opt_update_thresh": 15,
                             "outdate_stats": False,
-                        }
-                    }
+                        },
+                    },
                 )
             )
 
