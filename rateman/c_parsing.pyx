@@ -10,7 +10,7 @@ from libc.limits cimport ULONG_MAX, ULLONG_MAX
 __all__ = ["parse_txs"]
 
 
-@cython.profile(False)
+@cython.profile(True)
 cdef int next_field(const char *buf, char c, const char **next):
     cdef const char *sep = strchr(buf, c)
 
@@ -23,7 +23,7 @@ cdef int next_field(const char *buf, char c, const char **next):
     return sep - buf
 
 
-@cython.profile(False)
+@cython.profile(True)
 cdef int parse_str(const char *buf, char *dst, int size):
     cdef int len = next_field(buf, b';', NULL)
 
@@ -36,7 +36,7 @@ cdef int parse_str(const char *buf, char *dst, int size):
     return len + 1
 
 
-@cython.profile(False)
+@cython.profile(True)
 cdef int parse_mrr_stage(const char *buf,
     int *rate,
     int *count,
@@ -64,7 +64,7 @@ cdef int parse_mrr_stage(const char *buf,
         return next + 1 - buf
 
 
-@cython.profile(False)
+@cython.profile(True)
 cdef int parse_mrr(
     const char *buf,
     int *rates,

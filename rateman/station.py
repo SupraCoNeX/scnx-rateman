@@ -421,7 +421,8 @@ class Station:
         self, timestamp: int, rates: array, txpwrs: array, attempts: array, successes: array
     ):
         self._stats.update(timestamp, rates, txpwrs, attempts, successes, 4)
-
+        self._last_seen = timestamp
+        
     def reset_ampdu_stats(self):
         self._ampdu_subframes = 0
         self._ampdu_aggregates = 0
