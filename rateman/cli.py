@@ -215,6 +215,7 @@ def main():
             loop.run_forever()
         else:
             loop.run_until_complete(asyncio.sleep(args.time))
+            print("DONE")
     except KeyboardInterrupt:
         print("Stopping...")
     finally:
