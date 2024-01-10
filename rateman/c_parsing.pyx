@@ -27,7 +27,7 @@ cdef int next_field(const char *buf, char c, const char **next):
 cdef int parse_str(const char *buf, char *dst, int size):
     cdef int len = next_field(buf, b';', NULL)
 
-    if len > size:
+    if len < 0 or len > size:
         return -1
 
     memcpy(dst, buf, len)
