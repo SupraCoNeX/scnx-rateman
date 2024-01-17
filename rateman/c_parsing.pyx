@@ -89,6 +89,7 @@ cdef int _parse_txs(
     int *phy_len,
     unsigned long long *timestamp,
     char *mac,
+    int *num_frames,
     int[::1] rates,
     int[::1] txpwrs,
     int[::1] attempts,
@@ -99,7 +100,6 @@ cdef int _parse_txs(
     cdef int ofs
     cdef int successful_at
     cdef int counts[4]
-    cdef int num_frames
     cdef int num_acked
 
     ofs = parse_str(cur, phy, 16)
@@ -128,8 +128,8 @@ cdef int _parse_txs(
         return -1
 
     cur += ofs
-    num_frames = strtol(cur, &next, 16)
-    if num_frames == ULONG_MAX:
+    num_frames[0] = strtol(cur, &next, 16)
+    if num_frames[0] == ULONG_MAX:
         return -1
 
     num_acked = strtol(next + 1, &next, 16)
@@ -140,7 +140,7 @@ cdef int _parse_txs(
     successful_at = parse_mrr(cur, &rates[0], counts, &txpwrs[0], 4)
 
     for i in range(4):
-        attempts[i] = num_frames * counts[i]
+        attempts[i] = num_frames[0] * counts[i]
         successes[i] = num_acked if (i == successful_at) else 0
 
     return 0
@@ -151,6 +151,7 @@ def parse_txs(const unsigned char[:] data):
     cdef int phy_len
     cdef unsigned long long timestamp
     cdef char mac[18]
+    cdef int num_frames
 
     rates = array.array('i', [0, 0, 0, 0])
     txpwrs = array.array('i', [0, 0, 0, 0])
@@ -163,6 +164,7 @@ def parse_txs(const unsigned char[:] data):
         &phy_len,
         &timestamp,
         mac,
+        &num_frames,
         rates,
         txpwrs,
         attempts,
@@ -174,6 +176,7 @@ def parse_txs(const unsigned char[:] data):
         phy[:phy_len].decode("utf-8", "strict"),
         timestamp,
         mac[:17].decode("utf-8", "strict"),
+        num_frames,
         rates,
         txpwrs,
         attempts,

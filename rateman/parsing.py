@@ -329,6 +329,7 @@ def update_rate_stats_from_txs(
     phy,
     timestamp,
     mac,
+    num_frames,
     rates: array,
     txpwrs: array,
     attempts: array,
@@ -338,7 +339,7 @@ def update_rate_stats_from_txs(
         return
 
     sta.update_rate_stats(timestamp, rates, txpwrs, attempts, successes)
-
+    sta.update_ampdu(num_frames)
 
 def parse_sta(ap, fields: list):
     supported_rates = []

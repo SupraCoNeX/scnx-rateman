@@ -641,11 +641,13 @@ def handle_rc_exception(sta: Station, future):
     rc_alg, _ = sta.rate_control
 
     sta.log.error(f"{sta}: Rate control '{rc_alg}' raised an exception: {exception.__repr__()}")
+    '''
     import traceback
     traceback_info = traceback.format_tb(exception.__traceback__)
 
     for line in traceback_info:
         print(line.strip())
+    '''
     sta.loop.create_task(cleanup_rc(sta))
 
 
