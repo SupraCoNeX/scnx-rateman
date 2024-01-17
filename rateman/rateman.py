@@ -44,6 +44,7 @@ class RateMan:
 
         self._raw_data_callbacks = []
         self._data_callbacks = {
+            "txs": [],
             "stats": [],
             "rxs": [],
             "sta": [],
@@ -90,6 +91,7 @@ class RateMan:
             try:
                 async with asyncio.timeout(timeout):
                     await ap.connect()
+                    ap.add_data_callback = self.add_data_callback
                     await process_header(ap)
                     break
             except asyncio.CancelledError as e:

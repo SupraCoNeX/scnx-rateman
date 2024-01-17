@@ -190,7 +190,7 @@ async def process_line(ap, line):
 
     if (result := parse_txs(line)) is not None:
         update_rate_stats_from_txs(ap, *result)
-        return None
+        return line.decode("utf-8").rstrip().split(";")
 
     elif fields := validate_line(ap, line.decode("utf-8").rstrip()):
         match fields[2]:
@@ -329,6 +329,7 @@ def update_rate_stats_from_txs(
     phy,
     timestamp,
     mac,
+    num_frames,
     rates: array,
     txpwrs: array,
     attempts: array,
@@ -338,7 +339,7 @@ def update_rate_stats_from_txs(
         return
 
     sta.update_rate_stats(timestamp, rates, txpwrs, attempts, successes)
-
+    sta.update_ampdu(num_frames)
 
 def parse_sta(ap, fields: list):
     supported_rates = []

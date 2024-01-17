@@ -64,6 +64,7 @@ class AccessPoint:
         self._first_non_header_line = None
         self._record_rcd_trace = False
         self._rcd_trace_file = None
+        self._add_data_callback = None
 
     async def api_info(self, timeout=0.5):
         it = aiter(self._reader)
@@ -132,6 +133,14 @@ class AccessPoint:
         The port on which the ORCA-RCD instance on the accesspoint listens.
         """
         return self._rcd_port
+
+    @property
+    def add_data_callback(self):
+        return self._add_data_callback
+
+    @add_data_callback.setter
+    def add_data_callback(self, callback):
+        self._add_data_callback = callback
 
     @property
     def loop(self):
@@ -248,6 +257,15 @@ class AccessPoint:
         by the device to which rateman is connected.
         """
         return self._radios[radio]["events"]
+
+    def get_feature_state(self, radio: str, feature: str):
+        try:
+            if feature not in self._radios[radio]["features"]:
+                raise UnsupportedFeatureException(self, radio, feature)
+            
+            return self._radios[radio]["features"][feature]
+        except KeyError as e:
+            raise RadioUnavailableError(self, radio) from e
 
     def features(self, radio: str) -> list:
         """
@@ -422,7 +440,6 @@ class AccessPoint:
             cmd += "\n"
 
         self._writer.write(f"{radio};{cmd}".encode("ascii"))
-
         await self._writer.drain()
 
     def handle_error(self, error):

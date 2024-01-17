@@ -52,7 +52,7 @@ if __name__ == "__main__":
                         "filter": "Butterworth",
                         "reset_rate_stats": True,
                         "kern_sample_table": True,
-                        "add_callback_method": rm.add_data_callback,
+                        "passive": True
                     },
                 )
             )
