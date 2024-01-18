@@ -248,6 +248,10 @@ class Station:
         transmissions, and the timestamp (in ms since 1970/1/1) since the last use of the given
         rate at the given txpower.
         """
+        if txpower != -1:
+            supported_pwrs = self._accesspoint.txpowers(self._radio)
+            txpower = supported_pwrs.index(txpower)
+
         return self._stats.get(rate, txpower)
 
     @property
@@ -432,7 +436,6 @@ class Station:
     ):
         if self._tpc_mode == "auto":
             txpwrs = array('i', [-1, -1, -1, -1])
-
         self._stats.update(timestamp, rates, txpwrs, attempts, successes, 4)
 
     def reset_ampdu_stats(self):
@@ -589,7 +592,7 @@ class Station:
 
         supported_pwrs = self._accesspoint.txpowers(self._radio)
         txpwrs = [supported_pwrs.index(p) for p in pwrs]
-        mrr = ";".join([f"{r:x},{c:x},{p:x}" for ((r, c), p) in zip(rates, counts, txpwrs)])
+        mrr = ";".join([f"{r:x},{c:x},{p:x}" for (r, c, p) in zip(rates, counts, txpwrs)])
         await self._accesspoint.send(self._radio, f"set_rates_power;{self._mac_addr};{mrr}")
 
     async def set_probe_rate(self, rate: int, count: int, txpwr: int = None):
