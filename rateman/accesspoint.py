@@ -435,9 +435,11 @@ class AccessPoint:
             return
 
         try:
-            r, w = await asyncio.open_connection(self._addr, self._rcd_port)
-            self._reader = r
-            self._writer = w
+            # r, w = await asyncio.open_connection(self._addr, self._rcd_port)
+            # self._reader = r
+            # self._writer = w
+            self._reader, _ = await asyncio.open_connection(self._addr, self._rcd_port)
+            _, self._writer = await asyncio.open_connection(self._addr, self._rcd_port)
             self._connected = True
         except asyncio.CancelledError as e:
             self._task = None
