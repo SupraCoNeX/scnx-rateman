@@ -244,6 +244,10 @@ class Station:
         transmissions, and the timestamp (in ms since 1970/1/1) since the last use of the given
         rate at the given txpower.
         """
+        if txpower != -1:
+            supported_pwrs = self._accesspoint.txpowers(self._radio)
+            txpower = supported_pwrs.index(txpower)
+
         return self._stats.get(rate, txpower)
 
     @property
@@ -420,6 +424,8 @@ class Station:
     def update_rate_stats(
         self, timestamp: int, rates: array, txpwrs: array, attempts: array, successes: array
     ):
+        if self._tpc_mode == "auto":
+            txpwrs = array("i", [-1, -1, -1, -1])
         self._stats.update(timestamp, rates, txpwrs, attempts, successes, 4)
         self._last_seen = timestamp
 
@@ -573,7 +579,7 @@ class Station:
 
         supported_pwrs = self._accesspoint.txpowers(self._radio)
         txpwrs = [supported_pwrs.index(p) for p in pwrs]
-        mrr = ";".join([f"{r:x},{c:x},{p:x}" for ((r, c), p) in zip(rates, counts, txpwrs)])
+        mrr = ";".join([f"{r:x},{c:x},{p:x}" for (r, c, p) in zip(rates, counts, txpwrs)])
         await self._accesspoint.send(self._radio, f"set_rates_power;{self._mac_addr};{mrr}")
 
     async def set_probe_rate(self, rate: int, count: int, txpwr: int = None):
@@ -627,6 +633,13 @@ def handle_rc_exception(sta: Station, future):
     rc_alg, _ = sta.rate_control
 
     sta.log.error(f"{sta}: Rate control '{rc_alg}' raised an exception: {exception.__repr__()}")
+    """
+    import traceback
+    traceback_info = traceback.format_tb(exception.__traceback__)
+
+    for line in traceback_info:
+        print(line.strip())
+    """
     sta.loop.create_task(cleanup_rc(sta))
 
 

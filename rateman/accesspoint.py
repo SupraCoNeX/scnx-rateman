@@ -248,6 +248,15 @@ class AccessPoint:
         """
         return self._radios[radio]["events"]
 
+    def get_feature_state(self, radio: str, feature: str):
+        try:
+            if feature not in self._radios[radio]["features"]:
+                raise UnsupportedFeatureException(self, radio, feature)
+
+            return self._radios[radio]["features"][feature]
+        except KeyError as e:
+            raise RadioUnavailableError(self, radio) from e
+
     def features(self, radio: str) -> list:
         """
         Return the list of supported features of a given radio.

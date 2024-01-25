@@ -320,11 +320,12 @@ def parse_mrr_stage(s):
 
 
 def update_rate_stats_from_txs(ap, result) -> None:
-    phy, timestamp, mac, rates, txpwrs, attempts, successes = result
+    phy, timestamp, mac, num_frames, rates, txpwrs, attempts, successes = result
     if (sta := ap.get_sta(mac, radio=phy)) is None:
         return
 
     sta.update_rate_stats(timestamp, rates, txpwrs, attempts, successes)
+    sta.update_ampdu(num_frames)
 
 
 def parse_sta(ap, fields: list):
