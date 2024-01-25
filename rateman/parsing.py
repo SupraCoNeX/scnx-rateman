@@ -184,7 +184,7 @@ async def process_line(ap, line):
     # FIXME: This is where the AP's raw data callbacks should be called
 
     if (result := parse_txs(line)) is not None:
-        update_rate_stats_from_txs(ap, *result)
+        update_rate_stats_from_txs(ap, result)
         return None
 
     elif fields := validate_line(ap, line.decode("utf-8").rstrip()):
@@ -319,9 +319,8 @@ def parse_mrr_stage(s):
     return mrr_stage[0].zfill(2), int(mrr_stage[1], 16), txpwr_idx
 
 
-def update_rate_stats_from_txs(
-    ap, phy, timestamp, mac, rates: array, txpwrs: array, attempts: array, successes: array
-) -> None:
+def update_rate_stats_from_txs(ap, result) -> None:
+    phy,timestamp,mac,rates,txpwrs,attempts,successes=result
     if (sta := ap.get_sta(mac, radio=phy)) is None:
         return
 
