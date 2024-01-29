@@ -6,7 +6,6 @@
 import asyncio
 import csv
 import sys
-import os
 import logging
 from functools import reduce
 
@@ -67,11 +66,10 @@ class AccessPoint:
         self._rcd_trace_file = None
 
     async def api_info(self, timeout=0.5):
-        it = aiter(self._reader)
         while True:
             try:
                 async with asyncio.timeout(timeout):
-                    data = await anext(it)
+                    data = await self._reader.readline()
                     line = data.decode("utf-8")
                     if self._record_rcd_trace:
                         self._rcd_trace_file.write(line)
@@ -444,11 +442,12 @@ class AccessPoint:
             return
 
         try:
-            # r, w = await asyncio.open_connection(self._addr, self._rcd_port)
-            # self._reader = r
-            # self._writer = w
-            self._reader, _ = await asyncio.open_connection(self._addr, self._rcd_port)
-            _, self._writer = await asyncio.open_connection(self._addr, self._rcd_port)
+            self._reader_unused, self._writer = await asyncio.open_connection(
+                self._addr, self._rcd_port
+            )
+            self._reader, self._writer_unused = await asyncio.open_connection(
+                self._addr, self._rcd_port
+            )
             self._connected = True
         except asyncio.CancelledError as e:
             self._task = None
@@ -482,6 +481,7 @@ class AccessPoint:
             self._radios[radio]["stations"] = {}
 
         self._writer.close()
+        self._writer_unused.close()
 
         try:
             async with asyncio.timeout(timeout):

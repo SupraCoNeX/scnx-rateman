@@ -150,11 +150,9 @@ class RateMan:
         enabled for all the access points' stations prior to disconnection.
         """
         self._logger.debug("Stopping RateMan")
-
         for _, (ap, rcd_connection) in self._accesspoints.items():
             if not ap.connected:
                 continue
-
             stas = []
             for radio in ap.radios:
                 stas += [sta for sta in ap.stations(radio) if sta.associated]
