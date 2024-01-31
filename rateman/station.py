@@ -275,6 +275,13 @@ class Station:
     def log(self) -> logging.Logger:
         return self._log
 
+    @property
+    def rssi(self) -> int:
+        """
+        Return the current minimum RSSI value of the station.
+        """
+        return self._rssi
+
     def __repr__(self):
         return f"STA[{self._mac_addr}]"
 
