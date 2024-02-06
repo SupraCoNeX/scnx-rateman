@@ -150,6 +150,50 @@ cdef int _parse_txs(
 
     return 0
 
+cdef int _parse_txs_no_checks(
+    const char *line,
+    char *phy,
+    int *phy_len,
+    unsigned long long *timestamp,
+    char *mac,
+    int *num_frames,
+    int[::1] rates,
+    int[::1] txpwrs,
+    int[::1] attempts,
+    int[::1] successes,
+):
+    cdef const char *cur = line
+    cdef char *next
+    cdef int ofs
+    cdef int successful_at
+    cdef int counts[4]
+    cdef int num_acked
+
+    try:
+        ofs = parse_str(cur, phy, 16)
+        phy_len[0] = ofs - 1
+        cur += ofs
+        timestamp[0] = strtoull(cur, &next, 16)
+        cur = next + 1
+        cur += 4
+        ofs = parse_str(cur, mac, 18)
+        if ofs == -1:
+            return -1
+
+        cur += ofs
+        num_frames[0] = strtol(cur, &next, 16)
+        num_acked = strtol(next + 1, &next, 16)
+
+        cur = next + 3
+        successful_at = parse_mrr(cur, &rates[0], counts, &txpwrs[0], 4)
+
+        for i in range(4):
+            attempts[i] = num_frames[0] * counts[i]
+            successes[i] = num_acked if (i == successful_at) else 0
+    except:
+        return -1
+
+    return 0
 
 def parse_txs(const unsigned char[:] data):
     cdef char phy[16]
@@ -163,7 +207,7 @@ def parse_txs(const unsigned char[:] data):
     attempts = array.array('i', [0, 0, 0, 0])
     successes = array.array('i', [0, 0, 0, 0])
 
-    if _parse_txs(
+    if _parse_txs_no_checks(
         <const char*> &data[0],
         phy,
         &phy_len,

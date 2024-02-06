@@ -213,8 +213,9 @@ def main():
         else:
             loop.run_until_complete(asyncio.sleep(args.time))
     except KeyboardInterrupt:
-        print("Stopping...")
+        pass
     finally:
+        print("Stopping...")
         with suppress(KeyboardInterrupt):
             loop.run_until_complete(rm.stop())
         loop.close()

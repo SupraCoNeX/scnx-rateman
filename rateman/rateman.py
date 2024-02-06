@@ -233,6 +233,7 @@ class RateMan:
                 await ap.disable_events(radio, ap.enabled_events(radio))
 
             for sta in stas:
+                print(sta.mac_addr)
                 await sta.start_rate_control(
                     "minstrel_ht_kernel_space",
                     {"update_freq": 20, "sample_freq": 50}

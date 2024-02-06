@@ -191,7 +191,6 @@ async def process_line(ap, line):
     if (result := parse_txs(line)) is not None:
         update_rate_stats_from_txs(ap, *result)
         return None
-
     elif fields := validate_line(ap, line.decode("utf-8").rstrip()):
         match fields[2]:
             case "rxs":
@@ -206,9 +205,6 @@ async def process_line(ap, line):
                 await process_sta_info(ap, fields)
             case "#error":
                 ap.handle_error(fields[3])
-
-        return fields
-
 
 COMMANDS = [
     "start",
