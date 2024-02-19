@@ -5,6 +5,7 @@ import logging
 import rateman
 import traceback
 from contextlib import suppress
+import ast
 
 
 def dump_sta_rate_set(sta):
@@ -162,6 +163,16 @@ def main():
 
     aps = rateman.accesspoint.from_strings(args.accesspoints, logger=logger)
 
+    options_str = args.options
+    if options_str is not None:
+        try:
+            options=ast.literal_eval(options_str)
+        except ValueError:
+            print("Error: Invalid dictionary format provided.")
+            exit(1)
+    else:
+        options=None
+
     if args.ap_file:
         aps += accesspoint.from_file(args.ap_file, logger=logger)
 
@@ -197,7 +208,7 @@ def main():
         for sta in ap.stations():
             print(f"Starting rate control scheme '{args.algorithm}' for {sta}")
             try:
-                loop.run_until_complete(sta.start_rate_control(args.algorithm, args.options))
+                loop.run_until_complete(sta.start_rate_control(args.algorithm, options))
             except Exception as e:
                 tb = traceback.extract_tb(e.__traceback__)[-1]
                 logger.error(
