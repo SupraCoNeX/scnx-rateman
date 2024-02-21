@@ -117,7 +117,7 @@ def main():
     )
     arg_parser.add_argument(
         "-o", "--options",
-        type=dict,
+        type=str,
         default=None,
         help="Rate control algorithm configuration options"
     )
