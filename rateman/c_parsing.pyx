@@ -101,6 +101,11 @@ cdef int _parse_txs(
     cdef int successful_at
     cdef int counts[4]
     cdef int num_acked
+    cdef int num_semicolons
+
+    num_semicolons = line.count(b';')
+    if num_semicolons != 10:
+        return -1
 
     ofs = parse_str(cur, phy, 16)
     if (ofs == -1):
