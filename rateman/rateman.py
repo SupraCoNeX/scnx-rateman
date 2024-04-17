@@ -194,7 +194,7 @@ class RateMan:
             self._loop.create_task(
                 self.ap_connection(ap, timeout=timeout), name=f"connect_{ap.name}"
             )
-            for _, (ap, _) in self._accesspoints.items()
+            for ap in self.accesspoints
         ]
 
         done, pending = await asyncio.wait(tasks, timeout=timeout)
@@ -223,7 +223,7 @@ class RateMan:
         """
         self._logger.debug("Stopping RateMan")
 
-        for _, (ap, _) in self._accesspoints.items():
+        for _, (ap, rcd_connection) in self._accesspoints.items():
             if not ap.connected:
                 continue
 
@@ -239,6 +239,11 @@ class RateMan:
                 )
 
             await ap.disconnect()
+            rcd_connection.cancel()
+            with suppress(asyncio.CancelledError):
+                await rcd_connection
+
+        self._accesspoints = {}
 
         if self._new_loop_created:
             self._loop.close()

@@ -1,9 +1,11 @@
 import asyncio
 import logging
 import weakref
+from array import array
 from contextlib import suppress
 from functools import partial
 from . import rate_control
+from .c_sta_rate_stats import StationRateStats
 from .exception import (
     RateControlError,
     RateControlConfigError,
@@ -58,7 +60,7 @@ class Station:
         self._ampdu_enabled = False
         self._ampdu_aggregates = 0
         self._ampdu_subframes = 0
-        self._stats = {}
+        self._stats = None
         self.reset_rate_stats()
         self._rssi = 1
         self._rssi_vals = []
@@ -237,8 +239,20 @@ class Station:
         return self._mac_addr
 
     @property
-    def stats(self) -> dict:
-        return self._stats
+    def txpowers(self) -> list[float]:
+        return self._accesspoint.txpowers(self._radio)
+
+    def get_rate_stats(self, rate: int, txpower: int = -1) -> tuple[int, int, int]:
+        """
+        Return a tuple containg the number of transmission attempts, number of successful
+        transmissions, and the timestamp (in ms since 1970/1/1) since the last use of the given
+        rate at the given txpower.
+        """
+        if txpower != -1:
+            supported_pwrs = self._accesspoint.txpowers(self._radio)
+            txpower = supported_pwrs.index(txpower)
+
+        return self._stats.get(rate, txpower)
 
     @property
     def rate_control(self) -> tuple:
@@ -260,6 +274,13 @@ class Station:
     @property
     def log(self) -> logging.Logger:
         return self._log
+
+    @property
+    def rssi(self) -> int:
+        """
+        Return the current minimum RSSI value of the station.
+        """
+        return self._rssi
 
     def __repr__(self):
         return f"STA[{self._mac_addr}]"
@@ -415,18 +436,14 @@ class Station:
     def update_rate_stats(
         self,
         timestamp: int,
-        rates: list[str],
-        txpwrs: list[int],
-        attempts: list[int],
-        successes: list[int]
+        rates: array,
+        txpwrs: array,
+        attempts: array,
+        successes: array
     ):
-        for (rate, txpwr, att, succ) in zip(rates, txpwrs, attempts, successes, strict=True):
-            try:
-                self._stats[rate][txpwr]["attempts"] += att
-                self._stats[rate][txpwr]["success"] += succ
-                self._stats[rate][txpwr]["timestamp"] = timestamp
-            except KeyError:
-                continue
+        if self._tpc_mode == "auto":
+            txpwrs = array('i', [-1, -1, -1, -1])
+        self._stats.update(timestamp, rates, txpwrs, attempts, successes, 4)
 
     def reset_ampdu_stats(self):
         self._ampdu_subframes = 0
@@ -444,28 +461,15 @@ class Station:
             self._rssi = min_rssi
             self._rssi_vals = per_antenna
 
-    def get_rate_stats(self, rate: str) -> dict:
-        """
-        Return the statistics for the given rate. The returned dictionary includes the keys
-        `attempts`, `success`, and `timestamp` keyed by transmit power levels. `attempts` counts the
-        total number of transmissions attempted at the given rate for the given power level, while
-        `success` counts the number of successful transmissions. `timestamp` gives the time of the
-        last attempt made at the given rate and power level in nanoseconds since 1970/1/1 00:00:00.
-        """
-        return self._stats.get(rate, {})
-
     def reset_rate_stats(self):
         """
         Reset packet transmission attempts and success statistics for all supported rates and
         transmit power levels.
         """
-        self._stats = {
-            rate: {
-                txpwr: {"attempts": 0, "success": 0, "timestamp": 0}
-                for txpwr in [-1] + self._accesspoint.txpowers(self._radio)
-            }
-            for rate in self._supported_rates
-        }
+        self._stats = StationRateStats(
+            0x29a,
+            len(self._accesspoint.txpowers(self._radio))
+        )
 
     async def reset_kernel_rate_stats(self):
         """
@@ -511,21 +515,26 @@ class Station:
             self._tpc_mode = mode
             self._log.debug(f"{self}: set tpc_mode={mode}")
 
-    def _validate_txpwrs(self, pwrs: list[int]):
-        supported_pwrs = self._accesspoint.txpowers(self._radio)
+    def _validate_txpwrs(self, pwrs: list[int]) -> list[int]:
+        txpwr_indeces = []
+        supported_txpowers = self.txpowers
+
         for p in pwrs:
-            if p not in supported_pwrs:
+            for i, txpwr in enumerate(supported_txpowers):
+                if p == txpwr:
+                    txpwr_indeces.append(i)
+                    i = 0
+                    break
+
+            if i != 0:
                 raise RadioError(self._accesspoint, self._radio, f"Unsupported TX power level: {p}")
+
+        return txpwr_indeces
 
     def _validate_rates(self, rates: list[int]):
         for r in rates:
-            r_str = str(r)
-
-            if len(r_str) == 1:
-                r_str = "0" + r_str
-
-            if r_str not in self._supported_rates:
-                raise StationError(self, f"Unsupported rate: {r}")
+            if r not in self._supported_rates:
+                raise StationError(self, f"Unsupported rate: {r:x}")
 
     async def set_rates(self, rates: list[int], counts: list[int]):
         """
@@ -544,7 +553,7 @@ class Station:
 
         self._validate_rates(rates)
 
-        mrr = ";".join([f"{r},{c}" for (r, c) in zip(rates, counts)])
+        mrr = ";".join([f"{r:x},{c:x}" for (r, c) in zip(rates, counts)])
         await self._accesspoint.send(self._radio, f"set_rates;{self._mac_addr};{mrr}")
 
     async def set_power(self, pwrs: list[int]):
@@ -561,9 +570,7 @@ class Station:
         if self._tpc_mode != "manual":
             raise StationError(self, "Need to be in manual power control mode to set TX power")
 
-        self._validate_txpwrs(pwrs)
-
-        txpwrs = ";".join([f"{self._accesspoint.txpowers(self._radio).index(p):x}" for p in pwrs])
+        txpwrs = ";".join([f"{idx:x}" for idx in self._validate_txpwrs(pwrs)])
         await self._accesspoint.send(self._radio, f"set_power;{self._mac_addr};{txpwrs}")
 
     async def set_rates_and_power(self, rates: list[int], counts: list[int], pwrs: list[int]):
@@ -592,10 +599,10 @@ class Station:
 
         supported_pwrs = self._accesspoint.txpowers(self._radio)
         txpwrs = [supported_pwrs.index(p) for p in pwrs]
-        mrr = ";".join([f"{r},{c},{p:x}" for ((r, c), p) in zip(zip(rates, counts), txpwrs)])
+        mrr = ";".join([f"{r:x},{c:x},{p:x}" for (r, c, p) in zip(rates, counts, txpwrs)])
         await self._accesspoint.send(self._radio, f"set_rates_power;{self._mac_addr};{mrr}")
 
-    async def set_probe_rate(self, rate: str, count: int, txpwr: int = None):
+    async def set_probe_rate(self, rate: int, count: int, txpwr: int = None):
         """
         Sample a rate identified by its index `rate` for `count` attempts at transmit power level
         `txpwr`. This overwrite the first entry in the rate table for the station with the given
@@ -616,7 +623,7 @@ class Station:
 
         self._validate_rates([rate])
 
-        cmd = f"set_probe;{self._mac_addr};{rate},{count}"
+        cmd = f"set_probe;{self._mac_addr};{rate:x},{count:x}"
 
         if txpwr and txpwr != -1:
             self._validate_txpwrs([txpwr])
@@ -638,12 +645,19 @@ def handle_rc_exception(sta: Station, future):
         return
 
     # Do not handle KeyboardInterrupt since it will be handled by rateman, which will also stop rc
-    if not exception or exception.isinstance(KeyboardInterrupt):
+    if not exception or isinstance(exception, KeyboardInterrupt):
         return
 
     rc_alg, _ = sta.rate_control
 
     sta.log.error(f"{sta}: Rate control '{rc_alg}' raised an exception: {exception.__repr__()}")
+    '''
+    import traceback
+    traceback_info = traceback.format_tb(exception.__traceback__)
+
+    for line in traceback_info:
+        print(line.strip())
+    '''
     sta.loop.create_task(cleanup_rc(sta))
 
 
