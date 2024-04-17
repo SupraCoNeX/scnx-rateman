@@ -82,7 +82,6 @@ cdef int parse_mrr(
 
     return successful_at
 
-
 cdef int _parse_txs(
     const char *line,
     char *phy,
