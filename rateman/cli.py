@@ -54,6 +54,7 @@ def dump_interfaces(ap, radio):
         print(f"      - {iface}")
         dump_stas(ap, radio, iface)
 
+
 def format_tpc_info(ap, radio):
     if ap._radios[radio]["tpc"] is None:
         return "type=not"
@@ -64,6 +65,7 @@ def format_tpc_info(ap, radio):
     info += f", txpowers=(0..{len(txpowers) - 1}) {txpowers}"
 
     return info
+
 
 def format_tpc_info(ap, radio):
     if ap._radios[radio]["tpc"] is None:
