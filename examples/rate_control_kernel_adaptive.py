@@ -39,11 +39,7 @@ if __name__ == "__main__":
             loop.run_until_complete(
                 sta.start_rate_control(
                     "minstrel_ht_kernel_space",
-                    {
-                        "reset_rate_stats": True,
-                        "update_freq": 10,
-                        "sample_freq": 50
-                    }
+                    {"reset_rate_stats": True, "update_freq": 10, "sample_freq": 50},
                 )
             )
 
@@ -52,11 +48,7 @@ if __name__ == "__main__":
         loop.run_until_complete(ap.disable_events())
         loop.run_until_complete(ap.enable_events(radio="all", events=["txs", "stats"]))
 
-    timestamps = {
-        ap: {
-            sta.mac_addr: None for sta in ap.stations()
-        } for ap in aps
-    }
+    timestamps = {ap: {sta.mac_addr: None for sta in ap.stations()} for ap in aps}
 
     # add a callback to print the timestamp of incoming 'best_rates' events. These are emitted once
     # per stats update (Note that stats updates are only performed if there is traffic!)

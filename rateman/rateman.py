@@ -44,8 +44,6 @@ class RateMan:
 
         self._raw_data_callbacks = []
         self._data_callbacks = {
-            "any": [],
-            "txs": [],
             "stats": [],
             "rxs": [],
             "sta": [],
@@ -123,7 +121,7 @@ class RateMan:
         if (cb, context) not in self._raw_data_callbacks:
             self._raw_data_callbacks.append((cb, context))
 
-    def add_data_callback(self, cb, type: str = "any", context=None):
+    def add_data_callback(self, cb, type: str, context=None):
         """
         Register a callback to be called on incoming ORCA event data.
 
@@ -132,7 +130,7 @@ class RateMan:
         cb : callable
             The callback function.
         type : str
-            Which data to call the callback on. Valid options: `"any", "txs", "stats",
+            Which data to call the callback on. Valid options: `"stats",
             "rxs", "sta", "best_rates", or "sample_rates"`.
         context : object
             Additional arguments to be passed to the callback function.
@@ -140,7 +138,7 @@ class RateMan:
         if type not in self._data_callbacks.keys():
             raise ValueError(type)
 
-        for (c, _) in self._data_callbacks[type]:
+        for c, _ in self._data_callbacks[type]:
             if c == cb:
                 return
 
@@ -150,23 +148,20 @@ class RateMan:
         """
         Unregister a data callback.
         """
-        for (c, ctx) in self._raw_data_callbacks:
+        for c, ctx in self._raw_data_callbacks:
             if c == cb:
                 self._raw_data_callbacks.remove((c, ctx))
                 return
 
         for _, cbs in self._data_callbacks.items():
-            for (c, ctx) in cbs:
+            for c, ctx in cbs:
                 if c == cb:
                     cbs.remove((c, ctx))
                     break
 
     def execute_callbacks(self, ap: AccessPoint, fields: list[str]):
-        for (cb, ctx) in self._data_callbacks["any"]:
-            cb(ap, fields, context=ctx)
-
         try:
-            for (cb, ctx) in self._data_callbacks[fields[2]]:
+            for cb, ctx in self._data_callbacks[fields[2]]:
                 cb(ap, *fields, context=ctx)
         except KeyError:
             return
@@ -174,14 +169,11 @@ class RateMan:
     async def rcd_connection(self, ap: AccessPoint):
         try:
             async for line in ap.events():
-                for (cb, ctx) in self._raw_data_callbacks:
-                    cb(ap, line, context=ctx)
-
-                fields = await process_line(ap, line)
-                if not fields:
-                    continue
-
-                self.execute_callbacks(ap, fields)
+                if (fields := await process_line(ap, line)) is not None:
+                    # FIXME: maybe we should move the callback logic into the AP, have it at a
+                    # per-AP basis. Then execute_callbacks() could happen as a part of
+                    # process_line() in the AP object.
+                    self.execute_callbacks(ap, fields)
         except asyncio.CancelledError as e:
             raise e
 
@@ -202,7 +194,7 @@ class RateMan:
             self._loop.create_task(
                 self.ap_connection(ap, timeout=timeout), name=f"connect_{ap.name}"
             )
-            for _, (ap, _) in self._accesspoints.items()
+            for ap in self.accesspoints
         ]
 
         done, pending = await asyncio.wait(tasks, timeout=timeout)
@@ -231,7 +223,7 @@ class RateMan:
         """
         self._logger.debug("Stopping RateMan")
 
-        for _, (ap, _) in self._accesspoints.items():
+        for _, (ap, rcd_connection) in self._accesspoints.items():
             if not ap.connected:
                 continue
 
@@ -242,11 +234,15 @@ class RateMan:
 
             for sta in stas:
                 await sta.start_rate_control(
-                    "minstrel_ht_kernel_space",
-                    {"update_freq": 20, "sample_freq": 50}
+                    "minstrel_ht_kernel_space", {"update_freq": 20, "sample_freq": 50}
                 )
 
             await ap.disconnect()
+            rcd_connection.cancel()
+            with suppress(asyncio.CancelledError):
+                await rcd_connection
+
+        self._accesspoints = {}
 
         if self._new_loop_created:
             self._loop.close()

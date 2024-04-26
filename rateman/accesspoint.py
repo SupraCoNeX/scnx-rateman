@@ -11,12 +11,13 @@ import logging
 from functools import reduce
 
 from .station import Station
+from .parsing import rate_group_and_offset
 from .exception import (
     RadioConfigError,
     RadioUnavailableError,
     AccessPointNotConnectedError,
     UnsupportedFeatureException,
-    AccessPointError
+    AccessPointError,
 )
 
 __all__ = ["AccessPoint", "from_file", "from_strings"]
@@ -32,6 +33,7 @@ class AccessPoint:
     Instances of this class sould be created using :func:`.from_strings` or
     :func:`.from_file`
     """
+
     def __init__(self, name, addr, rcd_port=21059, logger=None, loop=None):
         """
         Parameters
@@ -50,7 +52,7 @@ class AccessPoint:
         self._api_version = None
         self._addr = addr
         self._rcd_port = rcd_port
-        self._rate_info = {}
+        self._rate_info = [{} for _ in range(0x2A)]
         self._radios = {}
         self._connected = False
         self._latest_timestamp = 0
@@ -69,14 +71,15 @@ class AccessPoint:
         while True:
             try:
                 async with asyncio.timeout(timeout):
-                    line = (await anext(it)).decode("utf-8")
+                    data = await anext(it)
+                    line = data.decode("utf-8")
                     if self._record_rcd_trace:
                         self._rcd_trace_file.write(line)
 
                 if line.startswith("*") or ";0;add" in line or ";0;sta" in line:
                     yield line.rstrip()
                 else:
-                    self._first_non_header_line = line.rstrip()
+                    self._first_non_header_line = data
                     return
             except UnicodeError:
                 continue
@@ -91,10 +94,9 @@ class AccessPoint:
 
         async for data in self._reader:
             try:
-                line = data.decode("utf-8")
                 if self._record_rcd_trace:
-                    self._rcd_trace_file.write(line)
-                yield line.rstrip()
+                    self._rcd_trace_file.write(data.decode("utf-8"))
+                yield data
             except UnicodeError:
                 continue
 
@@ -170,30 +172,26 @@ class AccessPoint:
     def sample_table(self, sample_table_data):
         self._sample_table = [list(map(int, row.split(","))) for row in sample_table_data]
 
-    def get_rate_info(self, rate) -> dict:
+    def get_rate_info(self, rate: int) -> tuple[int, str, int, int, bool]:
         """
-        Return a dictionary containing the following information about the given rate:
-          - `airtime` - the transmission time (in ns) of an average packet at the rate
-          - `type` - which class of rates the rate belongs to (`ofdm`, `cck`, `ht`, or `vht`)
-          - `nss` - the number of spatial streams used at that rate
-          - `bandwidth` - the rate's channel bandwidth (in MHz)
-          - `sgi` - boolean indicating whether the rate uses Short Guard Interval
+        Return a tuple containing the following information about the given rate:
+          - the transmission time (in ns) of an average packet at the rate
+          - the class of the rate (`ofdm`, `cck`, `ht`, or `vht`)
+          - the number of spatial streams used at that rate
+          - the rate's channel bandwidth (in MHz)
+          - boolean indicating whether the rate uses Short Guard Interval
         """
-        grp = rate[:-1]
+        grp, ofs = rate_group_and_offset(rate)
 
-        if not grp:
-            grp = "0"
-            rate = grp + rate
-
-        if grp in self._rate_info and rate in self._rate_info[grp]["indices"]:
+        if grp < len(self._rate_info) and ofs < 10:
             info = self._rate_info[grp]
-            return {
-                "airtime": info["airtimes_ns"][info["indices"].index(rate)],
-                "type": info["type"],
-                "nss": info["nss"],
-                "bandwidth": info["bandwidth"],
-                "sgi": info["sgi"]
-            }
+            return (
+                info["airtimes"][ofs],
+                info["type"],
+                info["nss"],
+                info["bandwidth"],
+                info["sgi"],
+            )
 
         return None
 
@@ -219,9 +217,7 @@ class AccessPoint:
         """
         if radio == "all":
             return reduce(
-                lambda a, b: a + b,
-                [self.stations(radio=radio) for radio in self._radios],
-                []
+                lambda a, b: a + b, [self.stations(radio=radio) for radio in self._radios], []
             )
         elif radio not in self._radios:
             raise AccessPointError(self, f"No such radio '{radio}'")
@@ -234,7 +230,7 @@ class AccessPoint:
         except KeyError:
             return None
 
-    def get_sta(self, mac: str, radio: str = None):
+    def get_sta(self, mac: str, radio: str = None) -> "Station":
         if not radio:
             for radio in self._radios:
                 sta = self.get_sta(mac, radio)
@@ -251,6 +247,15 @@ class AccessPoint:
         by the device to which rateman is connected.
         """
         return self._radios[radio]["events"]
+
+    def get_feature_state(self, radio: str, feature: str):
+        try:
+            if feature not in self._radios[radio]["features"]:
+                raise UnsupportedFeatureException(self, radio, feature)
+
+            return self._radios[radio]["features"][feature]
+        except KeyError as e:
+            raise RadioUnavailableError(self, radio) from e
 
     def features(self, radio: str) -> list:
         """
@@ -291,8 +296,9 @@ class AccessPoint:
         """
         await self._set_feature(radio, feature, val)
 
-    def add_radio(self, radio: str, driver: str, ifaces: list, events: list, features: dict,
-                  tpc: dict) -> None:
+    def add_radio(
+        self, radio: str, driver: str, ifaces: list, events: list, features: dict, tpc: dict
+    ) -> None:
         self._logger.debug(
             f"{self._name}: adding radio '{radio}', driver={driver}, "
             f"interfaces={ifaces}, events={events}, "
@@ -302,14 +308,16 @@ class AccessPoint:
         if radio not in self._radios:
             self._radios[radio] = {}
 
-        self._radios[radio].update({
-            "driver": driver,
-            "interfaces": ifaces,
-            "events": events,
-            "features": features,
-            "tpc": tpc,
-            "stations": {}
-        })
+        self._radios[radio].update(
+            {
+                "driver": driver,
+                "interfaces": ifaces,
+                "events": events,
+                "features": features,
+                "tpc": tpc,
+                "stations": {},
+            }
+        )
 
     def radio_for_interface(self, iface: str) -> str:
         """
@@ -468,7 +476,11 @@ class AccessPoint:
                         f"Disconnecting from {self} will leave {sta} without rate control"
                     )
                     await sta.stop_rate_control()
+
+            self._radios[radio]["stations"] = {}
+
         self._writer.close()
+
         try:
             async with asyncio.timeout(timeout):
                 await self._writer.wait_closed()
@@ -478,7 +490,7 @@ class AccessPoint:
         self._writer = None
         self._connected = False
 
-    async def enable_events(self, radio="all", events: list = ['txs']) -> None:
+    async def enable_events(self, radio="all", events: list = ["txs"]) -> None:
         """
         Enable the given events for the given radio. If `radio` is `"*"` or
         `"all"`, the events will be enabled on all the accesspoint's radios.
@@ -554,15 +566,14 @@ class AccessPoint:
             self._logger.debug(f"{self._name}:{radio}: Resetting in-kernel rate statistics")
             await self.send(radio, f"reset_stats;all")
         elif (
-            sta in self._radios[radio]["stations"] and
-            self._radios[radio]["stations"][sta].associated
+            sta in self._radios[radio]["stations"]
+            and self._radios[radio]["stations"][sta].associated
         ):
             self._logger.debug(f"{self._name}:{radio}:{sta}: Resetting in-kernel rate statistics")
             await self.send(radio, f"reset_stats;{sta}")
 
     def add_rate_info(self, grp, info):
-        if grp not in self._rate_info:
-            self._rate_info.update({grp: info})
+        self._rate_info[grp] = info
 
     async def _set_all_stations_mode(self, radio, which, mode):
         if mode not in ["manual", "auto"]:
@@ -616,6 +627,7 @@ def from_file(file: dir, logger=None) -> list:
     ORCA-RCD listening port, respectively.
     `logger` sets the :class:`logging.Logger` for the newly created :class:`.AccessPoint` s.
     """
+
     def parse_ap(ap):
         name = ap["NAME"]
         addr = ap["ADDR"]
