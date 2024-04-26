@@ -95,7 +95,7 @@ class Station:
         return self._last_seen
 
     @property
-    def accesspoint(self) -> "AccessPoint":
+    def accesspoint(self):
         """
         Return the accesspoint to which the station is connected.
         """
