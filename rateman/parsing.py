@@ -320,6 +320,7 @@ def parse_mrr_stage(s):
 
     return mrr_stage[0].zfill(2), int(mrr_stage[1], 16), txpwr_idx
 
+
 def update_rate_stats_from_txs(
     ap,
     phy,
