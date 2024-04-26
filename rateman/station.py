@@ -6,12 +6,7 @@ from contextlib import suppress
 from functools import partial
 from . import rate_control
 from .c_sta_rate_stats import StationRateStats
-from .exception import (
-    RateControlError,
-    RateControlConfigError,
-    StationError,
-    RadioError
-)
+from .exception import RateControlError, RateControlConfigError, StationError, RadioError
 
 
 __all__ = ["Station"]
@@ -26,6 +21,7 @@ class Station:
     and power control on a per-station basis. Consequently, this class is the main interaction point
     for resource control schemes.
     """
+
     def __init__(
         self,
         mac_addr: str,
@@ -42,7 +38,7 @@ class Station:
         overhead_legacy: int,
         rc_alg="minstrel_ht_kernel_space",
         rc_opts=None,
-        logger=None
+        logger=None,
     ):
         self._mac_addr = mac_addr
         self._accesspoint = ap
@@ -171,7 +167,7 @@ class Station:
 
         await self._accesspoint.send(
             self._radio,
-            f"rc_mode;{self._mac_addr};{self._rc_mode};{freq:x};{self._kernel_sample_freq:x}"
+            f"rc_mode;{self._mac_addr};{self._rc_mode};{freq:x};{self._kernel_sample_freq:x}",
         )
 
     @property
@@ -196,7 +192,7 @@ class Station:
         self._kernel_sample_freq = freq
         await self._accesspoint.send(
             self._radio,
-            f"rc_mode;{self._mac_addr};{self._rc_mode};{self._kernel_update_freq:x};{freq:x}"
+            f"rc_mode;{self._mac_addr};{self._rc_mode};{self._kernel_update_freq:x};{freq:x}",
         )
 
     @property
@@ -377,8 +373,7 @@ class Station:
                 self._rc_ctx = await configure(self)
 
             self._rc = self._loop.create_task(
-                run(self._rc_ctx),
-                name=f"rc_{self._mac_addr}_{rc_alg}"
+                run(self._rc_ctx), name=f"rc_{self._mac_addr}_{rc_alg}"
             )
             self._rc.add_done_callback(partial(handle_rc_exception, self))
 
@@ -392,7 +387,7 @@ class Station:
             raise RateControlConfigError(
                 self,
                 self._rate_control_algorithm,
-                "Trying to pause rate control scheme that does not support pause/resume."
+                "Trying to pause rate control scheme that does not support pause/resume.",
             )
 
         self._log.debug(f"{self}: Pause rate control {self._rate_control_algorithm}")
@@ -416,7 +411,7 @@ class Station:
             raise RateControlConfigError(
                 self,
                 self._rate_control_algorithm,
-                "Trying to resume rate control scheme that does not support pause/resume."
+                "Trying to resume rate control scheme that does not support pause/resume.",
             )
 
         if not self.associated:
@@ -434,15 +429,10 @@ class Station:
         return self._supported_rates[0]
 
     def update_rate_stats(
-        self,
-        timestamp: int,
-        rates: array,
-        txpwrs: array,
-        attempts: array,
-        successes: array
+        self, timestamp: int, rates: array, txpwrs: array, attempts: array, successes: array
     ):
         if self._tpc_mode == "auto":
-            txpwrs = array('i', [-1, -1, -1, -1])
+            txpwrs = array("i", [-1, -1, -1, -1])
         self._stats.update(timestamp, rates, txpwrs, attempts, successes, 4)
 
     def reset_ampdu_stats(self):
@@ -466,10 +456,7 @@ class Station:
         Reset packet transmission attempts and success statistics for all supported rates and
         transmit power levels.
         """
-        self._stats = StationRateStats(
-            0x29a,
-            len(self._accesspoint.txpowers(self._radio))
-        )
+        self._stats = StationRateStats(0x29A, len(self._accesspoint.txpowers(self._radio)))
 
     async def reset_kernel_rate_stats(self):
         """
@@ -510,7 +497,7 @@ class Station:
                 raise RadioError(self._accesspoint, self._radio, "TPC is disabled")
 
         mode = "manual" if enable else "auto"
-        if self._accesspoint.radios[self._radio]['tpc']:
+        if self._accesspoint.radios[self._radio]["tpc"]:
             await self._accesspoint.send(self._radio, f"tpc_mode;{self._mac_addr};{mode}")
             self._tpc_mode = mode
             self._log.debug(f"{self}: set tpc_mode={mode}")
@@ -590,8 +577,7 @@ class Station:
 
         if not (self._rc_mode == "manual" and self._tpc_mode == "manual"):
             raise StationError(
-                self,
-                "Need to be in manual rate and power control mode to set rates and TX power"
+                self, "Need to be in manual rate and power control mode to set rates and TX power"
             )
 
         self._validate_rates(rates)
@@ -618,8 +604,10 @@ class Station:
             raise StationError(self, "Need to be in manual rate control mode to sample a rate")
 
         if txpwr and self._tpc_mode != "manual":
-            raise StationError(self, "Need to be in manual transmit power control mode to set "
-                               "tpc for a probe rate")
+            raise StationError(
+                self,
+                "Need to be in manual transmit power control mode to set " "tpc for a probe rate",
+            )
 
         self._validate_rates([rate])
 
@@ -651,13 +639,13 @@ def handle_rc_exception(sta: Station, future):
     rc_alg, _ = sta.rate_control
 
     sta.log.error(f"{sta}: Rate control '{rc_alg}' raised an exception: {exception.__repr__()}")
-    '''
+    """
     import traceback
     traceback_info = traceback.format_tb(exception.__traceback__)
 
     for line in traceback_info:
         print(line.strip())
-    '''
+    """
     sta.loop.create_task(cleanup_rc(sta))
 
 

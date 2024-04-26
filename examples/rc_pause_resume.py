@@ -35,7 +35,6 @@ async def run(ctx):
     # cycle through all of the STA's supported rates, setting each rate for the duration of
     # interval_ms.
     for rate in itertools.cycle(ctx["sta"].supported_rates):
-
         # stop operation if the stop flag is set
         while ctx["paused"]:
             await asyncio.sleep(0.1)

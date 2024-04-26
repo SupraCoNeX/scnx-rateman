@@ -54,6 +54,7 @@ def dump_interfaces(ap, radio):
         print(f"      - {iface}")
         dump_stas(ap, radio, iface)
 
+
 def format_tpc_info(ap, radio):
     if ap._radios[radio]["tpc"] is None:
         return "type=not"
@@ -65,18 +66,21 @@ def format_tpc_info(ap, radio):
 
     return info
 
+
 def dump_radios(ap):
     for radio in ap.radios:
-        print("""  - %(radio)s
+        print(
+            """  - %(radio)s
       driver: %(drv)s
       events: %(ev)s
       tpc: %(tpc)s
-      features: %(features)s""" % dict(
+      features: %(features)s"""
+            % dict(
                 radio=radio,
                 drv=ap.driver(radio),
                 ev=",".join(ap.enabled_events(radio)),
                 tpc=format_tpc_info(ap, radio),
-                features=", ".join([f"{f}={s}" for f, s in ap._radios[radio]["features"].items()])
+                features=", ".join([f"{f}={s}" for f, s in ap._radios[radio]["features"].items()]),
             )
         )
 
@@ -86,15 +90,18 @@ def dump_radios(ap):
 def show_state(rm):
     for ap in rm.accesspoints:
         version = ap.api_version
-        print("""
+        print(
+            """
 %(name)s:
   connected: %(conn)s
   version: %(version)s
-  radios:""" % dict(
-            name=ap.name,
-            conn=("yes" if ap.connected else "no"),
-            version=f"{version[0]}.{version[1]}.{version[2]}" if version else "N/A"
-        ))
+  radios:"""
+            % dict(
+                name=ap.name,
+                conn=("yes" if ap.connected else "no"),
+                version=f"{version[0]}.{version[1]}.{version[2]}" if version else "N/A",
+            )
+        )
         dump_radios(ap)
 
 
@@ -113,19 +120,16 @@ def main():
         "--algorithm",
         type=str,
         default="minstrel_ht_kernel_space",
-        help="Rate control algorithm to run."
+        help="Rate control algorithm to run.",
     )
     arg_parser.add_argument(
-        "-o", "--options",
+        "-o",
+        "--options",
         type=str,
         default=None,
-        help="Rate control algorithm configuration options"
+        help="Rate control algorithm configuration options",
     )
-    arg_parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="debug logging"
-    )
+    arg_parser.add_argument("-v", "--verbose", action="store_true", help="debug logging")
     arg_parser.add_argument(
         "-A",
         "--ap-file",
@@ -134,18 +138,17 @@ def main():
         help="Path to a csv file where each line contains information about an access point "
         + "in the format: NAME,ADDR,RCDPORT.",
     )
-    arg_parser.add_argument(
-        "-E", "--enable-events", nargs="+", action="extend"
-    )
+    arg_parser.add_argument("-E", "--enable-events", nargs="+", action="extend")
     arg_parser.add_argument(
         "-r",
         "--record-trace",
         action="store_true",
-        help="Store incoming events in trace files named after the accesspoints"
+        help="Store incoming events in trace files named after the accesspoints",
     )
     arg_parser.add_argument(
-        "--show-state", action="store_true",
-        help="Connect to APs and output their state. This is useful for testing"
+        "--show-state",
+        action="store_true",
+        help="Connect to APs and output their state. This is useful for testing",
     )
     arg_parser.add_argument(
         "-t", "--time", type=float, default=0.0, help="run for the given number of seconds and exit"
@@ -166,12 +169,12 @@ def main():
     options_str = args.options
     if options_str is not None:
         try:
-            options=ast.literal_eval(options_str)
+            options = ast.literal_eval(options_str)
         except ValueError:
             print("Error: Invalid dictionary format provided.")
             exit(1)
     else:
-        options=None
+        options = None
 
     if args.ap_file:
         aps += accesspoint.from_file(args.ap_file, logger=logger)

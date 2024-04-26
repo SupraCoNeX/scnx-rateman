@@ -138,7 +138,7 @@ class RateMan:
         if type not in self._data_callbacks.keys():
             raise ValueError(type)
 
-        for (c, _) in self._data_callbacks[type]:
+        for c, _ in self._data_callbacks[type]:
             if c == cb:
                 return
 
@@ -148,20 +148,20 @@ class RateMan:
         """
         Unregister a data callback.
         """
-        for (c, ctx) in self._raw_data_callbacks:
+        for c, ctx in self._raw_data_callbacks:
             if c == cb:
                 self._raw_data_callbacks.remove((c, ctx))
                 return
 
         for _, cbs in self._data_callbacks.items():
-            for (c, ctx) in cbs:
+            for c, ctx in cbs:
                 if c == cb:
                     cbs.remove((c, ctx))
                     break
 
     def execute_callbacks(self, ap: AccessPoint, fields: list[str]):
         try:
-            for (cb, ctx) in self._data_callbacks[fields[2]]:
+            for cb, ctx in self._data_callbacks[fields[2]]:
                 cb(ap, *fields, context=ctx)
         except KeyError:
             return
@@ -234,8 +234,7 @@ class RateMan:
 
             for sta in stas:
                 await sta.start_rate_control(
-                    "minstrel_ht_kernel_space",
-                    {"update_freq": 20, "sample_freq": 50}
+                    "minstrel_ht_kernel_space", {"update_freq": 20, "sample_freq": 50}
                 )
 
             await ap.disconnect()
