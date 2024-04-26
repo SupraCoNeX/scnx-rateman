@@ -6,7 +6,8 @@ from contextlib import suppress
 from functools import partial
 from . import rate_control
 from .c_sta_rate_stats import StationRateStats
-from .exception import RateControlError, RateControlConfigError, StationError, RadioError
+from .exception import RateControlConfigError, StationError, RadioError
+from .accesspoint import AccessPoint
 
 
 __all__ = ["Station"]

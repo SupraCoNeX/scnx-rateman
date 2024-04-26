@@ -3,11 +3,8 @@
 #     https://www.supraconex.org
 #
 
-import asyncio
 import re
 import array
-from itertools import pairwise
-
 from .station import Station
 from .exception import UnsupportedAPIVersionError, ParsingError
 from .c_parsing import parse_txs

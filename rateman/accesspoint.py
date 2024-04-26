@@ -6,14 +6,12 @@
 import asyncio
 import csv
 import sys
-import os
 import logging
 from functools import reduce
 
 from .station import Station
 from .parsing import rate_group_and_offset
 from .exception import (
-    RadioConfigError,
     RadioUnavailableError,
     AccessPointNotConnectedError,
     UnsupportedFeatureException,
@@ -147,7 +145,7 @@ class AccessPoint:
         return self._logger
 
     @property
-    def connected(self) -> dict:
+    def connected(self) -> bool:
         """
         Whether rateman is connected to the accesspoint.
         """
@@ -541,7 +539,7 @@ class AccessPoint:
         """
         if radio == "all":
             for radio in self._radios:
-                self.debugfs_set(path, value, radio=radio)
+                await self.debugfs_set(path, value, radio=radio)
             return
 
         if radio not in self._radios:

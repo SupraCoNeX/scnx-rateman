@@ -6,6 +6,7 @@ import rateman
 import traceback
 from contextlib import suppress
 import ast
+from .accesspoint import *
 
 
 def dump_sta_rate_set(sta):
@@ -56,22 +57,10 @@ def dump_interfaces(ap, radio):
 
 
 def format_tpc_info(ap, radio):
-    if ap._radios[radio]["tpc"] is None:
+    if ap.radios[radio]["tpc"] is None:
         return "type=not"
 
-    info = f"type={ap._radios[radio]['tpc']['type']}"
-
-    txpowers = ap.txpowers(radio)
-    info += f", txpowers=(0..{len(txpowers) - 1}) {txpowers}"
-
-    return info
-
-
-def format_tpc_info(ap, radio):
-    if ap._radios[radio]["tpc"] is None:
-        return "type=not"
-
-    info = f"type={ap._radios[radio]['tpc']['type']}"
+    info = f"type={ap.radios[radio]['tpc']['type']}"
 
     txpowers = ap.txpowers(radio)
     info += f", txpowers=(0..{len(txpowers) - 1}) {txpowers}"
@@ -189,7 +178,7 @@ def main():
         options = None
 
     if args.ap_file:
-        aps += accesspoint.from_file(args.ap_file, logger=logger)
+        aps += from_file(args.ap_file, logger=logger)
 
     if len(aps) == 0:
         print("ERROR: No accesspoints given", file=sys.stderr)
