@@ -10,7 +10,7 @@ import logging
 from functools import reduce
 
 from .station import Station
-from .parsing import rate_group_and_offset
+from .rate_info import *
 from .exception import (
     RadioUnavailableError,
     AccessPointNotConnectedError,
@@ -50,7 +50,7 @@ class AccessPoint:
         self._api_version = None
         self._addr = addr
         self._rcd_port = rcd_port
-        self._rate_info = [{} for _ in range(0x2A)]
+        self._all_rate_info = dict()
         self._radios = {}
         self._connected = False
         self._latest_timestamp = 0
@@ -170,28 +170,10 @@ class AccessPoint:
     def sample_table(self, sample_table_data):
         self._sample_table = [list(map(int, row.split(","))) for row in sample_table_data]
 
-    def get_rate_info(self, rate: int) -> tuple[int, str, int, int, bool]:
-        """
-        Return a tuple containing the following information about the given rate:
-          - the transmission time (in ns) of an average packet at the rate
-          - the class of the rate (`ofdm`, `cck`, `ht`, or `vht`)
-          - the number of spatial streams used at that rate
-          - the rate's channel bandwidth (in MHz)
-          - boolean indicating whether the rate uses Short Guard Interval
-        """
-        grp, ofs = rate_group_and_offset(rate)
+    def get_rate_info(self, rate_idx: int) -> dict:
+        rate_info = get_rate_info(self._all_rate_info, rate_idx)
 
-        if grp < len(self._rate_info) and ofs < 10:
-            info = self._rate_info[grp]
-            return (
-                info["airtimes"][ofs],
-                info["type"],
-                info["nss"],
-                info["bandwidth"],
-                info["sgi"],
-            )
-
-        return None
+        return rate_info
 
     def start_recording_rcd_trace(self, path):
         """
@@ -570,8 +552,8 @@ class AccessPoint:
             self._logger.debug(f"{self._name}:{radio}:{sta}: Resetting in-kernel rate statistics")
             await self.send(radio, f"reset_stats;{sta}")
 
-    def add_rate_info(self, grp, info):
-        self._rate_info[grp] = info
+    def add_group_rate_info(self, group_ind, group_info):
+        self._all_rate_info.update({group_ind: group_info})
 
     async def _set_all_stations_mode(self, radio, which, mode):
         if mode not in ["manual", "auto"]:

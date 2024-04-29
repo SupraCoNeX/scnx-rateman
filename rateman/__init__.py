@@ -15,4 +15,5 @@ from .station import *
 from .rateman import *
 from .parsing import *
 from .rate_control import *
+from .rate_info import *
 from .exception import *

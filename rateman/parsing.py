@@ -8,6 +8,7 @@ import array
 from .station import Station
 from .exception import UnsupportedAPIVersionError, ParsingError
 from .c_parsing import parse_txs
+from .rate_info import *
 
 __all__ = ["process_api", "process_line", "process_header", "parse_sta", "rate_group_and_offset"]
 
@@ -57,7 +58,7 @@ def process_api(ap, fields, line):
             check_orca_version(ap, version)
             ap._api_version = version
         case "group":
-            ap.add_rate_info(*parse_rate_group(ap, fields))
+            ap.add_group_rate_info(*parse_group_info(fields))
         case "sample_table":
             ap.sample_table = fields[5:]
         case _:
@@ -143,40 +144,6 @@ async def process_header(ap):
             process_phy_info(ap, line.split(";"))
         elif "0;sta;add;" in line:
             await process_sta_info(ap, line.split(";"))
-
-
-def parse_rate_group(ap, fields):
-    grp = int(fields[4], 16)
-
-    n_rates = 8 if grp < 0x120 else 10
-
-    rates = array.array("I", range(n_rates))
-    airtimes = array.array("I", range(n_rates))
-
-    for i, at in enumerate(fields[9 : 9 + n_rates]):
-        airtimes[i] = int(at, 16)
-        rates[i] = grp + i
-
-    match fields[7]:
-        case "0":
-            bandwidth = 20
-        case "1":
-            bandwidth = 40
-        case "2":
-            bandwidth = 80
-        case _:
-            raise ParsingError(ap, f"Unknown value for rate group bandwidth '{fields[7]}'")
-
-    info = {
-        "rates": rates,
-        "airtimes": airtimes,
-        "type": fields[5],
-        "nss": int(fields[6]),
-        "bandwidth": bandwidth,
-        "sgi": fields[8] == "1",
-    }
-
-    return int(fields[3], 16), info
 
 
 async def process_line(ap, line):
