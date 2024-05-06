@@ -317,7 +317,7 @@ def parse_sta(ap, fields: list):
     sample_freq = int(fields[11], 16)
     mcs_groups = fields[12:]
 
-    for i, grp_idx in enumerate(ap._rate_info):
+    for i, grp_idx in enumerate(ap.all_rate_info):
         mask = int(mcs_groups[i], 16)
         for ofs in range(10):
             if mask & (1 << ofs):

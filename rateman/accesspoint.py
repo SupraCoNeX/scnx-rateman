@@ -170,6 +170,10 @@ class AccessPoint:
     def sample_table(self, sample_table_data):
         self._sample_table = [list(map(int, row.split(","))) for row in sample_table_data]
 
+    @property
+    def all_rate_info(self):
+        return self._all_rate_info
+
     def get_rate_info(self, rate_idx) -> dict:
         rate_info = get_rate_info(self._all_rate_info, rate_idx)
 
