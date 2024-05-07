@@ -38,7 +38,7 @@ AVAILABLE_PARAMS = {
 }
 
 
-def get_rate_info(all_rate_info, rate_idx):
+def get_rate_info(all_rate_info: dict, rate_idx: str) -> dict:
     if len(rate_idx) == 1:
         rate_group = "0"
         rate_idx = f"0{rate_idx}"
@@ -48,7 +48,7 @@ def get_rate_info(all_rate_info, rate_idx):
         rate_group = rate_idx[:-1]
 
     rate_info = dict()
-    rate_info["rate_type"] = all_rate_info[rate_group]["type"]
+    rate_info["type"] = all_rate_info[rate_group]["type"]
     mcs = all_rate_info[rate_group]["mcs"][int(rate_idx[-1])]
     rate_info["nss"] = all_rate_info[rate_group]["nss"]
     rate_info["bandwidth"] = all_rate_info[rate_group]["bandwidth"]
@@ -57,19 +57,19 @@ def get_rate_info(all_rate_info, rate_idx):
     rate_info["airtime_ns"] = all_rate_info[rate_group]["airtimes_ns"][int(rate_idx[-1])]
     rate_info["MCS"] = mcs
     rate_info["MCS_ind"] = AVAILABLE_PARAMS["mcs"].index(mcs) + 1
-    rate_info["modulation_type"] = mcs.split(",")[0]
+    rate_info["modulation"] = mcs.split(",")[0]
     rate_info["coding"] = mcs.split(",")[1]
 
-    if rate_info["rate_type"] in ["ofdm", "cck"]:
+    if rate_info["type"] in ["ofdm", "cck"]:
         rate_info["data_rate_Mbps"] = 0
     else:
         rate_info["data_rate_Mbps"] = _cal_data_rate(
             AVAILABLE_PARAMS["guard_interval"][rate_info["guard_interval"]],
-            AVAILABLE_PARAMS["num_subcarriers"][rate_info["rate_type"]][rate_info["bandwidth"]],
+            AVAILABLE_PARAMS["num_subcarriers"][rate_info["type"]][rate_info["bandwidth"]],
             AVAILABLE_PARAMS["num_codedbits_per_subcarrier_per_stream"][
-                rate_info["modulation_type"]
+                rate_info["modulation"]
             ],
-            AVAILABLE_PARAMS["duration_ofdm"][rate_info["rate_type"]],
+            AVAILABLE_PARAMS["duration_ofdm"][rate_info["type"]],
             AVAILABLE_PARAMS["coding_rate"][rate_info["coding"]],
             rate_info["nss"],
         )
