@@ -296,19 +296,20 @@ class Station:
         if not self._rate_control_algorithm:
             return
 
-        self._log.debug(
-            f"{self}: Stop rate control algorithm '{self._rate_control_algorithm}', "
-            f"options={self._rate_control_options}"
-        )
-
         if self._rc:
             try:
+                self._log.debug(
+                    f"{self.accesspoint.name}:{self.mac_addr}: Stopping rate control algorithm "
+                    f"{self._rate_control_algorithm}, "
+                    f"options={self._rate_control_options}"
+                )
                 self._rc.cancel()
                 with suppress(asyncio.CancelledError):
                     await self._rc
             except Exception as e:
                 self._log.error(
-                    f"{self}: Rate control '{self._rate_control_algorithm}' failed: {e.__repr__()}"
+                    f"{self.accesspoint.name}:{self.mac_addr}: Rate control {self._rate_control_algorithm}"
+                    f" failed: {e.__repr__()}."
                 )
 
         self._rc = None
@@ -344,7 +345,8 @@ class Station:
         if self._rate_control_algorithm:
             await self.stop_rate_control()
 
-        self._log.debug(f"{self}: Start rate control algorithm '{rc_alg}', options={rc_opts}")
+        self._log.debug(f"{self.accesspoint.name}:{self.mac_addr}: "
+                        f"Start rate control algorithm '{rc_alg}', options={rc_opts}.")
 
         if rc_alg == "minstrel_ht_kernel_space":
             await self.set_manual_rc_mode(False)
@@ -390,7 +392,8 @@ class Station:
                 "Trying to pause rate control scheme that does not support pause/resume.",
             )
 
-        self._log.debug(f"{self}: Pause rate control {self._rate_control_algorithm}")
+        self._log.debug(f"{self.accesspoint.name}:{self.mac_addr}: Pause rate control"
+                        f" {self._rate_control_algorithm}.")
         await self._rc_module.pause(self._rc_ctx)
 
         # Attach a callback to clean up the paused RC task in case the STA object gets garbage
@@ -417,7 +420,8 @@ class Station:
         if not self.associated:
             raise StationError(self, f"Not associated")
 
-        self._log.debug(f"{self}: Resume rate control {self._rate_control_algorithm}")
+        self._log.debug(f"{self.accesspoint.name}:{self.mac_addr}: Resume rate control "
+                        f"{self._rate_control_algorithm}.")
         await self._rc_module.resume(self._rc_ctx)
         self._rc_paused = False
 
@@ -477,7 +481,7 @@ class Station:
         mode = "manual" if enable else "auto"
         await self._accesspoint.send(self._radio, f"rc_mode;{self._mac_addr};{mode}")
         self._rc_mode = mode
-        self._log.debug(f"{self}: set rc_mode={mode}")
+        self._log.debug(f"{self.accesspoint.name}:{self.mac_addr}: Set rc_mode={mode}.")
 
     async def set_manual_tpc_mode(self, enable: bool):
         """
@@ -500,7 +504,7 @@ class Station:
         if self._accesspoint.radios[self._radio]["tpc"]:
             await self._accesspoint.send(self._radio, f"tpc_mode;{self._mac_addr};{mode}")
             self._tpc_mode = mode
-            self._log.debug(f"{self}: set tpc_mode={mode}")
+            self._log.debug(f"{self.accesspoint.name}:{self.mac_addr}: Set tpc_mode={mode}.")
 
     def _validate_txpwrs(self, pwrs: list[int]) -> list[int]:
         txpwr_indeces = []
