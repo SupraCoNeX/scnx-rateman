@@ -345,8 +345,10 @@ class Station:
         if self._rate_control_algorithm:
             await self.stop_rate_control()
 
-        self._log.debug(f"{self.accesspoint.name}:{self.mac_addr}: "
-                        f"Start rate control algorithm '{rc_alg}', options={rc_opts}.")
+        self._log.debug(
+            f"{self.accesspoint.name}:{self.mac_addr}: "
+            f"Start rate control algorithm '{rc_alg}', options={rc_opts}."
+        )
 
         if rc_alg == "minstrel_ht_kernel_space":
             await self.set_manual_rc_mode(False)
@@ -392,8 +394,10 @@ class Station:
                 "Trying to pause rate control scheme that does not support pause/resume.",
             )
 
-        self._log.debug(f"{self.accesspoint.name}:{self.mac_addr}: Pause rate control"
-                        f" {self._rate_control_algorithm}.")
+        self._log.debug(
+            f"{self.accesspoint.name}:{self.mac_addr}: Pause rate control"
+            f" {self._rate_control_algorithm}."
+        )
         await self._rc_module.pause(self._rc_ctx)
 
         # Attach a callback to clean up the paused RC task in case the STA object gets garbage
@@ -420,8 +424,10 @@ class Station:
         if not self.associated:
             raise StationError(self, f"Not associated")
 
-        self._log.debug(f"{self.accesspoint.name}:{self.mac_addr}: Resume rate control "
-                        f"{self._rate_control_algorithm}.")
+        self._log.debug(
+            f"{self.accesspoint.name}:{self.mac_addr}: Resume rate control "
+            f"{self._rate_control_algorithm}."
+        )
         await self._rc_module.resume(self._rc_ctx)
         self._rc_paused = False
 

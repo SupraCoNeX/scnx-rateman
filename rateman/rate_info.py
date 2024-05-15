@@ -66,9 +66,7 @@ def get_rate_info(all_rate_info: dict, rate_idx: str) -> dict:
         rate_info["data_rate_Mbps"] = _cal_data_rate(
             AVAILABLE_PARAMS["guard_interval"][rate_info["guard_interval"]],
             AVAILABLE_PARAMS["num_subcarriers"][rate_info["type"]][rate_info["bandwidth"]],
-            AVAILABLE_PARAMS["num_codedbits_per_subcarrier_per_stream"][
-                rate_info["modulation"]
-            ],
+            AVAILABLE_PARAMS["num_codedbits_per_subcarrier_per_stream"][rate_info["modulation"]],
             AVAILABLE_PARAMS["duration_ofdm"][rate_info["type"]],
             AVAILABLE_PARAMS["coding_rate"][rate_info["coding"]],
             rate_info["nss"],

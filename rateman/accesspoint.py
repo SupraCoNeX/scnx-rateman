@@ -192,6 +192,7 @@ class AccessPoint:
         if self._rcd_trace_file:
             self._rcd_trace_file.close()
 
+        self._rcd_trace_file = None
         self._record_rcd_trace = False
 
     def stations(self, radio="all") -> list[Station]:
