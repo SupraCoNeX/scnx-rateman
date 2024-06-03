@@ -3,16 +3,10 @@
 #     https://www.supraconex.org
 #
 
-import argparse
-import sys
-import os
 import logging
 import asyncio
-import importlib
-import csv
 import traceback
 from contextlib import suppress
-
 from .accesspoint import AccessPoint
 from .station import Station
 from .parsing import *
@@ -41,15 +35,6 @@ class RateMan:
         else:
             self._loop = loop
             self._new_loop_created = False
-
-        self._raw_data_callbacks = []
-        self._data_callbacks = {
-            "stats": [],
-            "rxs": [],
-            "sta": [],
-            "best_rates": [],
-            "sample_rates": [],
-        }
 
         self._accesspoints = dict()
 
@@ -107,73 +92,10 @@ class RateMan:
                 await asyncio.sleep(timeout)
                 continue
 
-    def add_raw_data_callback(self, cb, context=None):
-        """
-        Register a callback to be called on unvalidated incoming ORCA event data.
-
-        Parameters
-        ----------
-        cb : callable
-            The callback function.
-        context : object
-            Additional arguments to be passed to the callback function.
-        """
-        if (cb, context) not in self._raw_data_callbacks:
-            self._raw_data_callbacks.append((cb, context))
-
-    def add_data_callback(self, cb, type: str, context=None):
-        """
-        Register a callback to be called on incoming ORCA event data.
-
-        Parameters
-        ----------
-        cb : callable
-            The callback function.
-        type : str
-            Which data to call the callback on. Valid options: `"stats",
-            "rxs", "sta", "best_rates", or "sample_rates"`.
-        context : object
-            Additional arguments to be passed to the callback function.
-        """
-        if type not in self._data_callbacks.keys():
-            raise ValueError(type)
-
-        for (c, _) in self._data_callbacks[type]:
-            if c == cb:
-                return
-
-        self._data_callbacks[type].append((cb, context))
-
-    def remove_data_callback(self, cb: callable):
-        """
-        Unregister a data callback.
-        """
-        for (c, ctx) in self._raw_data_callbacks:
-            if c == cb:
-                self._raw_data_callbacks.remove((c, ctx))
-                return
-
-        for _, cbs in self._data_callbacks.items():
-            for (c, ctx) in cbs:
-                if c == cb:
-                    cbs.remove((c, ctx))
-                    break
-
-    def execute_callbacks(self, ap: AccessPoint, fields: list[str]):
-        try:
-            for (cb, ctx) in self._data_callbacks[fields[2]]:
-                cb(ap, *fields, context=ctx)
-        except KeyError:
-            return
-
     async def rcd_connection(self, ap: AccessPoint):
         try:
             async for line in ap.events():
-                if (fields := await process_line(ap, line)) is not None:
-                    # FIXME: maybe we should move the callback logic into the AP, have it at a
-                    # per-AP basis. Then execute_callbacks() could happen as a part of
-                    # process_line() in the AP object.
-                    self.execute_callbacks(ap, fields)
+                await process_line(ap, line)
         except asyncio.CancelledError as e:
             raise e
 
@@ -234,8 +156,7 @@ class RateMan:
 
             for sta in stas:
                 await sta.start_rate_control(
-                    "minstrel_ht_kernel_space",
-                    {"update_freq": 20, "sample_freq": 50}
+                    "minstrel_ht_kernel_space", {"update_freq": 20, "sample_freq": 50}
                 )
 
             await ap.disconnect()

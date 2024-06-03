@@ -38,9 +38,7 @@ if __name__ == "__main__":
     # This will import from the rc_failing.py file.
     for ap in aps:
         for sta in ap.stations():
-            loop.run_until_complete(
-                sta.start_rate_control("rc_failing", {"fail_after_s": 3})
-            )
+            loop.run_until_complete(sta.start_rate_control("rc_failing", {"fail_after_s": 3}))
 
     try:
         print("Running rateman... (Press CTRL+C to stop)")

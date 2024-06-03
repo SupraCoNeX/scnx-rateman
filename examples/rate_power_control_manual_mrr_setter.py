@@ -57,7 +57,7 @@ if __name__ == "__main__":
     if not rc_started:
         print(
             "Unable to start RC. Maybe TPC is not supported or no station is associated?",
-            file=sys.stderr
+            file=sys.stderr,
         )
         loop.run_until_complete(rm.stop())
         sys.exit(1)
