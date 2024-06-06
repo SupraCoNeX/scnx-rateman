@@ -621,7 +621,7 @@ class Station:
 
         self._validate_rates([rate])
 
-        cmd = f"set_probe;{self._mac_addr};{rate:x},{count:x}"
+        cmd = f"set_probe;{self._mac_addr};{rate},{count}"
 
         if txpwr and txpwr != -1:
             self._validate_txpwrs([txpwr])

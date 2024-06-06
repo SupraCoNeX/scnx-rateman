@@ -184,7 +184,7 @@ class AccessPoint:
         return self._all_rate_info
 
     def get_rate_info(self, rate_idx: int) -> dict:
-        rate_info = get_rate_info(self._all_rate_info, f"{rate_idx:x}")
+        rate_info = get_rate_info(self._all_rate_info, f"{rate_idx}")
 
         return rate_info
 
