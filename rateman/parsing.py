@@ -324,7 +324,7 @@ def parse_sta(ap, fields: list):
         mask = int(mcs_groups[i], 16)
         for ofs in range(10):
             if mask & (1 << ofs):
-                supported_rates.append(i * 16 + ofs)
+                supported_rates.append(grp_idx + str(ofs))
 
     return Station(
         mac,

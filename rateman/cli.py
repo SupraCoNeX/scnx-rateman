@@ -14,15 +14,14 @@ def dump_sta_rate_set(sta):
     begin = None
     prev = None
     ranges = []
-
-    for grp, info in enumerate(sta.accesspoint._rate_info):
-        for rate in info["rates"]:
+    for grp, info in sta.accesspoint.all_rate_info.items():
+        for rate in info["rate_inds"]:
             if rate in supported:
                 if not begin:
                     begin = rate
             else:
                 if begin:
-                    ranges.append(f"{begin:x}-{prev:x}")
+                    ranges.append(f"{begin}-{prev}")
 
                 begin = None
 
@@ -30,7 +29,7 @@ def dump_sta_rate_set(sta):
 
     if prev in supported:
         if begin:
-            ranges.append(f"{begin:x}-{prev:x}")
+            ranges.append(f"{begin}-{prev}")
 
     print("          supported rates: " + ", ".join(ranges))
 
