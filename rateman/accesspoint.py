@@ -32,13 +32,13 @@ class AccessPoint:
     :func:`.from_file`
     """
 
-    def __init__(self, name, addr, rcd_port=21059, logger=None, loop=None):
+    def __init__(self, name: str, addr: str, rcd_port=21059, logger=None, loop=None):
         """
         Parameters
         ----------
         name : str
             Name given to the AP.
-        addr : int
+        addr : str
             IP address of the AP.
         rcd_port : int, optional
             Port over which the Rate Control API is accessed. Defaults to 21059
@@ -63,6 +63,7 @@ class AccessPoint:
         self._first_non_header_line = None
         self._record_rcd_trace = False
         self._rcd_trace_file = None
+        self._header_collected = False
 
     async def api_info(self, timeout=0.5):
         it = aiter(self._reader)
@@ -71,8 +72,8 @@ class AccessPoint:
                 async with asyncio.timeout(timeout):
                     data = await anext(it)
                     line = data.decode("utf-8")
-                    if self._record_rcd_trace:
-                        self._rcd_trace_file.write(line)
+                    # if self._record_rcd_trace:
+                    #     self._rcd_trace_file.write(line)
 
                 if line.startswith("*") or ";0;add" in line or ";0;sta" in line:
                     yield line.rstrip()
@@ -131,6 +132,14 @@ class AccessPoint:
         The port on which the ORCA-RCD instance on the accesspoint listens.
         """
         return self._rcd_port
+
+    @property
+    def header_collected(self):
+        return self._header_collected
+
+    @header_collected.setter
+    def header_collected(self, header_collected):
+        self._header_collected = header_collected
 
     @property
     def loop(self):
