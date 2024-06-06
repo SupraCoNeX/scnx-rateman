@@ -528,12 +528,12 @@ class Station:
 
         return txpwr_indeces
 
-    def _validate_rates(self, rates: list[int]):
+    def _validate_rates(self, rates: list[str]):
         for r in rates:
             if r not in self._supported_rates:
-                raise StationError(self, f"Unsupported rate: {r:x}")
+                raise StationError(self, f"Unsupported rate: {r}")
 
-    async def set_rates(self, rates: list[int], counts: list[int]):
+    async def set_rates(self, rates: list[str], counts: list[int]):
         """
         Set the station's rate table, i.e., the rates at which transmissions will be attempted and
         their respective retry counts. Given the hardware's support, transmissions to this station
@@ -550,7 +550,7 @@ class Station:
 
         self._validate_rates(rates)
 
-        mrr = ";".join([f"{r:x},{c:x}" for (r, c) in zip(rates, counts)])
+        mrr = ";".join([f"{r},{c}" for (r, c) in zip(rates, counts)])
         await self._accesspoint.send(self._radio, f"set_rates;{self._mac_addr};{mrr}")
 
     async def set_power(self, pwrs: list[int]):
@@ -570,7 +570,7 @@ class Station:
         txpwrs = ";".join([f"{idx:x}" for idx in self._validate_txpwrs(pwrs)])
         await self._accesspoint.send(self._radio, f"set_power;{self._mac_addr};{txpwrs}")
 
-    async def set_rates_and_power(self, rates: list[int], counts: list[int], pwrs: list[int]):
+    async def set_rates_and_power(self, rates: list[str], counts: list[int], pwrs: list[int]):
         """
         Set rates, retry counts, and transmit power levels for transmissions made to this station.
         This combines the effects of `set_rates()` and `set_power()`.
@@ -595,7 +595,7 @@ class Station:
 
         supported_pwrs = self._accesspoint.txpowers(self._radio)
         txpwrs = [supported_pwrs.index(p) for p in pwrs]
-        mrr = ";".join([f"{r:x},{c:x},{p:x}" for (r, c, p) in zip(rates, counts, txpwrs)])
+        mrr = ";".join([f"{r},{c},{p:x}" for (r, c, p) in zip(rates, counts, txpwrs)])
         await self._accesspoint.send(self._radio, f"set_rates_power;{self._mac_addr};{mrr}")
 
     async def set_probe_rate(self, rate: int, count: int, txpwr: int = None):
