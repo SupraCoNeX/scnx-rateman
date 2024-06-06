@@ -145,7 +145,7 @@ async def process_header(ap, path):
             process_phy_info(ap, line.split(";"))
         elif "0;sta;add;" in line:
             await process_sta_info(ap, line.split(";"))
-        header_file.write(line)
+        header_file.write(line+"\n")
     header_file.close()
     ap.header_collected = True
 
