@@ -7,6 +7,7 @@ import logging
 import asyncio
 import traceback
 from contextlib import suppress
+import os
 from .accesspoint import AccessPoint
 from .station import Station
 from .parsing import *
@@ -68,14 +69,15 @@ class RateMan:
 
         return None
 
-    async def ap_connection(self, ap: AccessPoint, timeout=5):
+    async def ap_connection(self, ap: AccessPoint, path, timeout=5):
+        ap_header_path = os.path.join(path, f"{ap.name}_orca_header.csv")
         while True:
             self._logger.debug(f"Connecting to {ap}, timeout={timeout} s")
-
             try:
                 async with asyncio.timeout(timeout):
                     await ap.connect()
-                    await process_header(ap)
+                    if not ap.header_collected:
+                        await process_header(ap, path=ap_header_path)
                     break
             except asyncio.CancelledError as e:
                 raise e
@@ -99,7 +101,11 @@ class RateMan:
         except asyncio.CancelledError as e:
             raise e
 
-    async def initialize(self, timeout: int = 5):
+    async def initialize(
+        self,
+        path: str = None,
+        timeout: int = 5,
+    ):
         """
         Establish connections to access points and process the information they provide. When this
         function returns, rateman has created representations of the accesspoints' radios, their
@@ -107,14 +113,18 @@ class RateMan:
 
         Parameters
         ----------
+        path: str
+            Directory path to save ORCA header.
+
         timeout : int
             The timeout for the connection attempt. This is also the time that rateman will wait
             before making a new connection attempt.
         """
-
+        if not path:
+            path = os.getcwd()
         tasks = [
             self._loop.create_task(
-                self.ap_connection(ap, timeout=timeout), name=f"connect_{ap.name}"
+                self.ap_connection(ap, path, timeout=timeout), name=f"connect_{ap.name}"
             )
             for ap in self.accesspoints
         ]

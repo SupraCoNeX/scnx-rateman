@@ -134,7 +134,8 @@ async def process_sta_info(ap, fields):
             await ap.update_station(sta)
 
 
-async def process_header(ap):
+async def process_header(ap, path):
+    header_file = open(path, "w")
     async for line in ap.api_info():
         if line.startswith("*;0;#"):
             continue
@@ -144,6 +145,9 @@ async def process_header(ap):
             process_phy_info(ap, line.split(";"))
         elif "0;sta;add;" in line:
             await process_sta_info(ap, line.split(";"))
+        header_file.write(line + "\n")
+    header_file.close()
+    ap.header_collected = True
 
 
 async def process_line(ap, line):
