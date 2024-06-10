@@ -72,8 +72,6 @@ class AccessPoint:
                 async with asyncio.timeout(timeout):
                     data = await anext(it)
                     line = data.decode("utf-8")
-                    # if self._record_rcd_trace:
-                    #     self._rcd_trace_file.write(line)
 
                 if line.startswith("*") or ";0;add" in line or ";0;sta" in line:
                     yield line.rstrip()
