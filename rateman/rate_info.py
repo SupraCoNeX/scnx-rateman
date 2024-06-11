@@ -1,4 +1,5 @@
 import linecache
+import math
 
 __all__ = ["get_rate_info", "parse_group_info"]
 
@@ -48,17 +49,19 @@ def get_rate_info(all_rate_info: dict, rate_idx: str) -> dict:
         rate_group = rate_idx[:-1]
 
     rate_info = dict()
+    mcs_offset = int(rate_idx[-1])
     rate_info["type"] = all_rate_info[rate_group]["type"]
-    mcs = all_rate_info[rate_group]["mcs"][int(rate_idx[-1])]
+    mcs = all_rate_info[rate_group]["mcs"][mcs_offset]
     rate_info["nss"] = all_rate_info[rate_group]["nss"]
     rate_info["bandwidth"] = all_rate_info[rate_group]["bandwidth"]
     rate_info["guard_interval"] = all_rate_info[rate_group]["guard_interval"]
     rate_info["guard_interval_microsec"] = all_rate_info[rate_group]["guard_interval_microsec"]
-    rate_info["airtime_ns"] = all_rate_info[rate_group]["airtimes_ns"][int(rate_idx[-1])]
+    rate_info["airtime_ns"] = all_rate_info[rate_group]["airtimes_ns"][mcs_offset]
     rate_info["MCS"] = mcs
     rate_info["MCS_ind"] = AVAILABLE_PARAMS["mcs"].index(mcs) + 1
     rate_info["modulation"] = mcs.split(",")[0]
     rate_info["coding"] = mcs.split(",")[1]
+    rate_info["min_rssi"] = _cal_min_RSSI(mcs_offset, int(rate_info["bandwidth"][:-3]), rate_info["nss"], Nant=4)
 
     if rate_info["type"] in ["ofdm", "cck"]:
         rate_info["data_rate_Mbps"] = 0
@@ -134,3 +137,9 @@ def _cal_data_rate(
     data_rate_Mbps = round(data_rate * 1e-6, 2)
 
     return data_rate_Mbps
+
+def _cal_min_RSSI(mcs_offset, bw, nss, Nant):
+    base_rssi = [-82, -79, -77, -74, -70, -66, -65, -64, -59, -57]
+
+    rssi = base_rssi[mcs_offset] + (10 * math.log10(bw/20)) + (10 * math.log10(nss)) - (10 * math.log10(Nant/nss))
+    return rssi
