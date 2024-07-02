@@ -553,7 +553,7 @@ class Station:
         mrr = ";".join([f"{r:x},{c:x}" for (r, c) in zip(rates, counts)])
         await self._accesspoint.send(self._radio, f"set_rates;{self._mac_addr};{mrr}")
 
-    async def set_power(self, pwrs: list[int]):
+    async def set_power(self, pwrs: list[float]):
         """
         Set the transmit power levels for the station's rate table. Given the hardware's support,
         this will prescribe which transmit power level is to be used at every stage of the retry
@@ -567,10 +567,15 @@ class Station:
         if self._tpc_mode != "manual":
             raise StationError(self, "Need to be in manual power control mode to set TX power")
 
-        txpwrs = ";".join([f"{idx:x}" for idx in self._validate_txpwrs(pwrs)])
+        self._validate_txpwrs(pwrs)
+
+        supported_pwrs = self._accesspoint.txpowers(self._radio)
+        txpwrs = [supported_pwrs.index(p) for p in pwrs]
+        txpwrs = ";".join([f"{idx:x}" for idx in txpwrs])
+
         await self._accesspoint.send(self._radio, f"set_power;{self._mac_addr};{txpwrs}")
 
-    async def set_rates_and_power(self, rates: list[int], counts: list[int], pwrs: list[int]):
+    async def set_rates_and_power(self, rates: list[int], counts: list[int], pwrs: list[float]):
         """
         Set rates, retry counts, and transmit power levels for transmissions made to this station.
         This combines the effects of `set_rates()` and `set_power()`.
