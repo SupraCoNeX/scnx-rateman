@@ -61,7 +61,9 @@ def get_rate_info(all_rate_info: dict, rate_idx: str) -> dict:
     rate_info["MCS_ind"] = AVAILABLE_PARAMS["mcs"].index(mcs) + 1
     rate_info["modulation"] = mcs.split(",")[0]
     rate_info["coding"] = mcs.split(",")[1]
-    rate_info["min_rssi"] = _cal_min_RSSI(mcs_offset, int(rate_info["bandwidth"][:-3]), rate_info["nss"], Nant=4)
+    rate_info["min_rssi"] = _cal_min_RSSI(
+        mcs_offset, int(rate_info["bandwidth"][:-3]), rate_info["nss"], Nant=4
+    )
 
     if rate_info["type"] in ["ofdm", "cck"]:
         rate_info["data_rate_Mbps"] = 0
@@ -138,8 +140,14 @@ def _cal_data_rate(
 
     return data_rate_Mbps
 
+
 def _cal_min_RSSI(mcs_offset, bw, nss, Nant):
     base_rssi = [-82, -79, -77, -74, -70, -66, -65, -64, -59, -57]
 
-    rssi = base_rssi[mcs_offset] + (10 * math.log10(bw/20)) + (10 * math.log10(nss)) - (10 * math.log10(Nant/nss))
+    rssi = (
+        base_rssi[mcs_offset]
+        + (10 * math.log10(bw / 20))
+        + (10 * math.log10(nss))
+        - (10 * math.log10(Nant / nss))
+    )
     return rssi
