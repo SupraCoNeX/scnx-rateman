@@ -10,27 +10,27 @@ from .accesspoint import *
 
 
 def dump_sta_rate_set(sta):
-    supported = sta.supported_rates
+    rates_hex = [hex(ii)[2:] for ii in sta.supported_rates]
     begin = None
     prev = None
     ranges = []
 
-    for grp, info in enumerate(sta.accesspoint._rate_info):
-        for rate in info["rates"]:
-            if rate in supported:
+    for grp, info in sta.accesspoint.all_rate_info.items():
+        for rate in info["rate_inds"]:
+            if rate in rates_hex:
                 if not begin:
                     begin = rate
             else:
                 if begin:
-                    ranges.append(f"{begin:x}-{prev:x}")
+                    ranges.append(f"{begin}-{prev}")
 
                 begin = None
 
             prev = rate
 
-    if prev in supported:
+    if prev in rates_hex:
         if begin:
-            ranges.append(f"{begin:x}-{prev:x}")
+            ranges.append(f"{begin}-{prev}")
 
     print("          supported rates: " + ", ".join(ranges))
 
