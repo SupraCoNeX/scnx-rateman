@@ -46,6 +46,7 @@ class Station:
         self._radio = radio
         self._iface = iface
         self._supported_rates = supported_rates
+        self._supported_powers = None
         self._last_seen = timestamp
         self._rc_mode = rc_mode
         self._kernel_update_freq = update_freq
@@ -226,6 +227,17 @@ class Station:
     @supported_rates.setter
     def supported_rates(self, rates: list):
         self._supported_rates = rates
+
+    @property
+    def supported_powers(self) -> list:
+        """
+        Return a list of all the transmission power levels the AP of this station supports.
+        """
+        return self._supported_powers
+
+    @supported_powers.setter
+    def supported_powers(self, powers: list):
+        self._supported_powers = powers
 
     @property
     def mac_addr(self) -> str:
@@ -569,8 +581,7 @@ class Station:
 
         self._validate_txpwrs(pwrs)
 
-        supported_pwrs = self._accesspoint.txpowers(self._radio)
-        txpwrs = [supported_pwrs.index(p) for p in pwrs]
+        txpwrs = [self._supported_powers.index(p) for p in pwrs]
         txpwrs = ";".join([f"{idx:x}" for idx in txpwrs])
 
         await self._accesspoint.send(self._radio, f"set_power;{self._mac_addr};{txpwrs}")
@@ -598,8 +609,7 @@ class Station:
         self._validate_rates(rates)
         self._validate_txpwrs(pwrs)
 
-        supported_pwrs = self._accesspoint.txpowers(self._radio)
-        txpwrs = [supported_pwrs.index(p) for p in pwrs]
+        txpwrs = [self._supported_powers.index(p) for p in pwrs]
         mrr = ";".join([f"{r:x},{c:x},{p:x}" for (r, c, p) in zip(rates, counts, txpwrs)])
         await self._accesspoint.send(self._radio, f"set_rates_power;{self._mac_addr};{mrr}")
 

@@ -121,6 +121,7 @@ async def process_sta_info(ap, fields):
     match fields[3]:
         case "add" | "dump":
             sta = parse_sta(ap, fields)
+            sta.supported_powers = ap.txpowers(sta.radio)
             await ap.add_station(sta)
 
             if sta.rc_mode == "auto":
