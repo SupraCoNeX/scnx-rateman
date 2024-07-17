@@ -61,8 +61,8 @@ def get_rate_info(all_rate_info: dict, rate_idx: str) -> dict:
     rate_info["MCS_ind"] = AVAILABLE_PARAMS["mcs"].index(mcs) + 1
     rate_info["modulation"] = mcs.split(",")[0]
     rate_info["coding"] = mcs.split(",")[1]
-    rate_info["min_rssi"] = _cal_min_RSSI(
-        mcs_offset, int(rate_info["bandwidth"][:-3]), rate_info["nss"], Nant=4
+    rate_info["min_rssi"] = _cal_min_rssi(
+        mcs_offset, int(rate_info["bandwidth"][:-3]), rate_info["nss"], num_rx_antennas=4
     )
 
     if rate_info["type"] in ["ofdm", "cck"]:
@@ -141,13 +141,31 @@ def _cal_data_rate(
     return data_rate_Mbps
 
 
-def _cal_min_RSSI(mcs_offset, bw, nss, Nant):
+def _cal_min_rssi(mcs_offset, bw, nss, num_rx_antennas):
+    """
+    For a given rate calculate minimum RSSI required.
+    Based on the paper entitled
+    'IEEE 802.11n/ac Data Rates under Power Constraints' by Yousri Daldoul et al.
+
+    Parameters
+    ----------
+    mcs_offset : MCS index within a given group
+    bw : Channel bandwidth
+    nss : Number of spatial streams
+    num_rx_antennas : Expected number of RX antennas
+
+    Returns
+    -------
+    rssi : RSSI in dBm
+
+    """
+
     base_rssi = [-82, -79, -77, -74, -70, -66, -65, -64, -59, -57]
 
     rssi = (
         base_rssi[mcs_offset]
         + (10 * math.log10(bw / 20))
         + (10 * math.log10(nss))
-        - (10 * math.log10(Nant / nss))
+        - (10 * math.log10(num_rx_antennas / nss))
     )
     return rssi
