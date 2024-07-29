@@ -76,10 +76,6 @@ class Station:
         return self._loop
 
     @property
-    def logger(self) -> logging.Logger:
-        return self._log
-
-    @property
     def associated(self) -> bool:
         return self._accesspoint and self._radio
 
@@ -230,7 +226,7 @@ class Station:
         self._supported_rates = rates
 
     @property
-    def supported_powers(self) -> list:
+    def supported_powers(self) -> list[float]:
         """
         Return a list of all the transmission power levels the AP of this station supports.
         """
@@ -247,10 +243,6 @@ class Station:
         """
         return self._mac_addr
 
-    @property
-    def txpowers(self) -> list[float]:
-        return self._accesspoint.txpowers(self._radio)
-
     def get_rate_stats(self, rate: int, txpower: Union[int, None] = None) -> tuple[int, int, int]:
         """
         Return a tuple containg the number of transmission attempts, number of successful
@@ -258,8 +250,7 @@ class Station:
         rate at the given txpower.
         """
         if txpower is not None:
-            supported_pwrs = self._accesspoint.txpowers(self._radio)
-            txpower = supported_pwrs.index(txpower)
+            txpower = self._supported_rates.index(txpower)
         else:
             txpower = -1
 
@@ -529,10 +520,9 @@ class Station:
 
     def _validate_txpwrs(self, pwrs: list[int]) -> list[int]:
         txpwr_indeces = []
-        supported_txpowers = self.txpowers
 
         for p in pwrs:
-            for i, txpwr in enumerate(supported_txpowers):
+            for i, txpwr in enumerate(self._supported_powers):
                 if p == txpwr:
                     txpwr_indeces.append(i)
                     i = 0
@@ -643,10 +633,7 @@ class Station:
 
         if txpwr is not None:
             self._validate_txpwrs([txpwr])
-
-            supported_pwrs = self._accesspoint.txpowers(self._radio)
-
-            cmd += f",{supported_pwrs.index(txpwr):x}"
+            cmd += f",{self._supported_powers.index(txpwr):x}"
 
         await self._accesspoint.send(self._radio, cmd)
 
@@ -667,13 +654,6 @@ def handle_rc_exception(sta: Station, future):
     rc_alg, _ = sta.rate_control
 
     sta.log.error(f"{sta}: Rate control '{rc_alg}' raised an exception: {exception.__repr__()}")
-    '''
-    import traceback
-    traceback_info = traceback.format_tb(exception.__traceback__)
-
-    for line in traceback_info:
-        sta.log.error(line.strip())
-    '''
     sta.loop.create_task(cleanup_rc(sta))
 
 
