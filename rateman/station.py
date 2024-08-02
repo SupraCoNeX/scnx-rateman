@@ -250,7 +250,7 @@ class Station:
         rate at the given txpower.
         """
         if txpower is not None:
-            txpower = self._supported_rates.index(txpower)
+            txpower = self._supported_powers.index(txpower)
         else:
             txpower = -1
 
