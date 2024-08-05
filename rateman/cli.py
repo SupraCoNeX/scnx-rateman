@@ -15,7 +15,7 @@ def dump_sta_rate_set(sta):
     prev = None
     ranges = []
 
-    for grp, info in sta.accesspoint.all_rate_info.items():
+    for grp, info in sta.accesspoint.all_group_info.items():
         for rate in info["rate_inds"]:
             if rate in rates_hex:
                 if not begin:

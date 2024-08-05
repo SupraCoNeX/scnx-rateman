@@ -50,8 +50,9 @@ class AccessPoint:
         self._api_version = None
         self._addr = addr
         self._rcd_port = rcd_port
+        self._all_group_info = dict()
         self._all_rate_info = dict()
-        self._radios = {}
+        self._radios = dict()
         self._connected = False
         self._latest_timestamp = 0
         self._log = logger if logger else logging.getLogger()
@@ -178,13 +179,19 @@ class AccessPoint:
         self._sample_table = [list(map(int, row.split(","))) for row in sample_table_data]
 
     @property
-    def all_rate_info(self):
-        return self._all_rate_info
+    def all_group_info(self):
+        return self._all_group_info
 
-    def get_rate_info(self, rate_idx: int) -> dict:
-        rate_info = get_rate_info(self._all_rate_info, f"{rate_idx:x}")
+    def get_rate_info(self, rate: int, attr: str = "") -> dict:
+        if rate in self._all_rate_info:
+            rate_info = self._all_rate_info[rate]
 
-        return rate_info
+            if attr in rate_info.keys():
+                return rate_info[attr]
+            elif attr != "":
+                return
+
+            return rate_info
 
     def start_recording_rcd_trace(self, path):
         """
@@ -565,7 +572,11 @@ class AccessPoint:
             await self.send(radio, f"reset_stats;{sta}")
 
     def add_group_rate_info(self, group_ind, group_info):
-        self._all_rate_info.update({group_ind: group_info})
+        self._all_group_info.update({group_ind: group_info})
+        for rate_idx in group_info["rate_inds"]:
+            rate = int(rate_idx, 16)
+            rate_info = get_rate_info(group_info, rate)
+            self._all_rate_info.update({rate: rate_info})
 
     async def _set_all_stations_mode(self, radio, which, mode):
         if mode not in ["manual", "auto"]:
