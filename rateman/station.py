@@ -451,6 +451,8 @@ class Station:
             txpwrs = array("i", [-1, -1, -1, -1])
         self._stats.update(timestamp, rates, txpwrs, attempts, successes, 4)
 
+        self._last_seen = timestamp
+
     def reset_ampdu_stats(self):
         self._ampdu_subframes = 0
         self._ampdu_aggregates = 0
