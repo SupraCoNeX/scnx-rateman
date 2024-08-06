@@ -39,7 +39,10 @@ AVAILABLE_PARAMS = {
 }
 
 
-def get_rate_info(all_rate_info: dict, rate_idx: str) -> dict:
+def get_rate_info(group_info: dict, rate: int) -> dict:
+    rate_info = dict()
+    rate_idx = f"{rate:x}"
+
     if len(rate_idx) == 1:
         rate_group = "0"
         rate_idx = f"0{rate_idx}"
@@ -48,15 +51,15 @@ def get_rate_info(all_rate_info: dict, rate_idx: str) -> dict:
     elif len(rate_idx) == 3:
         rate_group = rate_idx[:-1]
 
-    rate_info = dict()
     mcs_offset = int(rate_idx[-1])
-    rate_info["type"] = all_rate_info[rate_group]["type"]
-    mcs = all_rate_info[rate_group]["mcs"][mcs_offset]
-    rate_info["nss"] = all_rate_info[rate_group]["nss"]
-    rate_info["bandwidth"] = all_rate_info[rate_group]["bandwidth"]
-    rate_info["guard_interval"] = all_rate_info[rate_group]["guard_interval"]
-    rate_info["guard_interval_microsec"] = all_rate_info[rate_group]["guard_interval_microsec"]
-    rate_info["airtime_ns"] = all_rate_info[rate_group]["airtimes_ns"][mcs_offset]
+    mcs = group_info["mcs"][mcs_offset]
+
+    rate_info["type"] = group_info["type"]
+    rate_info["nss"] = group_info["nss"]
+    rate_info["bandwidth"] = group_info["bandwidth"]
+    rate_info["guard_interval"] = group_info["guard_interval"]
+    rate_info["guard_interval_microsec"] = group_info["guard_interval_microsec"]
+    rate_info["airtime_ns"] = group_info["airtimes_ns"][mcs_offset]
     rate_info["MCS"] = mcs
     rate_info["MCS_ind"] = AVAILABLE_PARAMS["mcs"].index(mcs) + 1
     rate_info["modulation"] = mcs.split(",")[0]

@@ -26,10 +26,10 @@ class RateMan:
     """
 
     def __init__(self, loop=None, logger=None):
-        self._logger = logger if logger else logging.getLogger("rateman")
+        self._log = logger if logger else logging.getLogger("rateman")
 
         if not loop:
-            self._logger.debug("Creating new event loop")
+            self._log.debug("Creating new event loop")
             self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             self._new_loop_created = True
@@ -72,7 +72,7 @@ class RateMan:
     async def ap_connection(self, ap: AccessPoint, path, timeout=5):
         ap_header_path = os.path.join(path, f"{ap.name}_orca_header.csv")
         while True:
-            self._logger.debug(f"Connecting to {ap}, timeout={timeout} s")
+            self._log.debug(f"Connecting to {ap}, timeout={timeout} s")
             try:
                 async with asyncio.timeout(timeout):
                     await ap.connect()
@@ -83,11 +83,11 @@ class RateMan:
                 raise e
             except UnsupportedAPIVersionError as e:
                 await ap.disconnect()
-                self._logger.error(f"Diconnected from {ap}: {e}")
+                self._log.error(f"Diconnected from {ap}: {e}")
                 raise e
             except Exception as e:
                 tb = traceback.extract_tb(e.__traceback__)[-1]
-                self._logger.error(
+                self._log.error(
                     f"{ap}: Disconnected. Trying to reconnect in {timeout}s: "
                     f"Error='{e}' ({tb.filename}:{tb.lineno})"
                 )
@@ -137,14 +137,14 @@ class RateMan:
 
         for task in done:
             if task.exception():
-                self._logger.error(f"{task.exception()}")
+                self._log.error(f"{task.exception()}")
 
         for (addr, port), (ap, _) in self._accesspoints.items():
             if ap.connected:
                 rcd_task = self._loop.create_task(self.rcd_connection(ap), name=f"rcd_{ap.name}")
                 self._accesspoints.update({(addr, port): (ap, rcd_task)})
             else:
-                self._logger.warning(
+                self._log.warning(
                     f"Connection to {ap} could not be established in time (timeout={timeout}s)"
                 )
 
@@ -153,7 +153,7 @@ class RateMan:
         Stop all running tasks and disconnect from all accesspoints. Kernel rate control will be
         enabled for all the access points' stations prior to disconnection.
         """
-        self._logger.debug("Stopping RateMan")
+        self._log.debug("Stopping RateMan")
 
         for _, (ap, rcd_connection) in self._accesspoints.items():
             if not ap.connected:
@@ -179,4 +179,4 @@ class RateMan:
         if self._new_loop_created:
             self._loop.close()
 
-        self._logger.debug("RateMan stopped")
+        self._log.debug("RateMan stopped")

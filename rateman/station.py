@@ -4,6 +4,7 @@ import weakref
 from array import array
 from contextlib import suppress
 from functools import partial
+from typing import Union
 from . import rate_control
 from .c_sta_rate_stats import StationRateStats
 from .exception import RateControlConfigError, StationError, RadioError
@@ -73,10 +74,6 @@ class Station:
     @property
     def loop(self):
         return self._loop
-
-    @property
-    def logger(self) -> logging.Logger:
-        return self._log
 
     @property
     def associated(self) -> bool:
@@ -229,7 +226,7 @@ class Station:
         self._supported_rates = rates
 
     @property
-    def supported_powers(self) -> list:
+    def supported_powers(self) -> list[float]:
         """
         Return a list of all the transmission power levels the AP of this station supports.
         """
@@ -246,19 +243,16 @@ class Station:
         """
         return self._mac_addr
 
-    @property
-    def txpowers(self) -> list[float]:
-        return self._accesspoint.txpowers(self._radio)
-
-    def get_rate_stats(self, rate: int, txpower: int = -1) -> tuple[int, int, int]:
+    def get_rate_stats(self, rate: int, txpower: Union[int, None] = None) -> tuple[int, int, int]:
         """
         Return a tuple containg the number of transmission attempts, number of successful
         transmissions, and the timestamp (in ms since 1970/1/1) since the last use of the given
         rate at the given txpower.
         """
-        if txpower != -1:
-            supported_pwrs = self._accesspoint.txpowers(self._radio)
-            txpower = supported_pwrs.index(txpower)
+        if txpower is not None:
+            txpower = self._supported_powers.index(txpower)
+        else:
+            txpower = -1
 
         return self._stats.get(rate, txpower)
 
@@ -457,6 +451,8 @@ class Station:
             txpwrs = array("i", [-1, -1, -1, -1])
         self._stats.update(timestamp, rates, txpwrs, attempts, successes, 4)
 
+        self._last_seen = timestamp
+
     def reset_ampdu_stats(self):
         self._ampdu_subframes = 0
         self._ampdu_aggregates = 0
@@ -526,10 +522,9 @@ class Station:
 
     def _validate_txpwrs(self, pwrs: list[int]) -> list[int]:
         txpwr_indeces = []
-        supported_txpowers = self.txpowers
 
         for p in pwrs:
-            for i, txpwr in enumerate(supported_txpowers):
+            for i, txpwr in enumerate(self._supported_powers):
                 if p == txpwr:
                     txpwr_indeces.append(i)
                     i = 0
@@ -638,12 +633,9 @@ class Station:
 
         cmd = f"set_probe;{self._mac_addr};{rate:x},{count:x}"
 
-        if txpwr and txpwr != -1:
+        if txpwr is not None:
             self._validate_txpwrs([txpwr])
-
-            supported_pwrs = self._accesspoint.txpowers(self._radio)
-
-            cmd += f",{supported_pwrs.index(txpwr):x}"
+            cmd += f",{self._supported_powers.index(txpwr):x}"
 
         await self._accesspoint.send(self._radio, cmd)
 
@@ -664,13 +656,6 @@ def handle_rc_exception(sta: Station, future):
     rc_alg, _ = sta.rate_control
 
     sta.log.error(f"{sta}: Rate control '{rc_alg}' raised an exception: {exception.__repr__()}")
-    """
-    import traceback
-    traceback_info = traceback.format_tb(exception.__traceback__)
-
-    for line in traceback_info:
-        print(line.strip())
-    """
     sta.loop.create_task(cleanup_rc(sta))
 
 

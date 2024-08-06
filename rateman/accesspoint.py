@@ -50,11 +50,12 @@ class AccessPoint:
         self._api_version = None
         self._addr = addr
         self._rcd_port = rcd_port
+        self._all_group_info = dict()
         self._all_rate_info = dict()
-        self._radios = {}
+        self._radios = dict()
         self._connected = False
         self._latest_timestamp = 0
-        self._logger = logger if logger else logging.getLogger()
+        self._log = logger if logger else logging.getLogger()
         self._loop = loop
         self._last_cmd = None
         self._reader = None
@@ -149,7 +150,7 @@ class AccessPoint:
 
     @property
     def logger(self):
-        return self._logger
+        return self._log
 
     @property
     def connected(self) -> bool:
@@ -178,13 +179,19 @@ class AccessPoint:
         self._sample_table = [list(map(int, row.split(","))) for row in sample_table_data]
 
     @property
-    def all_rate_info(self):
-        return self._all_rate_info
+    def all_group_info(self):
+        return self._all_group_info
 
-    def get_rate_info(self, rate_idx: int) -> dict:
-        rate_info = get_rate_info(self._all_rate_info, f"{rate_idx:x}")
+    def get_rate_info(self, rate: int, attr: str = "") -> dict:
+        if rate in self._all_rate_info:
+            rate_info = self._all_rate_info[rate]
 
-        return rate_info
+            if attr in rate_info.keys():
+                return rate_info[attr]
+            elif attr != "":
+                return
+
+            return rate_info
 
     def start_recording_rcd_trace(self, path):
         """
@@ -291,7 +298,7 @@ class AccessPoint:
     def add_radio(
         self, radio: str, driver: str, ifaces: list, events: list, features: dict, tpc: dict
     ) -> None:
-        self._logger.debug(
+        self._log.debug(
             f"{self._name}: adding radio '{radio}', driver={driver}, "
             f"interfaces={ifaces}, events={events}, "
             f"features={', '.join([f + ':' + s for f, s in features.items()])} "
@@ -364,7 +371,7 @@ class AccessPoint:
             return
 
         if sta.mac_addr not in self._radios[sta.radio]["stations"]:
-            self._logger.debug(f"{self._name}:{sta.radio}: Adding {sta}")
+            self._log.debug(f"{self._name}:{sta.radio}: Adding {sta}")
             self._radios[sta.radio]["stations"][sta.mac_addr] = sta
 
     async def update_station(self, sta):
@@ -388,7 +395,7 @@ class AccessPoint:
         if sta.pause_rc_on_disassoc:
             await sta.pause_rate_control()
         else:
-            self._logger.debug(f"{self._name}:{radio}: Removing {sta}")
+            self._log.debug(f"{self._name}:{radio}: Removing {sta}")
             del self._radios[radio]["stations"][mac]
             await sta.stop_rate_control()
 
@@ -429,7 +436,7 @@ class AccessPoint:
         await self._writer.drain()
 
     def handle_error(self, error):
-        self._logger.error(f"{self._name}: Error '{error}', last command='{self._last_cmd}'")
+        self._log.error(f"{self._name}: Error '{error}', last command='{self._last_cmd}'")
 
     async def connect(self):
         if self._connected:
@@ -445,13 +452,13 @@ class AccessPoint:
             self._connected = False
             raise e
         except Exception as e:
-            self._logger.error(
+            self._log.error(
                 f"{self._name}: Failed to connect at {self._addr}:{self._rcd_port}: {e.__repr__()}"
             )
             self._connected = False
             raise e
 
-        self._logger.debug(f"{self._name}: Connected at {self._addr}:{self._rcd_port}")
+        self._log.debug(f"{self._name}: Connected at {self._addr}:{self._rcd_port}")
 
     async def disconnect(self, timeout=3.0):
         if self._rcd_trace_file:
@@ -464,7 +471,7 @@ class AccessPoint:
             for sta in self.stations(radio):
                 rc_alg, _ = sta.rate_control
                 if rc_alg != "minstrel_ht_kernel_space":
-                    self._logger.warning(
+                    self._log.warning(
                         f"Disconnecting from {self} will leave {sta} without rate control"
                     )
                     await sta.stop_rate_control()
@@ -477,7 +484,7 @@ class AccessPoint:
             async with asyncio.timeout(timeout):
                 await self._writer.wait_closed()
         except asyncio.TimeoutError:
-            self._logger.warning(f"{self._name}: did not disconnect within {timeout}s")
+            self._log.warning(f"{self._name}: did not disconnect within {timeout}s")
 
         self._writer = None
         self._connected = False
@@ -500,7 +507,7 @@ class AccessPoint:
 
         await self.disable_events(radio)
 
-        self._logger.debug(f"{self._name}:{radio}: Enable events {events}")
+        self._log.debug(f"{self._name}:{radio}: Enable events {events}")
 
         await self.send(radio, "start;" + ";".join(events))
 
@@ -516,7 +523,7 @@ class AccessPoint:
         else:
             self._radios[radio]["events"] = list(set(self._radios[radio]["events"]) - set(events))
 
-        self._logger.debug(f"{self._name}:{radio}: Disable events {events}")
+        self._log.debug(f"{self._name}:{radio}: Disable events {events}")
 
         await self.send(radio, "stop;" + ";".join(events))
 
@@ -539,7 +546,7 @@ class AccessPoint:
         if radio not in self._radios:
             return
 
-        self._logger.debug(f"{self._name}:{radio}: debugfs: setting {path}={value}")
+        self._log.debug(f"{self._name}:{radio}: debugfs: setting {path}={value}")
         await self.send(radio, f"debugfs;{path};{value}")
 
     async def reset_kernel_rate_stats(self, radio="all", sta="all") -> None:
@@ -555,23 +562,27 @@ class AccessPoint:
             raise RadioUnavailableError(self, radio)
 
         if sta == "all":
-            self._logger.debug(f"{self._name}:{radio}: Resetting in-kernel rate statistics")
+            self._log.debug(f"{self._name}:{radio}: Resetting in-kernel rate statistics")
             await self.send(radio, f"reset_stats;all")
         elif (
             sta in self._radios[radio]["stations"]
             and self._radios[radio]["stations"][sta].associated
         ):
-            self._logger.debug(f"{self._name}:{radio}:{sta}: Resetting in-kernel rate statistics")
+            self._log.debug(f"{self._name}:{radio}:{sta}: Resetting in-kernel rate statistics")
             await self.send(radio, f"reset_stats;{sta}")
 
     def add_group_rate_info(self, group_ind, group_info):
-        self._all_rate_info.update({group_ind: group_info})
+        self._all_group_info.update({group_ind: group_info})
+        for rate_idx in group_info["rate_inds"]:
+            rate = int(rate_idx, 16)
+            rate_info = get_rate_info(group_info, rate)
+            self._all_rate_info.update({rate: rate_info})
 
     async def _set_all_stations_mode(self, radio, which, mode):
         if mode not in ["manual", "auto"]:
             raise ValueError(f"Invalid mode '{mode}', must be either 'manual' or 'auto'")
 
-        self._logger.debug(f"{self._name}:{radio}: Setting {which} for all stations to {mode}")
+        self._log.debug(f"{self._name}:{radio}: Setting {which} for all stations to {mode}")
 
         await self.send(radio, f"{which};all;{mode}")
 
