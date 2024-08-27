@@ -70,6 +70,8 @@ class Station:
         self._rc_pause_on_disassoc = False
         self._rc_paused = False
         self._log = logger if logger else logging.getLogger()
+        self._kernel_stats = dict()
+        self._expected_throughput = None 
 
     @property
     def loop(self):
@@ -147,7 +149,25 @@ class Station:
         the remote device.
         """
         return self._kernel_update_freq
-
+    
+    @property
+    def kernel_stats(self) -> dict:
+        """
+        Return the estimated throughput of the rates reported in stats lines.
+        """
+        return self._kernel_stats
+    
+    @property
+    def expected_throughput(self) -> int:
+        """
+        Return the current estimated throughput.
+        """
+        return self._expected_throughput
+    
+    @expected_throughput.setter
+    def expected_throughput(self, throughput: float):
+        self._supported_powers = throughput
+    
     async def set_kernel_stats_update_freq(self, freq: int) -> None:
         """
         Set the frequency, at wich the kernel rate statistics for this station will be updated on
