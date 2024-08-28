@@ -182,6 +182,10 @@ class AccessPoint:
     def all_group_info(self):
         return self._all_group_info
 
+    @property
+    def supported_rates(self):
+        return list(self._all_rate_info.keys())
+
     def get_rate_info(self, rate: int, attr: str = "") -> dict:
         if rate in self._all_rate_info:
             rate_info = self._all_rate_info[rate]
