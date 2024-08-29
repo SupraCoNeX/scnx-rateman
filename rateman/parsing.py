@@ -181,7 +181,7 @@ async def process_line(ap, line):
                 if sta:
                     max_tp_rate = fields[4]
                     if max_tp_rate in sta.kernel_stats:
-                        sta.expected_tp = sta.kernel_stats[max_tp_rate]
+                        sta.expected_throughput = sta.kernel_stats[max_tp_rate]
 
             case "#error":
                 ap.handle_error(fields[3])
