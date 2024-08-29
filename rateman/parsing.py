@@ -153,23 +153,36 @@ async def process_header(ap, path):
 
 async def process_line(ap, line):
     # FIXME: This is where the AP's raw data callbacks should be called
-
     if (result := parse_txs(line)) is not None:
         update_rate_stats_from_txs(ap, *result)
         return None
 
     elif fields := validate_line(ap, line.decode("utf-8").rstrip()):
+        sta = ap.get_sta(fields[3], radio=fields[0])
         match fields[2]:
             case "rxs":
-                sta = ap.get_sta(fields[3], radio=fields[0])
                 if sta and fields[1] != "7f":
                     sta.update_rssi(
                         int(fields[1], 16),
                         parse_s8(fields[4]),
                         [parse_s8(r) for r in fields[5:]],
                     )
+
             case "sta":
                 await process_sta_info(ap, fields)
+
+            case "stats":
+                if sta:
+                    rate = fields[4]
+                    avg_tp =  int(fields[6], 16) / 10
+                    sta.kernel_stats.update({rate: avg_tp})
+
+            case "best_rates":
+                if sta:
+                    max_tp_rate = fields[4]
+                    if max_tp_rate in sta.kernel_stats:
+                        sta.expected_throughput = sta.kernel_stats[max_tp_rate]
+
             case "#error":
                 ap.handle_error(fields[3])
 
