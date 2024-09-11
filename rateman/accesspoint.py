@@ -300,27 +300,33 @@ class AccessPoint:
         await self._set_feature(radio, feature, val)
 
     def add_radio(
-        self, radio: str, driver: str, ifaces: list, events: list, features: dict, tpc: dict
+        self, radio: str, driver: str, events: list, features: dict, tpc: dict
     ) -> None:
         self._log.debug(
             f"{self._name}: adding radio '{radio}', driver={driver}, "
-            f"interfaces={ifaces}, events={events}, "
-            f"features={', '.join([f + ':' + s for f, s in features.items()])} "
+            f"features={', '.join([f + ':' + s for f, s in features.items()])}"
         )
 
         if radio not in self._radios:
             self._radios[radio] = {}
-
+        ifaces = {}
         self._radios[radio].update(
             {
                 "driver": driver,
                 "interfaces": ifaces,
-                "events": events,
                 "features": features,
                 "tpc": tpc,
                 "stations": {},
             }
         )
+
+    def add_radio_interface(self, radio: str, iface: str, events: list):
+        if iface not in self._radios[radio]["interfaces"]:
+            self._radios[radio]["interfaces"][iface] = {}
+            self._radios[radio]["interfaces"]["events"] = events
+            self._log.debug(
+                f"{self._name}:{radio}: adding radio interface {iface}, events={events} "
+            )
 
     def radio_for_interface(self, iface: str) -> str:
         """
