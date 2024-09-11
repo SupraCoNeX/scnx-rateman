@@ -73,8 +73,9 @@ class AccessPoint:
                 async with asyncio.timeout(timeout):
                     data = await anext(it)
                     line = data.decode("utf-8")
-
-                if line.startswith("*") or ";0;add" in line or ";0;sta" in line:
+                if line.startswith("*") or any(
+                    suffix in line for suffix in (";0;sta", ";0;add", "0;if;add;")
+                ):
                     yield line.rstrip()
                 else:
                     self._first_non_header_line = data
@@ -299,9 +300,7 @@ class AccessPoint:
         """
         await self._set_feature(radio, feature, val)
 
-    def add_radio(
-        self, radio: str, driver: str, features: dict, tpc: dict
-    ) -> None:
+    def add_radio(self, radio: str, driver: str, features: dict, tpc: dict) -> None:
         self._log.debug(
             f"{self._name}: adding radio '{radio}', driver={driver}, "
             f"features={', '.join([f + ':' + s for f, s in features.items()])}"
@@ -323,7 +322,7 @@ class AccessPoint:
     def add_radio_interface(self, radio: str, iface: str, events: list):
         if iface not in self._radios[radio]["interfaces"]:
             self._radios[radio]["interfaces"][iface] = {}
-            self._radios[radio]["interfaces"]["events"] = events
+            self._radios[radio]["interfaces"][iface]["events"] = events
             self._log.debug(
                 f"{self._name}:{radio}: adding radio interface {iface}, events={events} "
             )
@@ -521,21 +520,37 @@ class AccessPoint:
 
         await self.send(radio, "start;" + ";".join(events))
 
-    async def disable_events(self, radio="all", events: list = []) -> None:
+    async def disable_events(self, radio="all", iface="*", events: list = []) -> None:
         """
         Disable the given events for the given radio. If `radio` is `"*"` or
         `"all"`, the events will be disabled on all the accesspoint's radios.
         """
         if radio in ["all", "*"]:
             radio = "*"
-            for r in self._radios:
-                self._radios[r]["events"] = list(set(self._radios[r]["events"]) - set(events))
+            for rr in self._radios:
+                if iface in ["all", "*"]:
+                    for interface in self._radios[rr]["interfaces"]:
+                        self._radios[rr]["interfaces"][interface]["events"] = list(
+                            set(self._radios[rr]["interfaces"][interface]["events"]) - set(events)
+                        )
+                else:
+                    self._radios[rr]["interfaces"][iface]["events"] = list(
+                        set(self._radios[rr]["interfaces"][iface]["events"]) - set(events)
+                    )
         else:
-            self._radios[radio]["events"] = list(set(self._radios[radio]["events"]) - set(events))
+            if iface in ["all", "*"]:
+                for interface in self._radios[radio]["interfaces"]:
+                    self._radios[radio]["interfaces"][interface]["events"] = list(
+                        set(self._radios[radio]["interfaces"][interface]["events"]) - set(events)
+                    )
+            else:
+                self._radios[radio]["interfaces"][iface]["events"] = list(
+                    set(self._radios[radio]["interfaces"][iface]["events"]) - set(events)
+                )
 
-        self._log.debug(f"{self._name}:{radio}: Disable events {events}")
+        self._log.debug(f"{self._name}:{radio}:{iface} Disable events {events}")
 
-        await self.send(radio, "stop;" + ";".join(events))
+        await self.send(radio, f"stop;{iface}" + ";".join(events))
 
     async def dump_stas(self, radio="all"):
         if radio == "all":

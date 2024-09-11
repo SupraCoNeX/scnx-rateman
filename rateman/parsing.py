@@ -119,7 +119,7 @@ def process_phy_intf_info(ap, fields):
     ap.add_radio_interface(
         fields[0],  # radio
         fields[4],  # interface name
-        [e for e in fields[5].split(",") if e] # active monitor events
+        [e for e in fields[5].split(",") if e],  # active monitor events
     )
 
 
@@ -151,7 +151,7 @@ async def process_header(ap, path):
         elif "0;add;" in line:
             process_phy_info(ap, line.split(";"))
         elif "0;if;add;" in line:
-            process_phy_intf_info(ap,line.split(";"))
+            process_phy_intf_info(ap, line.split(";"))
         elif "0;sta;add;" in line:
             await process_sta_info(ap, line.split(";"))
         header_file.write(line + "\n")
