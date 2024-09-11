@@ -300,7 +300,7 @@ class AccessPoint:
         await self._set_feature(radio, feature, val)
 
     def add_radio(
-        self, radio: str, driver: str, events: list, features: dict, tpc: dict
+        self, radio: str, driver: str, features: dict, tpc: dict
     ) -> None:
         self._log.debug(
             f"{self._name}: adding radio '{radio}', driver={driver}, "
