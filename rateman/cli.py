@@ -138,6 +138,11 @@ def main():
         help="Path to a csv file where each line contains information about an access point "
         + "in the format: NAME,ADDR,RCDPORT.",
     )
+    arg_parser.add_argument("-p", "--phy", type=str, help="PHY name (radio)")
+
+    arg_parser.add_argument(
+        "-i", "--interface", type=str, help="PHY-Interface name (radio interface)"
+    )
     arg_parser.add_argument("-E", "--enable-events", nargs="+", action="extend")
     arg_parser.add_argument(
         "-r",
@@ -199,7 +204,9 @@ def main():
     print("OK")
 
     if args.enable_events:
-        loop.run_until_complete(ap.enable_events(events=args.enable_events))
+        loop.run_until_complete(
+            ap.enable_events(radio=args.phy, iface=args.interface, events=args.enable_events)
+        )
 
     if args.show_state:
         show_state(rm)
@@ -208,16 +215,18 @@ def main():
         return 0
 
     for ap in rm.accesspoints:
-        for sta in ap.stations():
-            print(f"Starting rate control scheme '{args.algorithm}' for {sta}")
-            try:
-                loop.run_until_complete(sta.start_rate_control(args.algorithm, options))
-            except Exception as e:
-                tb = traceback.extract_tb(e.__traceback__)[-1]
-                logger.error(
-                    f"Error starting rc algorithm '{args.algorithm}' for {sta}: "
-                    f"{e} (({tb.filename}:{tb.lineno}))"
-                )
+        if args.enable_events:
+            for sta in ap.stations(radio=args.phy):
+                if sta.interface == args.interface:
+                    print(f"Starting rate control scheme '{args.algorithm}' for {sta}")
+                    try:
+                        loop.run_until_complete(sta.start_rate_control(args.algorithm, options))
+                    except Exception as e:
+                        tb = traceback.extract_tb(e.__traceback__)[-1]
+                        logger.error(
+                            f"Error starting rc algorithm '{args.algorithm}' for {sta}: "
+                            f"{e} (({tb.filename}:{tb.lineno}))"
+                        )
 
     print("Running rateman... (Press CTRL+C to stop)")
 
