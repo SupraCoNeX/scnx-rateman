@@ -439,7 +439,6 @@ class AccessPoint:
         self._last_cmd = cmd
         if cmd[-1] != "\n":
             cmd += "\n"
-
         self._writer.write(f"{radio};{cmd}".encode("ascii"))
         await self._writer.drain()
 
@@ -531,7 +530,7 @@ class AccessPoint:
 
         await self.send(radio, f"start;{iface};" + ";".join(events))
 
-    async def disable_events(self, radio="all", iface="*", events: list = []) -> None:
+    async def disable_events(self, radio="all", iface="*", events: list = ["*"]) -> None:
         """
         Disable the given events for the given radio. If `radio` is `"*"` or
         `"all"`, the events will be disabled on all the accesspoint's radios.
