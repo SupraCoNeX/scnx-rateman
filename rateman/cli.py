@@ -53,6 +53,7 @@ def dump_interfaces(ap, radio):
     print("      interfaces:")
     for iface in ap.interfaces(radio):
         print(f"      - {iface}")
+        print(f"enabled events: {ap.enabled_events(radio, iface)}")
         dump_stas(ap, radio, iface)
 
 
@@ -73,13 +74,11 @@ def dump_radios(ap):
         print(
             """  - %(radio)s
       driver: %(drv)s
-      events: %(ev)s
       tpc: %(tpc)s
       features: %(features)s"""
             % dict(
                 radio=radio,
                 drv=ap.driver(radio),
-                ev=",".join(ap.enabled_events(radio)),
                 tpc=format_tpc_info(ap, radio),
                 features=", ".join([f"{f}={s}" for f, s in ap._radios[radio]["features"].items()]),
             )

@@ -244,12 +244,12 @@ class AccessPoint:
 
         return self._get_sta(mac, radio)
 
-    def enabled_events(self, radio: str) -> list:
+    def enabled_events(self, radio: str, iface: str) -> list:
         """
         Return a list of ORCA API events which are currently enabled, i.e., which are being reported
         by the device to which rateman is connected.
         """
-        return self._radios[radio]["events"]
+        return self._radios[radio]["interfaces"][iface]["events"]
 
     def get_feature_state(self, radio: str, feature: str):
         try:
