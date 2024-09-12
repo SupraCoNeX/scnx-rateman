@@ -528,7 +528,7 @@ class AccessPoint:
 
         self._log.debug(f"{self._name}:{radio}: Enable events {events}")
 
-        await self.send(radio, f"start;{iface};" + ";".join(events))
+        await self.send(radio, f"start;{iface};" + ",".join(events))
 
     async def disable_events(self, radio="all", iface="*", events: list = ["*"]) -> None:
         """
@@ -560,7 +560,7 @@ class AccessPoint:
 
         self._log.debug(f"{self._name}:{radio}:{iface} Disable events {events}")
 
-        await self.send(radio, f"stop;{iface};" + ";".join(events))
+        await self.send(radio, f"stop;{iface};" + ",".join(events))
 
     async def dump_stas(self, radio="all"):
         if radio == "all":
