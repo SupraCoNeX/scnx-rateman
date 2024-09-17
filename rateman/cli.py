@@ -6,7 +6,33 @@ import rateman
 import traceback
 from contextlib import suppress
 import ast
-from .accesspoint import *
+import tomllib
+
+
+def aps_from_file(filepath: dir, logger=None) -> (list, dict):
+    """
+    Parse the given csv file and return a list of :class:.`AccessPoint` objects created according to
+    the lines within. Lines must have the format `<NAME>,<ADDR>,<RCDPORT>` for name, IP address and
+    ORCA-RCD listening port, respectively.
+    `logger` sets the :class:`logging.Logger` for the newly created :class:`.AccessPoint` s.
+    """
+
+    def parse_ap(name, ap_info):
+        addr = ap_info["ipaddr"]
+
+        try:
+            rcd_port = int(ap_info["rcd_port"])
+        except (KeyError, ValueError):
+            rcd_port = 21059
+
+        ap = rateman.AccessPoint(name, addr, rcd_port, logger=logger)
+        return ap
+
+    with open(filepath, "rb") as file:
+        ap_list = tomllib.load(file)
+
+    ap_objs = [parse_ap(name, ap_info) for name, ap_info in ap_list.items()]
+    return ap_objs, ap_list
 
 
 def dump_sta_rate_set(sta):
@@ -169,7 +195,8 @@ def main():
     args = arg_parser.parse_args()
     logger = setup_logger(args.verbose)
 
-    aps = rateman.accesspoint.from_strings(args.accesspoints, logger=logger)
+    if args.accesspoints:
+        aps = rateman.accesspoint.from_strings(args.accesspoints, logger=logger)
 
     options_str = args.options
     if options_str is not None:
@@ -182,7 +209,7 @@ def main():
         options = None
 
     if args.ap_file:
-        aps += from_file(args.ap_file, logger=logger)
+        aps, aps_info = aps_from_file(args.ap_file, logger=logger)
 
     if len(aps) == 0:
         print("ERROR: No accesspoints given", file=sys.stderr)
@@ -203,30 +230,34 @@ def main():
     loop.run_until_complete(rm.initialize())
     print("OK")
 
-    if args.enable_events:
-        loop.run_until_complete(
-            ap.enable_events(radio=args.phy, iface=args.interface, events=args.enable_events)
-        )
+    for ap in aps:
+        if args.enable_events:
+            for radio in aps_info[ap.name]["radios"]:
+                for iface in aps_info[ap.name]["radios"][radio]:
+                    loop.run_until_complete(
+                        ap.enable_events(radio=radio, iface=iface, events=args.enable_events)
+                    )
+
+    for ap in rm.accesspoints:
+        if args.enable_events:
+            for radio in aps_info[ap.name]["radios"]:
+                for sta in ap.stations(radio=radio):
+                    if sta.interface in aps_info[ap.name]["radios"][radio]:
+                        print(f"Starting rate control scheme '{args.algorithm}' for {sta}")
+                        try:
+                            loop.run_until_complete(sta.start_rate_control(args.algorithm, options))
+                        except Exception as e:
+                            tb = traceback.extract_tb(e.__traceback__)[-1]
+                            logger.error(
+                                f"Error starting rc algorithm '{args.algorithm}' for {sta}: "
+                                f"{e} (({tb.filename}:{tb.lineno}))"
+                            )
 
     if args.show_state:
         show_state(rm)
         loop.run_until_complete(rm.stop())
         loop.close()
         return 0
-
-    for ap in rm.accesspoints:
-        if args.enable_events:
-            for sta in ap.stations(radio=args.phy):
-                if sta.interface == args.interface:
-                    print(f"Starting rate control scheme '{args.algorithm}' for {sta}")
-                    try:
-                        loop.run_until_complete(sta.start_rate_control(args.algorithm, options))
-                    except Exception as e:
-                        tb = traceback.extract_tb(e.__traceback__)[-1]
-                        logger.error(
-                            f"Error starting rc algorithm '{args.algorithm}' for {sta}: "
-                            f"{e} (({tb.filename}:{tb.lineno}))"
-                        )
 
     print("Running rateman... (Press CTRL+C to stop)")
 
