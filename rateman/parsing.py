@@ -12,7 +12,7 @@ from .rate_info import *
 
 __all__ = ["process_api", "process_line", "process_header", "parse_sta", "rate_group_and_offset"]
 
-API_VERSION = (2, 1)
+API_VERSION = (3, 0)
 
 
 def vstr(v):
@@ -105,15 +105,21 @@ def parse_features(ap: "AccessPoint", features: list) -> dict:
 
 
 def process_phy_info(ap, fields):
-    n_features = int(fields[6], 16) if fields[6] else 0
+    n_features = int(fields[4], 16) if fields[4] else 0
 
     ap.add_radio(
         fields[0],  # radio
         fields[3],  # driver
-        [i for i in fields[4].split(",") if i],  # interfaces
+        parse_features(ap, fields[5 : 5 + n_features]),
+        parse_tpc(ap, fields[5 + n_features :]),  # tx power range blocks
+    )
+
+
+def process_phy_intf_info(ap, fields):
+    ap.add_radio_interface(
+        fields[0],  # radio
+        fields[4],  # interface name
         [e for e in fields[5].split(",") if e],  # active monitor events
-        parse_features(ap, fields[7 : 7 + n_features]),
-        parse_tpc(ap, fields[7 + n_features :]),  # tx power range blocks
     )
 
 
@@ -144,6 +150,8 @@ async def process_header(ap, path):
             process_api(ap, line.split(";"), line)
         elif "0;add;" in line:
             process_phy_info(ap, line.split(";"))
+        elif "0;if;add;" in line:
+            process_phy_intf_info(ap, line.split(";"))
         elif "0;sta;add;" in line:
             await process_sta_info(ap, line.split(";"))
         header_file.write(line + "\n")
