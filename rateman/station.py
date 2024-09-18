@@ -450,7 +450,11 @@ class Station:
     ):
         if self._tpc_mode == "auto":
             txpwrs = array("i", [-1, -1, -1, -1])
-        self._stats.update(timestamp, rates, txpwrs, attempts, successes, 4)
+
+        if not any([txp > len(self._supported_powers) for txp in txpwrs]):
+            # mitigating the issue with chipsets supported by mt76
+            # which leads to reporting of txpower indices beyond supported range
+            self._stats.update(timestamp, rates, txpwrs, attempts, successes, 4)
 
         self._last_seen = timestamp
 
