@@ -66,6 +66,8 @@ class AccessPoint:
         self._rcd_trace_file = None
         self._header_collected = False
 
+        self.model = None
+
     async def api_info(self, timeout=0.5):
         it = aiter(self._reader)
         while True:
@@ -154,11 +156,27 @@ class AccessPoint:
         return self._log
 
     @property
+    def record_rcd_trace(self):
+        return self._record_rcd_trace
+
+    @record_rcd_trace.setter
+    def record_rcd_trace(self, record_trace):
+        self._record_rcd_trace = record_trace
+
+    @property
     def connected(self) -> bool:
         """
         Whether rateman is connected to the accesspoint.
         """
         return self._connected
+
+    @property
+    def rcd_trace_file(self):
+        return self._rcd_trace_file
+
+    @rcd_trace_file.setter
+    def rcd_trace_file(self, file_handle):
+        self._rcd_trace_file = file_handle
 
     @connected.setter
     def connected(self, connection_status):
