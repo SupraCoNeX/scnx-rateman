@@ -179,6 +179,7 @@ async def process_line(ap, line):
             case "sta":
                 await process_sta_info(ap, fields)
             case "est_tp":
+                sta = ap.get_sta(fields[3], radio=fields[0])
                 sta.expected_throughput = int(fields[4], 16)/10
             case "#error":
                 ap.handle_error(fields[3])
