@@ -77,7 +77,7 @@ class Station:
         return self._loop
 
     @property
-    def expected_throughput(self) -> int:
+    def expected_throughput(self) -> float:
         """
         Return the current estimated throughput.
         """

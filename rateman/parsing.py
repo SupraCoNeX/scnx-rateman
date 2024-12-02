@@ -158,12 +158,18 @@ async def process_header(ap, path):
     header_file.close()
     ap.header_collected = True
 
-
 async def process_line(ap, line):
     # FIXME: This is where the AP's raw data callbacks should be called
 
     if (result := parse_txs(line)) is not None:
         update_rate_stats_from_txs(ap, *result)
+        return None
+
+    if "est_tp" in line.decode("utf-8").rstrip():
+        fields = line.decode("utf-8").rstrip().split(";")
+        sta = ap.get_sta(fields[3], radio=fields[0])
+        sta.expected_throughput = int(fields[4], 16)/10
+
     elif "txs" in line.decode("utf-8").rstrip():
         pass
     elif fields := validate_line(ap, line.decode("utf-8").rstrip()):
@@ -178,9 +184,11 @@ async def process_line(ap, line):
                     )
             case "sta":
                 await process_sta_info(ap, fields)
-            case "est_tp":
-                sta = ap.get_sta(fields[3], radio=fields[0])
-                sta.expected_throughput = int(fields[4], 16)/10
+            #WIP
+            # case "est_tp":
+            #     sta = ap.get_sta(fields[3], radio=fields[0])
+            #     sta.expected_throughput = int(fields[4], 16)/10
+            #     print(f'Cur Throughput {sta.expected_throughput}, {fields[1]}')
             case "#error":
                 ap.handle_error(fields[3])
 
