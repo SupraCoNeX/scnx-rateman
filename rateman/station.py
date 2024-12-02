@@ -70,10 +70,23 @@ class Station:
         self._rc_pause_on_disassoc = False
         self._rc_paused = False
         self._log = logger if logger else logging.getLogger()
+        self._expected_throughput = None
 
     @property
     def loop(self):
         return self._loop
+
+    @property
+    def expected_throughput(self) -> int:
+        """
+        Return the current estimated throughput.
+        """
+        return self._expected_throughput
+
+    @expected_throughput.setter
+    def expected_throughput(self, throughput: float):
+        print('throuput', throughput)
+        self._expected_throughput = throughput
 
     @property
     def associated(self) -> bool:

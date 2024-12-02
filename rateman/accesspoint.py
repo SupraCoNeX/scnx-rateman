@@ -106,6 +106,10 @@ class AccessPoint:
         return f"AP[name={self._name}, addr={self._addr}:{self._rcd_port}]"
 
     @property
+    def rcd_trace_file(self):
+        return self._rcd_trace_file
+
+    @property
     def name(self) -> str:
         """
         The accesspoint's name.
