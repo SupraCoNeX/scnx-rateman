@@ -207,6 +207,7 @@ def base_regex(line_type: str) -> str:
 
 
 RXS_REGEX = re.compile(base_regex("rxs") + r"(;[0-9a-f]{0,8}){5}")
+EST_TP_REGEX = re.compile(base_regex("est_tp"))
 STATS_REGEX = re.compile(base_regex("stats") + r";[0-9a-f]{1,3}" + r"(;[0-9a-f]++){6}")
 RESET_STATS_REGEX = re.compile(base_regex("reset_stats"))
 RC_MODE_REGEX = re.compile(base_regex("rc_mode") + r"(;[0-9a-f]+){1}")
@@ -250,6 +251,10 @@ def validate_reset_stats(line: str, fields: list) -> list:
     return fields if RESET_STATS_REGEX.fullmatch(line) else None
 
 
+def validate_est_tp(line: str, fields: list) -> list:
+    return fields if EST_TP_REGEX.fullmatch(line) else None
+
+
 def validate_rc_mode(line: str, fields: list) -> list:
     return fields if RC_MODE_REGEX.fullmatch(line) else None
 
@@ -285,6 +290,7 @@ VALIDATORS = {
     "best_rates": validate_best_rates,
     "sample_rates": validate_sample_rates,
     "reset_stats": validate_reset_stats,
+    "est_tp": validate_est_tp,
     "rc_mode": validate_rc_mode,
     "#error": validate_error,
 }
