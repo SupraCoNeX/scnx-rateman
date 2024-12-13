@@ -375,6 +375,7 @@ class Station:
             self._rc_module = rate_control.load(rc_alg)
 
             configure = self._rc_module.configure
+            # await asyncio.sleep(0.01)  # make sure the API has sufficient time to apply
             run = self._rc_module.run
 
             if rc_opts:

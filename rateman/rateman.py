@@ -162,7 +162,8 @@ class RateMan:
             stas = []
             for radio in ap.radios:
                 stas += [sta for sta in ap.stations(radio) if sta.associated]
-                await ap.disable_events(radio, ap.enabled_events(radio))
+                for iface in ap.radios[radio]["interfaces"]:
+                    await ap.disable_events(radio, iface, ap.enabled_events(radio, iface))
 
             for sta in stas:
                 await sta.start_rate_control(

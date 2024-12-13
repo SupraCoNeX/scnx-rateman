@@ -73,8 +73,9 @@ class AccessPoint:
                 async with asyncio.timeout(timeout):
                     data = await anext(it)
                     line = data.decode("utf-8")
-
-                if line.startswith("*") or ";0;add" in line or ";0;sta" in line:
+                if line.startswith("*") or any(
+                    suffix in line for suffix in (";0;sta", ";0;add", "0;if;add;")
+                ):
                     yield line.rstrip()
                 else:
                     self._first_non_header_line = data
@@ -182,6 +183,10 @@ class AccessPoint:
     def all_group_info(self):
         return self._all_group_info
 
+    @property
+    def supported_rates(self):
+        return list(self._all_rate_info.keys())
+
     def get_rate_info(self, rate: int, attr: str = "") -> dict:
         if rate in self._all_rate_info:
             rate_info = self._all_rate_info[rate]
@@ -240,12 +245,12 @@ class AccessPoint:
 
         return self._get_sta(mac, radio)
 
-    def enabled_events(self, radio: str) -> list:
+    def enabled_events(self, radio: str, iface: str) -> list:
         """
         Return a list of ORCA API events which are currently enabled, i.e., which are being reported
         by the device to which rateman is connected.
         """
-        return self._radios[radio]["events"]
+        return self._radios[radio]["interfaces"][iface]["events"]
 
     def get_feature_state(self, radio: str, feature: str):
         try:
@@ -295,28 +300,32 @@ class AccessPoint:
         """
         await self._set_feature(radio, feature, val)
 
-    def add_radio(
-        self, radio: str, driver: str, ifaces: list, events: list, features: dict, tpc: dict
-    ) -> None:
+    def add_radio(self, radio: str, driver: str, features: dict, tpc: dict) -> None:
         self._log.debug(
             f"{self._name}: adding radio '{radio}', driver={driver}, "
-            f"interfaces={ifaces}, events={events}, "
-            f"features={', '.join([f + ':' + s for f, s in features.items()])} "
+            f"features={', '.join([f + ':' + s for f, s in features.items()])}"
         )
 
         if radio not in self._radios:
             self._radios[radio] = {}
-
+        ifaces = {}
         self._radios[radio].update(
             {
                 "driver": driver,
                 "interfaces": ifaces,
-                "events": events,
                 "features": features,
                 "tpc": tpc,
                 "stations": {},
             }
         )
+
+    def add_radio_interface(self, radio: str, iface: str, events: list):
+        if iface not in self._radios[radio]["interfaces"]:
+            self._radios[radio]["interfaces"][iface] = {}
+            self._radios[radio]["interfaces"][iface]["events"] = events
+            self._log.debug(
+                f"{self._name}:{radio}: adding radio interface {iface}, events={events} "
+            )
 
     def radio_for_interface(self, iface: str) -> str:
         """
@@ -430,9 +439,7 @@ class AccessPoint:
         self._last_cmd = cmd
         if cmd[-1] != "\n":
             cmd += "\n"
-
         self._writer.write(f"{radio};{cmd}".encode("ascii"))
-
         await self._writer.drain()
 
     def handle_error(self, error):
@@ -489,43 +496,71 @@ class AccessPoint:
         self._writer = None
         self._connected = False
 
-    async def enable_events(self, radio="all", events: list = ["txs"]) -> None:
+    async def enable_events(self, radio="all", iface="*", events: list = ["txs"]) -> None:
         """
         Enable the given events for the given radio. If `radio` is `"*"` or
         `"all"`, the events will be enabled on all the accesspoint's radios.
         """
         if radio in ["all", "*"]:
             radio = "*"
-            for r in self._radios:
-                enabled_events = set(self._radios[r]["events"])
-                enabled_events.update(events)
-                self._radios[r]["events"] = list(enabled_events)
+            for rr in self._radios:
+                if iface in ["all", "*"]:
+                    for interface in self._radios[rr]["interfaces"]:
+                        enabled_events = set(self._radios[rr]["interfaces"][interface]["events"])
+                        enabled_events.update(events)
+                        self._radios[rr]["interfaces"][interface]["events"] = list(enabled_events)
+                else:
+                    enabled_events = set(self._radios[rr]["interfaces"][iface]["events"])
+                    enabled_events.update(events)
+                    self._radios[rr]["interfaces"][iface]["events"] = list(enabled_events)
         else:
-            enabled_events = set(self._radios[radio]["events"])
-            enabled_events.update(events)
-            self._radios[radio]["events"] = list(enabled_events)
+            if iface in ["all", "*"]:
+                for interface in self._radios[radio]["interfaces"]:
+                    enabled_events = set(self._radios[radio]["interfaces"][interface]["events"])
+                    enabled_events.update(events)
+                    self._radios[radio]["interfaces"][interface]["events"] = list(enabled_events)
+            else:
+                enabled_events = set(self._radios[radio]["interfaces"][iface]["events"])
+                enabled_events.update(events)
+                self._radios[radio]["interfaces"][iface]["events"] = list(enabled_events)
 
         await self.disable_events(radio)
 
         self._log.debug(f"{self._name}:{radio}: Enable events {events}")
 
-        await self.send(radio, "start;" + ";".join(events))
+        await self.send(radio, f"start;{iface};" + ",".join(events))
 
-    async def disable_events(self, radio="all", events: list = []) -> None:
+    async def disable_events(self, radio="all", iface="*", events: list = ["*"]) -> None:
         """
         Disable the given events for the given radio. If `radio` is `"*"` or
         `"all"`, the events will be disabled on all the accesspoint's radios.
         """
         if radio in ["all", "*"]:
             radio = "*"
-            for r in self._radios:
-                self._radios[r]["events"] = list(set(self._radios[r]["events"]) - set(events))
+            for rr in self._radios:
+                if iface in ["all", "*"]:
+                    for interface in self._radios[rr]["interfaces"]:
+                        self._radios[rr]["interfaces"][interface]["events"] = list(
+                            set(self._radios[rr]["interfaces"][interface]["events"]) - set(events)
+                        )
+                else:
+                    self._radios[rr]["interfaces"][iface]["events"] = list(
+                        set(self._radios[rr]["interfaces"][iface]["events"]) - set(events)
+                    )
         else:
-            self._radios[radio]["events"] = list(set(self._radios[radio]["events"]) - set(events))
+            if iface in ["all", "*"]:
+                for interface in self._radios[radio]["interfaces"]:
+                    self._radios[radio]["interfaces"][interface]["events"] = list(
+                        set(self._radios[radio]["interfaces"][interface]["events"]) - set(events)
+                    )
+            else:
+                self._radios[radio]["interfaces"][iface]["events"] = list(
+                    set(self._radios[radio]["interfaces"][iface]["events"]) - set(events)
+                )
 
-        self._log.debug(f"{self._name}:{radio}: Disable events {events}")
+        self._log.debug(f"{self._name}:{radio}:{iface} Disable events {events}")
 
-        await self.send(radio, "stop;" + ";".join(events))
+        await self.send(radio, f"stop;{iface};" + ",".join(events))
 
     async def dump_stas(self, radio="all"):
         if radio == "all":
