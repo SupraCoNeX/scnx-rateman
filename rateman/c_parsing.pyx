@@ -162,27 +162,31 @@ def parse_txs(const unsigned char[:] data):
     attempts = array.array('i', [0, 0, 0, 0])
     successes = array.array('i', [0, 0, 0, 0])
 
-    if _parse_txs(
-        <const char*> &data[0],
-        phy,
-        &phy_len,
-        &timestamp,
-        mac,
-        &num_frames,
-        rates,
-        txpwrs,
-        attempts,
-        successes
-    ):
-        return None
+    try:
+        if _parse_txs(
+            <const char*> &data[0],
+            phy,
+            &phy_len,
+            &timestamp,
+            mac,
+            &num_frames,
+            rates,
+            txpwrs,
+            attempts,
+            successes
+        ):
+            return None
 
-    return (
-        phy[:phy_len].decode("utf-8", "strict"),
-        timestamp,
-        mac[:17].decode("utf-8", "strict"),
-        num_frames,
-        rates,
-        txpwrs,
-        attempts,
-        successes
-    )
+        return (
+            phy[:phy_len].decode("utf-8", "strict"),
+            timestamp,
+            mac[:17].decode("utf-8", "strict"),
+            num_frames,
+            probe,
+            rates,
+            txpwrs,
+            attempts,
+            successes,
+        )
+    except Exception as e:
+        return None

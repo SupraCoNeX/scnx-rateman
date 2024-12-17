@@ -12,7 +12,7 @@ from .rate_info import *
 
 __all__ = ["process_api", "process_line", "process_header", "parse_sta", "rate_group_and_offset"]
 
-API_VERSION = (3, 0)
+API_VERSION = (3, 0, 0)
 
 
 def vstr(v):
@@ -225,6 +225,9 @@ def validate_line(ap, line: str) -> list:
     fields = line.split(";")
 
     if len(fields) < 3:
+        return None
+
+    if fields[2] == "txs":
         return None
 
     # ensure monotonic timestamps
