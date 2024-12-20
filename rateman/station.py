@@ -85,7 +85,6 @@ class Station:
 
     @expected_throughput.setter
     def expected_throughput(self, throughput: float):
-        print('throuput', throughput)
         self._expected_throughput = throughput
 
     @property

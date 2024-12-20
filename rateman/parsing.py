@@ -207,7 +207,7 @@ def base_regex(line_type: str) -> str:
 
 
 RXS_REGEX = re.compile(base_regex("rxs") + r"(;[0-9a-f]{0,8}){5}")
-EST_TP_REGEX = re.compile(base_regex("est_tp"))
+EST_TP_REGEX = re.compile(base_regex("est_tp")+r";\d+")
 STATS_REGEX = re.compile(base_regex("stats") + r";[0-9a-f]{1,3}" + r"(;[0-9a-f]++){6}")
 RESET_STATS_REGEX = re.compile(base_regex("reset_stats"))
 RC_MODE_REGEX = re.compile(base_regex("rc_mode") + r"(;[0-9a-f]+){1}")
