@@ -12,8 +12,7 @@ from .rate_info import *
 
 __all__ = ["process_api", "process_line", "process_header", "parse_sta", "rate_group_and_offset"]
 
-API_VERSION = (3, 0, 0)
-
+API_VERSION = (3, 1, 0)
 
 def vstr(v):
     return f"{v[0]}.{v[1]}.{v[2]}"
