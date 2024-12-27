@@ -163,8 +163,8 @@ async def process_line(ap, line):
 
     if (result := parse_txs(line)) is not None:
         update_rate_stats_from_txs(ap, *result)
-        return None
-
+    elif "txs" in line.decode("utf-8").rstrip():
+        pass
     elif fields := validate_line(ap, line.decode("utf-8").rstrip()):
         match fields[2]:
             case "rxs":
@@ -179,9 +179,6 @@ async def process_line(ap, line):
                 await process_sta_info(ap, fields)
             case "#error":
                 ap.handle_error(fields[3])
-
-        return fields
-
 
 COMMANDS = [
     "start",
@@ -220,13 +217,10 @@ CMD_ECHO_REGEX = re.compile(
 ERROR_REGEX = re.compile(r"\*;0;#error;.*")
 
 
-def validate_line(ap, line: str) -> list:
+def validate_line(ap, line: str):
     fields = line.split(";")
 
     if len(fields) < 3:
-        return None
-
-    if fields[2] == "txs":
         return None
 
     # ensure monotonic timestamps
