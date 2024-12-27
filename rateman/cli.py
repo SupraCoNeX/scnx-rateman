@@ -232,23 +232,32 @@ def main():
 
     for ap in aps:
         if args.enable_events:
-            for radio in aps_info[ap.name]["radios"]:
-                for iface in aps_info[ap.name]["radios"][radio]:
-                    loop.run_until_complete(
-                        ap.enable_events(radio=radio, iface=iface, events=args.enable_events)
-                    )
+            if args.ap_file:
+                for radio in aps_info[ap.name]["radios"]:
+                    for iface in aps_info[ap.name]["radios"][radio]:
+                        loop.run_until_complete(
+                            ap.enable_events(radio=radio, iface=iface, events=args.enable_events)
+                        )
+            else:
+                loop.run_until_complete(ap.enable_events(events=args.enable_events))
 
     for ap in rm.accesspoints:
+        radios = aps_info[ap.name]["radios"] if args.ap_file else ap.radios
         if args.enable_events:
-            for radio in aps_info[ap.name]["radios"]:
+            for radio in radios:
                 if args.algorithm != "minstrel_ht_kernel_space":
-                    loop.run_until_complete(ap.set_feature(radio,"force-rr","1"))
+                    loop.run_until_complete(ap.set_feature(radio, "force-rr", "1"))
 
                 if args.algorithm == "minstrel_ht_blues":
-                    loop.run_until_complete(ap.set_feature(radio,"tpc","1"))
+                    loop.run_until_complete(ap.set_feature(radio, "tpc", "1"))
 
                 for sta in ap.stations(radio=radio):
-                    if sta.interface in aps_info[ap.name]["radios"][radio]:
+                    interfaces = (
+                        aps_info[ap.name]["radios"][radio]
+                        if args.ap_file
+                        else (ap.radios)[radio]["interfaces"]
+                    )
+                    if sta.interface in interfaces:
                         print(f"Starting rate control scheme '{args.algorithm}' for {sta}")
                         try:
                             loop.run_until_complete(sta.start_rate_control(args.algorithm, options))
