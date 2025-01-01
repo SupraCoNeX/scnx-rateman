@@ -661,6 +661,13 @@ class AccessPoint:
         action = "start" if enable else "stop"
         await self.send(radio, f"{action};tprc_echo")
 
+    async def orca_log(self, phy: str, log_string: str):
+        """
+        Asynchronously logs a message to the specified radio's ORCA interface.
+        """
+        if phy in list(self._radios.keys()):
+            await self.send(phy, f"log;{log_string}")
+
 
 def from_file(file: dir, logger=None) -> list:
     """

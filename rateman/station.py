@@ -450,6 +450,12 @@ class Station:
         await self._rc_module.resume(self._rc_ctx)
         self._rc_paused = False
 
+    async def orca_log(self, log_string: str):
+       """
+       Asynchronously logs a message to the ORCA (Open Radio Communication Architecture) interface of the associated access point.
+       """
+       await self._accesspoint.orca_log(self.radio, f"{self._mac_addr};{log_string}")
+
     @property
     def lowest_supported_rate(self):
         """
