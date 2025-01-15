@@ -158,6 +158,7 @@ async def process_header(ap, path):
     header_file.close()
     ap.header_collected = True
 
+
 async def process_line(ap, line):
     # FIXME: This is where the AP's raw data callbacks should be called
 
@@ -168,7 +169,7 @@ async def process_line(ap, line):
     if "est_tp" in line.decode("utf-8").rstrip():
         fields = line.decode("utf-8").rstrip().split(";")
         sta = ap.get_sta(fields[3], radio=fields[0])
-        sta.expected_throughput = int(fields[4], 16)/10
+        sta.expected_throughput = int(fields[4], 16) / 10
 
     elif "txs" in line.decode("utf-8").rstrip():
         pass
@@ -184,11 +185,6 @@ async def process_line(ap, line):
                     )
             case "sta":
                 await process_sta_info(ap, fields)
-            #WIP
-            # case "est_tp":
-            #     sta = ap.get_sta(fields[3], radio=fields[0])
-            #     sta.expected_throughput = int(fields[4], 16)/10
-            #     print(f'Cur Throughput {sta.expected_throughput}, {fields[1]}')
             case "#error":
                 ap.handle_error(fields[3])
 
@@ -215,7 +211,6 @@ def base_regex(line_type: str) -> str:
 
 
 RXS_REGEX = re.compile(base_regex("rxs") + r"(;[0-9a-f]{0,8}){5}")
-EST_TP_REGEX = re.compile(base_regex("est_tp")+r";\d+")
 STATS_REGEX = re.compile(base_regex("stats") + r";[0-9a-f]{1,3}" + r"(;[0-9a-f]++){6}")
 RESET_STATS_REGEX = re.compile(base_regex("reset_stats"))
 RC_MODE_REGEX = re.compile(base_regex("rc_mode") + r"(;[0-9a-f]+){1}")
@@ -259,10 +254,6 @@ def validate_reset_stats(line: str, fields: list) -> list:
     return fields if RESET_STATS_REGEX.fullmatch(line) else None
 
 
-def validate_est_tp(line: str, fields: list) -> list:
-    return fields if EST_TP_REGEX.fullmatch(line) else None
-
-
 def validate_rc_mode(line: str, fields: list) -> list:
     return fields if RC_MODE_REGEX.fullmatch(line) else None
 
@@ -298,7 +289,6 @@ VALIDATORS = {
     "best_rates": validate_best_rates,
     "sample_rates": validate_sample_rates,
     "reset_stats": validate_reset_stats,
-    "est_tp": validate_est_tp,
     "rc_mode": validate_rc_mode,
     "#error": validate_error,
 }

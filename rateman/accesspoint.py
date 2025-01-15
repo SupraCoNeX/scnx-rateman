@@ -63,7 +63,6 @@ class AccessPoint:
         self._task = None
         self._first_non_header_line = None
         self._record_rcd_trace = False
-        self._rcd_trace_file = None
         self._header_collected = False
 
     async def api_info(self, timeout=0.5):
@@ -104,10 +103,6 @@ class AccessPoint:
 
     def __repr__(self):
         return f"AP[name={self._name}, addr={self._addr}:{self._rcd_port}]"
-
-    @property
-    def rcd_trace_file(self):
-        return self._rcd_trace_file
 
     @property
     def name(self) -> str:
