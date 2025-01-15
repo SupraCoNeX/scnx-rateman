@@ -182,7 +182,6 @@ def parse_txs(const unsigned char[:] data):
             timestamp,
             mac[:17].decode("utf-8", "strict"),
             num_frames,
-            probe,
             rates,
             txpwrs,
             attempts,
