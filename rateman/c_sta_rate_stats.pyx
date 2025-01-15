@@ -64,7 +64,13 @@ cdef class StationRateStats:
             return
 
         for i in range(len):
-            ofs = self._offset(rates[i], txpwrs[i])
+            rate = rates[i]
+            txpwr = txpwrs[i]
+
+            if rate < 0 or rate > self._max_rate_ofs or txpwr > self._max_txpwr_ofs:
+                return None
+
+            ofs = self._offset(rate, txpwr)
             self._stats[ofs] += attempts[i]
             self._stats[ofs + 1] += successes[i]
             self._stats[ofs + 2] = timestamp

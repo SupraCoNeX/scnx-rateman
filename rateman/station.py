@@ -465,10 +465,10 @@ class Station:
         self._ampdu_subframes += num_frames
         self._ampdu_aggregates += 1
 
-    def update_rssi(self, timestamp: int, min_rssi: int, per_antenna: int):
+    def update_rssi(self, timestamp: int, min_rssi: int, per_antenna: list):
         if timestamp > self._last_seen:
             self._rssi = min_rssi
-            self._rssi_vals = per_antenna
+            self._rssi_vals = list(per_antenna)
 
     def reset_rate_stats(self):
         """

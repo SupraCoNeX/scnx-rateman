@@ -411,19 +411,15 @@ class AccessPoint:
         return sta
 
     def update_timestamp(self, timestamp_str):
+        if len(timestamp_str) != 16:
+            return False
+
         try:
             timestamp = int(timestamp_str, 16)
         except Exception:
             return False
 
-        if self._latest_timestamp == 0:
-            self._latest_timestamp = timestamp
-            return True
-
-        if (
-            timestamp > self._latest_timestamp
-            and len(timestamp_str) - len(f"{self._latest_timestamp:x}") <= 1
-        ):
+        if self._latest_timestamp == 0 or timestamp > self._latest_timestamp:
             self._latest_timestamp = timestamp
             return True
 
