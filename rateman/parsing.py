@@ -322,14 +322,8 @@ def update_rate_stats_from_txs(
     sta.update_rate_stats(timestamp, rates, txpwrs, attempts, successes)
     sta.update_ampdu(num_frames)
 
-def update_rssi_stats_from_rxs(
-    ap,
-    phy,
-    timestamp,
-    mac,
-    min_rssi,
-    per_antenna
-) -> None:
+
+def update_rssi_stats_from_rxs(ap, phy, timestamp, mac, min_rssi, per_antenna) -> None:
     if (sta := ap.get_sta(mac, radio=phy)) is None:
         return
 

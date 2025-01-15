@@ -242,10 +242,10 @@ def main():
         if args.enable_events:
             for radio in aps_info[ap.name]["radios"]:
                 if args.algorithm != "minstrel_ht_kernel_space":
-                    loop.run_until_complete(ap.set_feature(radio,"force-rr","1"))
+                    loop.run_until_complete(ap.set_feature(radio, "force-rr", "1"))
 
                 if args.algorithm == "minstrel_ht_blues":
-                    loop.run_until_complete(ap.set_feature(radio,"tpc","1"))
+                    loop.run_until_complete(ap.set_feature(radio, "tpc", "1"))
 
                 for sta in ap.stations(radio=radio):
                     if sta.interface in aps_info[ap.name]["radios"][radio]:
