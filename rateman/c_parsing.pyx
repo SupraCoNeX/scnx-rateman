@@ -176,7 +176,6 @@ def parse_txs(const unsigned char[:] data):
             successes
         ):
             return None
-<<<<<<< HEAD
 
         return (
                 phy[:phy_len].decode("utf-8", "strict"),
@@ -275,23 +274,12 @@ def parse_rxs(const unsigned char[:] data):
         ):
             return None
 
-=======
-
->>>>>>> main
         return (
             phy[:phy_len].decode("utf-8", "strict"),
             timestamp,
             mac[:17].decode("utf-8", "strict"),
-<<<<<<< HEAD
             min_rssi,
             per_antenna
-=======
-            num_frames,
-            rates,
-            txpwrs,
-            attempts,
-            successes,
->>>>>>> main
         )
     except Exception as e:
         return None
