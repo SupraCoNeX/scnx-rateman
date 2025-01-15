@@ -14,6 +14,7 @@ __all__ = ["process_api", "process_line", "process_header", "parse_sta", "rate_g
 
 API_VERSION = (3, 1, 0)
 
+
 def vstr(v):
     return f"{v[0]}.{v[1]}.{v[2]}"
 
@@ -179,6 +180,7 @@ async def process_line(ap, line):
                 await process_sta_info(ap, fields)
             case "#error":
                 ap.handle_error(fields[3])
+
 
 COMMANDS = [
     "start",
