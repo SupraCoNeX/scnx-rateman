@@ -12,7 +12,7 @@ from .rate_info import *
 
 __all__ = ["process_api", "process_line", "process_header", "parse_sta", "rate_group_and_offset"]
 
-API_VERSION = (3, 0)
+API_VERSION = (3, 1, 0)
 
 
 def vstr(v):
@@ -170,14 +170,17 @@ async def process_line(ap, line):
         update_rssi_stats_from_rxs(ap, *result)
         return None
 
+    if "est_tp" in line.decode("utf-8").rstrip():
+        fields = line.decode("utf-8").rstrip().split(";")
+        sta = ap.get_sta(fields[3], radio=fields[0])
+        sta.expected_throughput = int(fields[4], 16) / 10
+
     elif fields := validate_line(ap, line.decode("utf-8").rstrip()):
         match fields[2]:
             case "sta":
                 await process_sta_info(ap, fields)
             case "#error":
                 ap.handle_error(fields[3])
-
-        return fields
 
 
 COMMANDS = [
@@ -217,7 +220,7 @@ CMD_ECHO_REGEX = re.compile(
 ERROR_REGEX = re.compile(r"\*;0;#error;.*")
 
 
-def validate_line(ap, line: str) -> list:
+def validate_line(ap, line: str):
     fields = line.split(";")
 
     if len(fields) < 3:

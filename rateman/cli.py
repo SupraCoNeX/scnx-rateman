@@ -164,7 +164,7 @@ def main():
         help="Path to a csv file where each line contains information about an access point "
         + "in the format: NAME,ADDR,RCDPORT.",
     )
-    arg_parser.add_argument("-p", "--phy", type=str, help="PHY name (radio)")
+    arg_parser.add_argument("-p", "--phy", default=None, nargs="+", help="PHY name (radio)")
 
     arg_parser.add_argument(
         "-i", "--interface", type=str, help="PHY-Interface name (radio interface)"
@@ -232,15 +232,22 @@ def main():
 
     for ap in aps:
         if args.enable_events:
-            for radio in aps_info[ap.name]["radios"]:
-                for iface in aps_info[ap.name]["radios"][radio]:
-                    loop.run_until_complete(
-                        ap.enable_events(radio=radio, iface=iface, events=args.enable_events)
-                    )
+            if args.ap_file:
+                for radio in aps_info[ap.name]["radios"]:
+                    for iface in aps_info[ap.name]["radios"][radio]:
+                        loop.run_until_complete(
+                            ap.enable_events(radio=radio, iface=iface, events=args.enable_events)
+                        )
+            else:
+                loop.run_until_complete(ap.enable_events(events=args.enable_events))
 
     for ap in rm.accesspoints:
+        if args.phy:
+            radios = args.phy
+        else:
+            radios = aps_info[ap.name]["radios"] if args.ap_file else ap.radios
         if args.enable_events:
-            for radio in aps_info[ap.name]["radios"]:
+            for radio in radios:
                 if args.algorithm != "minstrel_ht_kernel_space":
                     loop.run_until_complete(ap.set_feature(radio, "force-rr", "1"))
 
@@ -248,7 +255,12 @@ def main():
                     loop.run_until_complete(ap.set_feature(radio, "tpc", "1"))
 
                 for sta in ap.stations(radio=radio):
-                    if sta.interface in aps_info[ap.name]["radios"][radio]:
+                    interfaces = (
+                        aps_info[ap.name]["radios"][radio]
+                        if args.ap_file
+                        else (ap.radios)[radio]["interfaces"]
+                    )
+                    if sta.interface in interfaces:
                         print(f"Starting rate control scheme '{args.algorithm}' for {sta}")
                         try:
                             loop.run_until_complete(sta.start_rate_control(args.algorithm, options))

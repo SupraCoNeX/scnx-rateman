@@ -70,10 +70,22 @@ class Station:
         self._rc_pause_on_disassoc = False
         self._rc_paused = False
         self._log = logger if logger else logging.getLogger()
+        self._expected_throughput = None
 
     @property
     def loop(self):
         return self._loop
+
+    @property
+    def expected_throughput(self) -> float:
+        """
+        Return the current estimated throughput.
+        """
+        return self._expected_throughput
+
+    @expected_throughput.setter
+    def expected_throughput(self, throughput: float):
+        self._expected_throughput = throughput
 
     @property
     def associated(self) -> bool:
@@ -438,6 +450,12 @@ class Station:
         await self._rc_module.resume(self._rc_ctx)
         self._rc_paused = False
 
+    async def orca_log(self, log_string: str):
+        """
+        Asynchronously logs a message to the ORCA interface of the associated access point.
+        """
+        await self._accesspoint.orca_log(self.radio, f"{self._mac_addr};{log_string}")
+
     @property
     def lowest_supported_rate(self):
         """
@@ -450,7 +468,11 @@ class Station:
     ):
         if self._tpc_mode == "auto":
             txpwrs = array("i", [-1, -1, -1, -1])
-        self._stats.update(timestamp, rates, txpwrs, attempts, successes, 4)
+
+        if not any([txp > len(self._supported_powers) for txp in txpwrs]):
+            # mitigating the issue with chipsets supported by mt76
+            # which leads to reporting of txpower indices beyond supported range
+            self._stats.update(timestamp, rates, txpwrs, attempts, successes, 4)
 
         self._last_seen = timestamp
 

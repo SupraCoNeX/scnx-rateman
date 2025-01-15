@@ -61,7 +61,7 @@ cdef class StationRateStats:
         cdef int ofs
 
         if self._stats == NULL:
-            return
+            return None
 
         for i in range(len):
             rate = rates[i]
