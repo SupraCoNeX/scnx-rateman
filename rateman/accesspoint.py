@@ -416,7 +416,7 @@ class AccessPoint:
 
         try:
             timestamp = int(timestamp_str, 16)
-        except Exception:
+        except (ValueError, TypeError):
             return False
 
         if self._latest_timestamp == 0 or timestamp > self._latest_timestamp:
