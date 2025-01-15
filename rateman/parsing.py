@@ -164,6 +164,13 @@ async def process_line(ap, line):
 
     if (result := parse_txs(line)) is not None:
         update_rate_stats_from_txs(ap, *result)
+        return None
+
+    if "est_tp" in line.decode("utf-8").rstrip():
+        fields = line.decode("utf-8").rstrip().split(";")
+        sta = ap.get_sta(fields[3], radio=fields[0])
+        sta.expected_throughput = int(fields[4], 16) / 10
+
     elif "txs" in line.decode("utf-8").rstrip():
         pass
     elif fields := validate_line(ap, line.decode("utf-8").rstrip()):
