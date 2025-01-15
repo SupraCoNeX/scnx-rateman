@@ -164,7 +164,7 @@ def main():
         help="Path to a csv file where each line contains information about an access point "
         + "in the format: NAME,ADDR,RCDPORT.",
     )
-    arg_parser.add_argument("-p", "--phy", type=str, help="PHY name (radio)")
+    arg_parser.add_argument("-p", "--phy", default=None, nargs="+", help="PHY name (radio)")
 
     arg_parser.add_argument(
         "-i", "--interface", type=str, help="PHY-Interface name (radio interface)"
@@ -242,7 +242,10 @@ def main():
                 loop.run_until_complete(ap.enable_events(events=args.enable_events))
 
     for ap in rm.accesspoints:
-        radios = aps_info[ap.name]["radios"] if args.ap_file else ap.radios
+        if args.phy:
+            radios = args.phy
+        else:
+            radios = aps_info[ap.name]["radios"] if args.ap_file else ap.radios
         if args.enable_events:
             for radio in radios:
                 if args.algorithm != "minstrel_ht_kernel_space":
