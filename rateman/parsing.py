@@ -172,14 +172,6 @@ async def process_line(ap, line):
 
     elif fields := validate_line(ap, line.decode("utf-8").rstrip()):
         match fields[2]:
-            case "rxs":
-                sta = ap.get_sta(fields[3], radio=fields[0])
-                if sta and fields[1] != "7f":
-                    sta.update_rssi(
-                        int(fields[1], 16),
-                        parse_s8(fields[4]),
-                        [parse_s8(r) for r in fields[5:]],
-                    )
             case "sta":
                 await process_sta_info(ap, fields)
             case "#error":
