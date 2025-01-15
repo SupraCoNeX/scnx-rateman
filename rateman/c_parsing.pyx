@@ -176,16 +176,122 @@ def parse_txs(const unsigned char[:] data):
             successes
         ):
             return None
+<<<<<<< HEAD
 
+        return (
+                phy[:phy_len].decode("utf-8", "strict"),
+                timestamp,
+                mac[:17].decode("utf-8", "strict"),
+                num_frames,
+                rates,
+                txpwrs,
+                attempts,
+                successes
+            )
+
+    except Exception as e:
+        return None
+
+cdef int twos_complement(const char *hexstr, int bitwidth):
+    cdef int val = strtol(hexstr, NULL, 16)
+    if val & (1 << (bitwidth - 1)):
+        return val - (1 << bitwidth)
+    return val
+
+
+cdef int parse_s8(const char *s):
+    return twos_complement(s, 8)
+
+
+cdef int _parse_rxs(
+    const char *line,
+    char *phy,
+    int *phy_len,
+    unsigned long long *timestamp,
+    char *mac,
+    int *min_rssi,
+    int[::1] per_antenna
+):
+    cdef const char *cur = line
+    cdef char *next
+    cdef int ofs
+    cdef int num_semicolons
+
+    num_semicolons = line.count(b';')
+    if num_semicolons != 8:
+        return -1
+
+    ofs = parse_str(cur, phy, 16)
+    if (ofs == -1):
+        return -1
+
+    phy_len[0] = ofs - 1
+    cur += ofs
+
+    timestamp[0] = strtoull(cur, &next, 16)
+    if timestamp[0] == ULLONG_MAX:
+        return -1
+
+    # check for correct length of timestamp
+    if next - cur != 16:
+        return -1
+
+    cur = next + 1
+    if memcmp(cur, b"rxs;", 4):
+        return -1
+
+    cur += 4
+    ofs = parse_str(cur, mac, 18)
+    if ofs == -1:
+        return -1
+    cur += ofs
+
+    min_rssi[0] = parse_s8(cur)
+    cur = cur + 3
+
+    for i in range(4):
+        per_antenna[i] = parse_s8(cur)
+        cur = cur + 3
+
+    return 0
+
+def parse_rxs(const unsigned char[:] data):
+    cdef char phy[16]
+    cdef int phy_len
+    cdef unsigned long long timestamp
+    cdef char mac[18]
+    cdef int min_rssi
+    per_antenna = array.array('i', [0, 0, 0, 0])
+
+    try:
+        if _parse_rxs(
+            <const char*> &data[0],
+            phy,
+            &phy_len,
+            &timestamp,
+            mac,
+            &min_rssi,
+            per_antenna
+        ):
+            return None
+
+=======
+
+>>>>>>> main
         return (
             phy[:phy_len].decode("utf-8", "strict"),
             timestamp,
             mac[:17].decode("utf-8", "strict"),
+<<<<<<< HEAD
+            min_rssi,
+            per_antenna
+=======
             num_frames,
             rates,
             txpwrs,
             attempts,
             successes,
+>>>>>>> main
         )
     except Exception as e:
         return None
