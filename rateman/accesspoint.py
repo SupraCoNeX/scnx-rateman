@@ -64,6 +64,7 @@ class AccessPoint:
         self._first_non_header_line = None
         self._record_rcd_trace = False
         self._header_collected = False
+        self._rcd_trace_file = None
 
     async def api_info(self, timeout=0.5):
         it = aiter(self._reader)
