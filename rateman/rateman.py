@@ -97,7 +97,8 @@ class RateMan:
     async def rcd_connection(self, ap: AccessPoint):
         try:
             async for line in ap.events():
-                await process_line(ap, line)
+                #await process_line(ap, line)
+                pass
         except asyncio.CancelledError as e:
             raise e
 
