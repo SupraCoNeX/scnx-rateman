@@ -7,7 +7,7 @@ from libc.string cimport strchr, memcpy, memcmp
 from libc.stdlib cimport strtoull, strtol
 from libc.limits cimport ULONG_MAX, ULLONG_MAX
 
-__all__ = ["parse_txs"]
+__all__ = ["parse_txs", "parse_rxs"]
 
 
 @cython.profile(False)
