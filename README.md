@@ -13,7 +13,6 @@ RateMan is an interface to utilize the control and monitoring capabilities of th
 Resource Control API (ORCA). It facilitates WiFi resource control on a per-station basis for 
 real WiFi networks using COTS hardware. Researchers have unprecedented freedom to implement 
 their new rate and power adaptation algorithms using RateMan.  
-RateMan performs . 
 
 ## Highlights
 
