@@ -30,8 +30,8 @@ gap through our work.
 
 ### Authors
 
-We are a team of researchers at Hochschule Nordhausen, Fraunhofer HHI, TU Braunschweig, BISDN, New 
-Media Net, etc.
+We are a team of researchers at Hochschule Nordhausen, Fraunhofer HHI, Technische Universität
+Braunschweig, NewMedia-Net GmbH, and BISDN GmbH.
 
 ## ⬇️ Installation
 
@@ -79,11 +79,11 @@ one simply needs to create a python module exposing two functions: `configure()`
   ```
 
   `configure()` is expected to terminate and return anything that the resource control scheme needs 
-- for operation. Its returned `object` is passed to `run()` as argument directly.
+  for operation. Its returned `object` is passed to `run()` as argument directly.
 
 - `run()` has the following signature `async def run(args: object) -> None:` and is intended to run 
-- indefinitely. To this end, it gets scheduled in its own `asyncio` task after `configure()` returns 
-- and should contain some form of infinite loop.
+indefinitely. To this end, it gets scheduled in its own `asyncio` task after `configure()` returns 
+and should contain some form of infinite loop.
 
 In addition to `configure()` and `run()`, resource control schemes can optionally expose two 
 additional functions, `pause()` and `resume()`. As the names suggest, these permit to stop the 
