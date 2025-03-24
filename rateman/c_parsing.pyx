@@ -89,6 +89,7 @@ cdef int _parse_txs(
     unsigned long long *timestamp,
     char *mac,
     int *num_frames,
+    int *probe,
     int[::1] rates,
     int[::1] txpwrs,
     int[::1] attempts,
@@ -140,14 +141,18 @@ cdef int _parse_txs(
     if num_acked == ULONG_MAX:
         return -1
 
-    cur = next + 3
+    probe[0] = strtol(next + 1, &next, 16)
+    if probe[0] == ULONG_MAX:
+        return -1
+
+    cur = next + 1
     successful_at = parse_mrr(cur, &rates[0], counts, &txpwrs[0], 4)
 
     for i in range(4):
         attempts[i] = num_frames[0] * counts[i]
         successes[i] = num_acked if (i == successful_at) else 0
 
-    return 0
+    return successful_at
 
 
 def parse_txs(const unsigned char[:] data):
@@ -156,33 +161,136 @@ def parse_txs(const unsigned char[:] data):
     cdef unsigned long long timestamp
     cdef char mac[18]
     cdef int num_frames
+    cdef int probe
 
     rates = array.array('i', [0, 0, 0, 0])
     txpwrs = array.array('i', [0, 0, 0, 0])
     attempts = array.array('i', [0, 0, 0, 0])
     successes = array.array('i', [0, 0, 0, 0])
 
-    if _parse_txs(
+    cdef int succ_stage = _parse_txs(
         <const char*> &data[0],
         phy,
         &phy_len,
         &timestamp,
         mac,
         &num_frames,
-        rates,
-        txpwrs,
-        attempts,
-        successes
-    ):
-        return None
-
-    return (
-        phy[:phy_len].decode("utf-8", "strict"),
-        timestamp,
-        mac[:17].decode("utf-8", "strict"),
-        num_frames,
+        &probe,
         rates,
         txpwrs,
         attempts,
         successes
     )
+
+    if succ_stage == -1:
+        return None
+
+    try:
+        return (
+            phy[:phy_len].decode("utf-8", "strict"),
+            timestamp,
+            mac[:17].decode("utf-8", "strict"),
+            num_frames,
+            probe,
+            rates,
+            txpwrs,
+            attempts,
+            successes,
+            succ_stage
+        )
+    except Exception as e:
+        return None
+
+
+cdef int twos_complement(const char *hexstr, int bitwidth):
+    cdef int val = strtol(hexstr, NULL, 16)
+    if val & (1 << (bitwidth - 1)):
+        return val - (1 << bitwidth)
+    return val
+
+
+cdef int parse_s8(const char *s):
+    return twos_complement(s, 8)
+
+
+cdef int _parse_rxs(
+    const char *line,
+    char *phy,
+    int *phy_len,
+    unsigned long long *timestamp,
+    char *mac,
+    int *min_rssi,
+    int[::1] per_antenna
+):
+    cdef const char *cur = line
+    cdef char *next
+    cdef int ofs
+    cdef int num_semicolons
+
+    num_semicolons = line.count(b';')
+    if num_semicolons != 8:
+        return -1
+
+    ofs = parse_str(cur, phy, 16)
+    if (ofs == -1):
+        return -1
+
+    phy_len[0] = ofs - 1
+    cur += ofs
+
+    timestamp[0] = strtoull(cur, &next, 16)
+    if timestamp[0] == ULLONG_MAX:
+        return -1
+
+    # check for correct length of timestamp
+    if next - cur != 16:
+        return -1
+
+    cur = next + 1
+    if memcmp(cur, b"rxs;", 4):
+        return -1
+
+    cur += 4
+    ofs = parse_str(cur, mac, 18)
+    if ofs == -1:
+        return -1
+    cur += ofs
+
+    min_rssi[0] = parse_s8(cur)
+    cur = cur + 3
+
+    for i in range(4):
+        per_antenna[i] = parse_s8(cur)
+        cur = cur + 3
+
+    return 0
+
+def parse_rxs(const unsigned char[:] data):
+    cdef char phy[16]
+    cdef int phy_len
+    cdef unsigned long long timestamp
+    cdef char mac[18]
+    cdef int min_rssi
+    per_antenna = array.array('i', [0, 0, 0, 0])
+
+    try:
+        if _parse_rxs(
+            <const char*> &data[0],
+            phy,
+            &phy_len,
+            &timestamp,
+            mac,
+            &min_rssi,
+            per_antenna
+        ):
+            return None
+
+        return (
+            phy[:phy_len].decode("utf-8", "strict"),
+            timestamp,
+            mac[:17].decode("utf-8", "strict"),
+            min_rssi,
+            per_antenna
+        )
+    except Exception as e:
+        return None

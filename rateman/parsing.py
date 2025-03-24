@@ -7,12 +7,13 @@ import re
 import array
 from .station import Station
 from .exception import UnsupportedAPIVersionError, ParsingError
-from .c_parsing import parse_txs
+from .c_parsing import parse_txs, parse_rxs
 from .rate_info import *
+import random
 
 __all__ = ["process_api", "process_line", "process_header", "parse_sta", "rate_group_and_offset"]
 
-API_VERSION = (3, 0)
+API_VERSION = (3, 0, 0)
 
 
 def vstr(v):
@@ -158,24 +159,25 @@ async def process_header(ap, path):
     header_file.close()
     ap.header_collected = True
 
+def update_rssi_stats_from_rxs(ap, phy, timestamp, mac, min_rssi, per_antenna) -> None:
+    if (sta := ap.get_sta(mac, radio=phy)) is None:
+        return
+
+    sta.update_rssi(timestamp, min_rssi, per_antenna)
 
 async def process_line(ap, line):
     # FIXME: This is where the AP's raw data callbacks should be called
-
     if (result := parse_txs(line)) is not None:
         update_rate_stats_from_txs(ap, *result)
         return None
 
+    if (result := parse_rxs(line)) is not None:
+        update_rssi_stats_from_rxs(ap, *result)
+        return None
+
+
     elif fields := validate_line(ap, line.decode("utf-8").rstrip()):
         match fields[2]:
-            case "rxs":
-                sta = ap.get_sta(fields[3], radio=fields[0])
-                if sta and fields[1] != "7f":
-                    sta.update_rssi(
-                        int(fields[1], 16),
-                        parse_s8(fields[4]),
-                        [parse_s8(r) for r in fields[5:]],
-                    )
             case "sta":
                 await process_sta_info(ap, fields)
             case "#error":
@@ -225,6 +227,9 @@ def validate_line(ap, line: str) -> list:
     fields = line.split(";")
 
     if len(fields) < 3:
+        return None
+
+    if fields[2] in ["txs", "rxs"]:
         return None
 
     # ensure monotonic timestamps
@@ -304,15 +309,27 @@ def update_rate_stats_from_txs(
     timestamp,
     mac,
     num_frames,
+    probe,
     rates: array,
     txpwrs: array,
     attempts: array,
     successes: array,
+    succ_stage,
 ) -> None:
     if (sta := ap.get_sta(mac, radio=phy)) is None:
         return
 
-    sta.update_rate_stats(timestamp, rates, txpwrs, attempts, successes)
+    if ap.rcd_trace_file and (random.random() < 0.4):
+        line_type = "succ_txs"
+
+        if probe:
+            line_type = "probe"
+            succ_stage = 0
+
+        data = f"{phy};{timestamp};{line_type};{mac};{rates[succ_stage]};{txpwrs[succ_stage]}\n"
+        ap.rcd_trace_file.write(data)
+
+    #sta.update_rate_stats(timestamp, rates, txpwrs, attempts, successes)
     sta.update_ampdu(num_frames)
 
 

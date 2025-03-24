@@ -66,6 +66,12 @@ class AccessPoint:
         self._rcd_trace_file = None
         self._header_collected = False
 
+        self.influx_db = None
+
+    @property
+    def rcd_trace_file(self):
+        return self._rcd_trace_file
+
     async def api_info(self, timeout=0.5):
         it = aiter(self._reader)
         while True:
@@ -93,8 +99,8 @@ class AccessPoint:
 
         async for data in self._reader:
             try:
-                if self._record_rcd_trace:
-                    self._rcd_trace_file.write(data.decode("utf-8"))
+                #if self._record_rcd_trace:
+                #    self._rcd_trace_file.write(data.decode("utf-8"))
                 yield data
             except UnicodeError:
                 continue
@@ -411,6 +417,9 @@ class AccessPoint:
         return sta
 
     def update_timestamp(self, timestamp_str):
+        if len(timestamp_str) != 16:
+            return False
+
         try:
             timestamp = int(timestamp_str, 16)
         except Exception:
@@ -420,10 +429,7 @@ class AccessPoint:
             self._latest_timestamp = timestamp
             return True
 
-        if (
-            timestamp > self._latest_timestamp
-            and len(timestamp_str) - len(f"{self._latest_timestamp:x}") <= 1
-        ):
+        if timestamp > self._latest_timestamp:
             self._latest_timestamp = timestamp
             return True
 
@@ -439,6 +445,7 @@ class AccessPoint:
         self._last_cmd = cmd
         if cmd[-1] != "\n":
             cmd += "\n"
+
         self._writer.write(f"{radio};{cmd}".encode("ascii"))
         await self._writer.drain()
 

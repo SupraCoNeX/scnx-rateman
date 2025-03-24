@@ -188,10 +188,12 @@ class Station:
             freq = self._kernel_update_freq
 
         self._kernel_sample_freq = freq
-        await self._accesspoint.send(
-            self._radio,
-            f"rc_mode;{self._mac_addr};{self._rc_mode};{self._kernel_update_freq:x};{freq:x}",
-        )
+
+        for i in range(4):
+            await self._accesspoint.send(
+                self._radio,
+                f"rc_mode;{self._mac_addr};{self._rc_mode};{self._kernel_update_freq:x};{freq:x}",
+            )
 
     @property
     def tpc_mode(self) -> str:
@@ -469,6 +471,10 @@ class Station:
         if timestamp > self._last_seen:
             self._rssi = min_rssi
             self._rssi_vals = per_antenna
+
+            if self._accesspoint.rcd_trace_file:
+                data = f"{self._radio};{timestamp};rssi;{self._mac_addr};{self._rssi};{';'.join(str(r) for r in self._rssi_vals)}\n"
+                self._accesspoint.rcd_trace_file.write(data)
 
     def reset_rate_stats(self):
         """
