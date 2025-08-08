@@ -65,6 +65,7 @@ class AccessPoint:
         self._record_rcd_trace = False
         self._header_collected = False
         self._rcd_trace_file = None
+        self._attenuation = None
 
     async def api_info(self, timeout=0.5):
         it = aiter(self._reader)
@@ -186,6 +187,14 @@ class AccessPoint:
     @property
     def supported_rates(self):
         return list(self._all_rate_info.keys())
+
+    @property
+    def attenuation(self) -> int:
+        return self._attenuation
+
+    @attenuation.setter
+    def attenuation(self, attenuation):
+        self._attenuation = attenuation
 
     def get_rate_info(self, rate: int, attr: str = "") -> dict:
         if rate in self._all_rate_info:
