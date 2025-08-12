@@ -335,7 +335,9 @@ class Station:
         self._rate_control_algorithm = None
         self._rate_control_options = None
 
-    async def start_rate_control(self, rc_alg: str, rc_opts: dict) -> asyncio.Task:
+    async def start_rate_control(
+        self, rc_alg: str, rc_opts: dict, feedback_sta=None
+    ) -> asyncio.Task:
         """
         Put this STA under the given rate control algorithm. The algorithm is identified by its
         module name, which will be used to try and import the module. The module is expected to
@@ -391,7 +393,10 @@ class Station:
             run = self._rc_module.run
 
             if rc_opts:
-                self._rc_ctx = await configure(self, **rc_opts)
+                if rc_opts["explicit_feedback"]:
+                    self._rc_ctx = await configure(self, feedback_sta, **rc_opts)
+                else:
+                    self._rc_ctx = await configure(self, **rc_opts)
             else:
                 self._rc_ctx = await configure(self)
 
