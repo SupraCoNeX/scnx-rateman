@@ -65,6 +65,9 @@ class AccessPoint:
         self._record_rcd_trace = False
         self._rcd_trace_file = None
         self._header_collected = False
+        self._attenuator = None
+
+        self._sta = None
 
     async def api_info(self, timeout=0.5):
         it = aiter(self._reader)
@@ -163,6 +166,25 @@ class AccessPoint:
     @connected.setter
     def connected(self, connection_status):
         self._connected = connection_status
+
+    @property
+    def attenuator(self) -> float:
+        return self._attenuator
+
+    @attenuator.setter
+    def attenuator(self, Attenuator):
+        self._attenuator = Attenuator
+
+    def get_current_attenuation(self):
+        return self._attenuator.attenuation
+
+    @property
+    def sta(self):
+        return self._sta
+
+    @sta.setter
+    def sta(self, sta):
+        self._sta = sta
 
     @property
     def radios(self) -> dict:

@@ -7,7 +7,7 @@ import re
 import array
 from .station import Station
 from .exception import UnsupportedAPIVersionError, ParsingError
-from .c_parsing import parse_txs
+from .c_parsing import parse_txs, parse_rxs
 from .rate_info import *
 
 __all__ = ["process_api", "process_line", "process_header", "parse_sta", "rate_group_and_offset"]
@@ -161,21 +161,16 @@ async def process_header(ap, path):
 
 async def process_line(ap, line):
     # FIXME: This is where the AP's raw data callbacks should be called
-
     if (result := parse_txs(line)) is not None:
         update_rate_stats_from_txs(ap, *result)
         return None
 
+    if (result := parse_rxs(line)) is not None:
+        update_rssi_stats_from_rxs(ap, *result)
+        return None
+
     elif fields := validate_line(ap, line.decode("utf-8").rstrip()):
         match fields[2]:
-            case "rxs":
-                sta = ap.get_sta(fields[3], radio=fields[0])
-                if sta and fields[1] != "7f":
-                    sta.update_rssi(
-                        int(fields[1], 16),
-                        parse_s8(fields[4]),
-                        [parse_s8(r) for r in fields[5:]],
-                    )
             case "sta":
                 await process_sta_info(ap, fields)
             case "#error":
@@ -225,6 +220,9 @@ def validate_line(ap, line: str) -> list:
     fields = line.split(";")
 
     if len(fields) < 3:
+        return None
+
+    if fields[2] == "txs" or fields[2] == "rxs":
         return None
 
     # ensure monotonic timestamps
@@ -315,6 +313,18 @@ def update_rate_stats_from_txs(
     sta.update_rate_stats(timestamp, rates, txpwrs, attempts, successes)
     sta.update_ampdu(num_frames)
 
+def update_rssi_stats_from_rxs(
+    ap,
+    phy,
+    timestamp,
+    mac,
+    min_rssi,
+    per_antenna
+) -> None:
+    if (sta := ap.get_sta(mac, radio=phy)) is None:
+        return
+
+    sta.update_rssi(timestamp, min_rssi, per_antenna)
 
 def parse_sta(ap, fields: list):
     supported_rates = []

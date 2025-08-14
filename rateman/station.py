@@ -9,6 +9,7 @@ from . import rate_control
 from .c_sta_rate_stats import StationRateStats
 from .exception import RateControlConfigError, StationError, RadioError
 
+import numpy as np
 
 __all__ = ["Station"]
 
@@ -61,7 +62,7 @@ class Station:
         self._stats = None
         self.reset_rate_stats()
         self._rssi = 1
-        self._rssi_vals = []
+        self._rssi_vals = np.array([])
         self._rate_control_algorithm = rc_alg
         self._rate_control_options = rc_opts
         self._rc = None
@@ -284,6 +285,21 @@ class Station:
         """
         return self._rssi
 
+    @rssi.setter
+    def rssi(self, min_rssi):
+        self._rssi = min_rssi
+
+    @property
+    def rssi_vals(self) -> int:
+        """
+        Return the current minimum RSSI value of the station.
+        """
+        return self._rssi_vals
+
+    @rssi_vals.setter
+    def rssi_vals(self, vals):
+        self._rssi_vals = vals
+
     def __repr__(self):
         return f"STA[{self._mac_addr}]"
 
@@ -465,10 +481,10 @@ class Station:
         self._ampdu_subframes += num_frames
         self._ampdu_aggregates += 1
 
-    def update_rssi(self, timestamp: int, min_rssi: int, per_antenna: int):
+    def update_rssi(self, timestamp: int, min_rssi: int, per_antenna: list):
         if timestamp > self._last_seen:
             self._rssi = min_rssi
-            self._rssi_vals = per_antenna
+            self._rssi_vals = list(per_antenna)
 
     def reset_rate_stats(self):
         """
@@ -657,6 +673,13 @@ def handle_rc_exception(sta: Station, future):
     rc_alg, _ = sta.rate_control
 
     sta.log.error(f"{sta}: Rate control '{rc_alg}' raised an exception: {exception.__repr__()}")
+
+    import traceback
+    traceback_info = traceback.format_tb(exception.__traceback__)
+
+    for line in traceback_info:
+        print(line.strip())
+
     sta.loop.create_task(cleanup_rc(sta))
 
 
